@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useCallback } from "react";
 import PartyChart from "@/components/PartyChart";
+import { Button } from "@/components/ui/button";
 
 interface PartyStats {
-  party_id: number;
-  count: number;
   party_name: string;
+  count: number;
 }
 
 interface ShowOption {
@@ -93,7 +93,7 @@ export default function PartiesPage() {
         {/* Show Auswahl */}
         <div className="flex flex-wrap gap-2">
           {showOptions.map((option) => (
-            <button
+            <Button
               key={option.value}
               onClick={() => setSelectedShow(option.value)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -103,7 +103,7 @@ export default function PartiesPage() {
               }`}
             >
               {option.label}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -148,7 +148,7 @@ export default function PartiesPage() {
 
                     return (
                       <tr
-                        key={party.party_id}
+                        key={party.party_name}
                         className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
                       >
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
@@ -168,17 +168,6 @@ export default function PartiesPage() {
           </div>
         </div>
       )}
-
-      {/* Aktualisieren Button */}
-      <div className="mt-8 text-center">
-        <button
-          onClick={fetchData}
-          disabled={loading}
-          className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-medium py-3 px-6 rounded-lg transition-colors"
-        >
-          {loading ? "Laden..." : "Daten aktualisieren"}
-        </button>
-      </div>
     </div>
   );
 }

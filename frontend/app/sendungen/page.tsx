@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { Button } from "@/components/ui/button";
 
 interface PoliticianInEpisode {
-  id: number;
   name: string;
   party_name: string;
 }
@@ -19,8 +19,17 @@ interface ShowOption {
   label: string;
 }
 
+interface Statistics {
+  total_episodes: number;
+  total_appearances: number;
+  episodes_with_politicians: number;
+  average_politicians_per_episode: number;
+  max_politicians_in_episode: number;
+}
+
 export default function EpisodesPage() {
   const [episodes, setEpisodes] = useState<EpisodeData[]>([]);
+  const [statistics, setStatistics] = useState<Statistics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedShow, setSelectedShow] = useState<string>("Markus Lanz");
@@ -33,19 +42,35 @@ export default function EpisodesPage() {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(
+
+      // Hole Episoden-Daten
+      const episodesResponse = await fetch(
         `/api/politics?type=episodes-with-politicians&show=${encodeURIComponent(
           selectedShow
         )}`
       );
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch data");
+      if (!episodesResponse.ok) {
+        throw new Error("Failed to fetch episodes data");
       }
 
-      const data = await response.json();
-      if (data.success) {
-        setEpisodes(data.data);
+      const episodesData = await episodesResponse.json();
+      if (episodesData.success) {
+        setEpisodes(episodesData.data);
+      }
+
+      // Hole Statistiken separat für die gesamte Datenbank
+      const statsResponse = await fetch(
+        `/api/politics?type=episode-statistics&show=${encodeURIComponent(
+          selectedShow
+        )}`
+      );
+
+      if (statsResponse.ok) {
+        const statsData = await statsResponse.json();
+        if (statsData.success) {
+          setStatistics(statsData.data);
+        }
       }
     } catch (err) {
       console.error("Error fetching data:", err);
@@ -80,22 +105,37 @@ export default function EpisodesPage() {
     );
   }
 
-  const statisticsData = {
-    totalEpisodes: episodes.length,
-    episodesWithPoliticians: episodes.filter((ep) => ep.politician_count > 0)
-      .length,
-    averagePoliticiansPerEpisode:
-      episodes.length > 0
-        ? (
-            episodes.reduce((sum, ep) => sum + ep.politician_count, 0) /
-            episodes.length
-          ).toFixed(1)
-        : "0",
-    maxPoliticiansInEpisode:
-      episodes.length > 0
-        ? Math.max(...episodes.map((ep) => ep.politician_count))
-        : 0,
-  };
+  const statisticsData = statistics
+    ? {
+        totalEpisodes: statistics.total_episodes,
+        totalAppearances: statistics.total_appearances,
+        episodesWithPoliticians: statistics.episodes_with_politicians,
+        averagePoliticiansPerEpisode:
+          statistics.average_politicians_per_episode.toString(),
+        maxPoliticiansInEpisode: statistics.max_politicians_in_episode,
+      }
+    : {
+        // Fallback auf die lokalen Episoden-Daten falls Statistiken noch nicht geladen
+        totalEpisodes: episodes.length,
+        totalAppearances: episodes.reduce(
+          (sum, ep) => sum + ep.politician_count,
+          0
+        ),
+        episodesWithPoliticians: episodes.filter(
+          (ep) => ep.politician_count > 0
+        ).length,
+        averagePoliticiansPerEpisode:
+          episodes.length > 0
+            ? (
+                episodes.reduce((sum, ep) => sum + ep.politician_count, 0) /
+                episodes.length
+              ).toFixed(1)
+            : "0",
+        maxPoliticiansInEpisode:
+          episodes.length > 0
+            ? Math.max(...episodes.map((ep) => ep.politician_count))
+            : 0,
+      };
 
   return (
     <div className="max-w-7xl mx-auto p-6">
@@ -110,7 +150,7 @@ export default function EpisodesPage() {
         {/* Show Auswahl */}
         <div className="flex flex-wrap gap-2">
           {showOptions.map((option) => (
-            <button
+            <Button
               key={option.value}
               onClick={() => setSelectedShow(option.value)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -120,7 +160,7 @@ export default function EpisodesPage() {
               }`}
             >
               {option.label}
-            </button>
+            </Button>
           ))}
         </div>
 
@@ -133,13 +173,22 @@ export default function EpisodesPage() {
       </div>
 
       {/* Statistiken */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
         <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
           <div className="text-3xl font-bold text-blue-600 mb-2">
             {statisticsData.totalEpisodes}
           </div>
           <div className="text-sm text-blue-700 font-medium">
             Gesamt-Sendungen
+          </div>
+        </div>
+
+        <div className="bg-red-50 rounded-lg p-6 border border-red-200">
+          <div className="text-3xl font-bold text-red-600 mb-2">
+            {statisticsData.totalAppearances}
+          </div>
+          <div className="text-sm text-red-700 font-medium">
+            Politiker-Auftritte
           </div>
         </div>
 
@@ -218,9 +267,9 @@ export default function EpisodesPage() {
                     <td className="px-6 py-4 text-sm text-gray-900 max-w-xs">
                       {episode.politicians.length > 0 ? (
                         <div className="space-y-1">
-                          {episode.politicians.map((politician) => (
+                          {episode.politicians.map((politician, idx) => (
                             <div
-                              key={politician.id}
+                              key={`${episode.episode_date}-${politician.name}-${idx}`}
                               className="flex items-center space-x-2"
                             >
                               <span className="font-medium">
@@ -247,17 +296,6 @@ export default function EpisodesPage() {
             </tbody>
           </table>
         </div>
-      </div>
-
-      {/* Aktualisieren Button */}
-      <div className="mt-8 text-center">
-        <button
-          onClick={fetchData}
-          disabled={loading}
-          className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-medium py-3 px-6 rounded-lg transition-colors"
-        >
-          {loading ? "Laden..." : "Daten aktualisieren"}
-        </button>
       </div>
     </div>
   );

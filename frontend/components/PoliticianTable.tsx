@@ -11,6 +11,7 @@ import {
   createColumnHelper,
   SortingState,
 } from "@tanstack/react-table";
+import { Button } from "./ui/button";
 
 interface PoliticianAppearance {
   show_name: string;
@@ -198,7 +199,7 @@ export default function PoliticianTable() {
             {/* Show Filter */}
             <div className="flex flex-wrap gap-2">
               {showOptions.map((option) => (
-                <button
+                <Button
                   key={option.value}
                   onClick={() => setSelectedShow(option.value)}
                   className={`px-3 py-1 text-sm rounded-lg transition-colors ${
@@ -208,7 +209,7 @@ export default function PoliticianTable() {
                   }`}
                 >
                   {option.label}
-                </button>
+                </Button>
               ))}
             </div>
 
@@ -236,14 +237,6 @@ export default function PoliticianTable() {
                 </svg>
               </div>
             </div>
-
-            {/* Refresh Button */}
-            <button
-              onClick={fetchData}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Aktualisieren
-            </button>
           </div>
         </div>
       </div>
@@ -309,34 +302,34 @@ export default function PoliticianTable() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
+          <Button
             onClick={() => table.setPageIndex(0)}
             disabled={!table.getCanPreviousPage()}
             className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
           >
             {"<<"}
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
             className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
           >
             {"<"}
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
             className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
           >
             {">"}
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => table.setPageIndex(table.getPageCount() - 1)}
             disabled={!table.getCanNextPage()}
             className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
           >
             {">>"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

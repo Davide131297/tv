@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { Button } from "@/components/ui/button";
 
 interface SummaryData {
   total_appearances: number;
@@ -93,7 +94,7 @@ export default function OverviewPage() {
         {/* Show Auswahl */}
         <div className="flex flex-wrap gap-2">
           {showOptions.map((option) => (
-            <button
+            <Button
               key={option.value}
               onClick={() => setSelectedShow(option.value)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -103,7 +104,7 @@ export default function OverviewPage() {
               }`}
             >
               {option.label}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -195,17 +196,6 @@ export default function OverviewPage() {
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* Aktualisieren Button */}
-          <div className="mt-8 text-center">
-            <button
-              onClick={fetchData}
-              disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-medium py-3 px-6 rounded-lg transition-colors"
-            >
-              {loading ? "Laden..." : "Daten aktualisieren"}
-            </button>
           </div>
         </>
       )}

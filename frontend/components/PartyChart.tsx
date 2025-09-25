@@ -14,9 +14,8 @@ import {
 import { ChartConfig, ChartContainer } from "@/components/ui/chart";
 
 interface PartyStats {
-  party_id: number;
-  count: number;
   party_name: string;
+  count: number;
 }
 
 interface PartyChartProps {

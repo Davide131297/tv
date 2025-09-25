@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import PartyChart from "./PartyChart";
 import PoliticianTable from "./PoliticianTable";
+import { Button } from "@/components/ui/button";
 
 // Types
 interface PartyStats {
@@ -219,7 +220,7 @@ export default function PoliticsStats() {
       <div className="mb-8">
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
-            <button
+            <Button
               onClick={() => setActiveTab("chart")}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === "chart"
@@ -228,8 +229,8 @@ export default function PoliticsStats() {
               }`}
             >
               📊 Partei-Chart
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => setActiveTab("table")}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === "table"
@@ -238,8 +239,8 @@ export default function PoliticsStats() {
               }`}
             >
               📋 Politiker-Tabelle
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => setActiveTab("summary")}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === "summary"
@@ -248,8 +249,8 @@ export default function PoliticsStats() {
               }`}
             >
               📈 Übersicht
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => setActiveTab("episodes")}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === "episodes"
@@ -258,7 +259,7 @@ export default function PoliticsStats() {
               }`}
             >
               📺 Sendungen
-            </button>
+            </Button>
           </nav>
         </div>
       </div>
@@ -268,16 +269,6 @@ export default function PoliticsStats() {
       {activeTab === "table" && <PoliticianTable />}
       {activeTab === "summary" && renderSummary()}
       {activeTab === "episodes" && renderEpisodes()}
-
-      {/* Refresh Button */}
-      <div className="mt-8 text-center">
-        <button
-          onClick={fetchData}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
-        >
-          Daten aktualisieren
-        </button>
-      </div>
     </div>
   );
 }

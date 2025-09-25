@@ -8,9 +8,8 @@ const db = new Database(dbPath);
 
 // Types
 interface PartyStats {
-  party_id: number;
+  party_name: string;
   count: number;
-  party_name?: string;
 }
 
 interface EpisodeData {
@@ -21,192 +20,8 @@ interface EpisodeData {
 interface PoliticianAppearance {
   show_name: string;
   episode_date: string;
-  politician_id: number;
-  party_id: number | null;
-  politician_name?: string; // NEU: Direkt aus Datenbank
-  party_name?: string; // NEU: Direkt aus Datenbank
-}
-
-// Neue Interfaces für API-Responses und Details
-interface PoliticianDetails {
-  id: number;
-  first_name: string;
-  last_name: string;
-  full_name: string;
-  occupation: string;
-  year_of_birth: number | null;
-  education: string;
-  party_id: number | null;
-  party_name: string;
-}
-
-interface AbgeordnetenwatchPartyResponse {
-  data?: {
-    label?: string;
-    short_name?: string;
-  };
-}
-
-interface AbgeordnetenwatchPoliticianResponse {
-  data?: {
-    id: number;
-    first_name: string;
-    last_name: string;
-    occupation?: string;
-    year_of_birth?: number;
-    education?: string;
-    party?: {
-      id: number;
-      label: string;
-    };
-  };
-}
-
-// Cache für Parteinamen um API-Calls zu reduzieren
-const partyNameCache = new Map<number, string>();
-
-// Hole Parteinamen von der abgeordnetenwatch.de API
-async function fetchPartyName(partyId: number): Promise<string> {
-  // Prüfe Cache zuerst
-  if (partyNameCache.has(partyId)) {
-    return partyNameCache.get(partyId)!;
-  }
-
-  try {
-    const response = await fetch(
-      `https://www.abgeordnetenwatch.de/api/v2/parties/${partyId}`
-    );
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    const data: AbgeordnetenwatchPartyResponse = await response.json();
-    const partyName =
-      data.data?.label || data.data?.short_name || `Partei ${partyId}`;
-
-    // In Cache speichern
-    partyNameCache.set(partyId, partyName);
-    return partyName;
-  } catch (error) {
-    console.error(`Fehler beim Holen der Partei ${partyId}:`, error);
-    // Fallback
-    const fallbackName = `Partei ${partyId}`;
-    partyNameCache.set(partyId, fallbackName);
-    return fallbackName;
-  }
-}
-
-// Hole mehrere Parteinamen parallel
-async function fetchMultiplePartyNames(
-  partyIds: number[]
-): Promise<Record<number, string>> {
-  const results: Record<number, string> = {};
-
-  // Filtere bereits gecachte IDs
-  const uncachedIds = partyIds.filter((id) => !partyNameCache.has(id));
-
-  // Hole bereits gecachte Namen
-  partyIds.forEach((id) => {
-    if (partyNameCache.has(id)) {
-      results[id] = partyNameCache.get(id)!;
-    }
-  });
-
-  // Hole fehlende Namen parallel
-  if (uncachedIds.length > 0) {
-    const promises = uncachedIds.map((id) => fetchPartyName(id));
-    const names = await Promise.all(promises);
-
-    uncachedIds.forEach((id, index) => {
-      results[id] = names[index];
-    });
-  }
-
-  return results;
-}
-
-// Cache für Politiker-Details
-const politicianDetailsCache = new Map<number, PoliticianDetails>();
-
-// Spezielle Ausnahmen für bestimmte Politiker
-const POLITICIAN_OVERRIDES: Record<number, PoliticianDetails> = {
-  28910: {
-    // Manfred Weber - Korrigierte CSU-Zuordnung
-    id: 28910,
-    first_name: "Manfred",
-    last_name: "Weber",
-    full_name: "Manfred Weber",
-    occupation: "MdEP",
-    year_of_birth: 1972,
-    education: "Dipl. Ingenieur",
-    party_id: 3,
-    party_name: "CSU",
-  },
-};
-
-// Hole Politiker-Details von der API
-async function fetchPoliticianDetails(
-  politicianId: number
-): Promise<PoliticianDetails> {
-  // Prüfe zuerst Overrides
-  if (POLITICIAN_OVERRIDES[politicianId]) {
-    const override = POLITICIAN_OVERRIDES[politicianId];
-    politicianDetailsCache.set(politicianId, override);
-    return override;
-  }
-
-  if (politicianDetailsCache.has(politicianId)) {
-    return politicianDetailsCache.get(politicianId)!;
-  }
-
-  try {
-    const response = await fetch(
-      `https://www.abgeordnetenwatch.de/api/v2/politicians/${politicianId}`
-    );
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    const data: AbgeordnetenwatchPoliticianResponse = await response.json();
-    const politician = data.data;
-
-    if (politician) {
-      const details: PoliticianDetails = {
-        id: politician.id,
-        first_name: politician.first_name,
-        last_name: politician.last_name,
-        full_name: `${politician.first_name} ${politician.last_name}`,
-        occupation: politician.occupation || "",
-        year_of_birth: politician.year_of_birth || null,
-        education: politician.education || "Keine Angabe",
-        party_id: politician.party?.id || null,
-        party_name: politician.party?.label || "Unbekannt",
-      };
-
-      politicianDetailsCache.set(politicianId, details);
-      return details;
-    }
-  } catch (error) {
-    console.error(`Fehler beim Holen von Politiker ${politicianId}:`, error);
-  }
-
-  // Fallback
-  const fallback: PoliticianDetails = {
-    id: politicianId,
-    first_name: "Unbekannt",
-    last_name: "",
-    full_name: `Politiker ${politicianId}`,
-    occupation: "Unbekannt",
-    year_of_birth: null,
-    education: "Keine Angabe",
-    party_id: null,
-    party_name: "Unbekannt",
-  };
-
-  politicianDetailsCache.set(politicianId, fallback);
-  return fallback;
+  politician_name: string;
+  party_name: string | null;
 }
 
 export async function GET(request: NextRequest) {
@@ -218,7 +33,7 @@ export async function GET(request: NextRequest) {
       case "party-stats": {
         // Statistiken pro Partei
         const showName = searchParams.get("show");
-        let whereClause = "WHERE party_id IS NOT NULL";
+        let whereClause = "WHERE party_name IS NOT NULL AND party_name != ''";
         const params: string[] = [];
 
         if (
@@ -230,30 +45,19 @@ export async function GET(request: NextRequest) {
         }
 
         const stmt = db.prepare(`
-          SELECT party_id, COUNT(*) as count
+          SELECT party_name, COUNT(*) as count
           FROM tv_show_politicians 
           ${whereClause}
-          GROUP BY party_id
+          GROUP BY party_name
           ORDER BY count DESC
         `);
 
         const results = stmt.all(...params) as PartyStats[];
 
-        // Hole Parteinamen von der API
-        const partyIds = results.map((r) => r.party_id);
-        const partyNames = await fetchMultiplePartyNames(partyIds);
-
-        // Füge Parteinamen hinzu
-        const enrichedResults = results.map((result) => ({
-          ...result,
-          party_name:
-            partyNames[result.party_id] || `Partei ${result.party_id}`,
-        }));
-
         return NextResponse.json({
           success: true,
-          data: enrichedResults,
-          total: enrichedResults.reduce((sum, item) => sum + item.count, 0),
+          data: results,
+          total: results.reduce((sum, item) => sum + item.count, 0),
         });
       }
 
@@ -283,7 +87,7 @@ export async function GET(request: NextRequest) {
         const showName = searchParams.get("show") || "Markus Lanz";
 
         const stmt = db.prepare(`
-          SELECT episode_date, politician_id, party_id
+          SELECT episode_date, politician_name, party_name
           FROM tv_show_politicians 
           WHERE show_name = ?
           ORDER BY episode_date DESC
@@ -293,40 +97,26 @@ export async function GET(request: NextRequest) {
         const results = stmt.all(showName) as PoliticianAppearance[];
 
         // Gruppiere nach episode_date
-        const episodeMap = new Map<string, number[]>();
+        const episodeMap = new Map<string, string[]>();
         results.forEach((result) => {
           if (!episodeMap.has(result.episode_date)) {
             episodeMap.set(result.episode_date, []);
           }
-          episodeMap.get(result.episode_date)!.push(result.politician_id);
-        });
-
-        // Hole Politiker-Details für alle einzigartigen IDs
-        const allPoliticianIds = [
-          ...new Set(results.map((r) => r.politician_id)),
-        ];
-        const politicianPromises = allPoliticianIds.map((id) =>
-          fetchPoliticianDetails(id)
-        );
-        const politicianDetails = await Promise.all(politicianPromises);
-
-        // Erstelle Map für schnelleren Zugriff
-        const politicianMap = new Map<number, PoliticianDetails>();
-        politicianDetails.forEach((details) => {
-          politicianMap.set(details.id, details);
+          episodeMap.get(result.episode_date)!.push(result.politician_name);
         });
 
         // Erstelle finale Episoden-Liste
         const episodesWithPoliticians = Array.from(episodeMap.entries()).map(
-          ([date, politicianIds]) => ({
+          ([date, politicianNames]) => ({
             episode_date: date,
-            politician_count: politicianIds.length,
-            politicians: politicianIds.map((id) => {
-              const details = politicianMap.get(id);
+            politician_count: politicianNames.length,
+            politicians: politicianNames.map((name) => {
+              const result = results.find(
+                (r) => r.politician_name === name && r.episode_date === date
+              );
               return {
-                id,
-                name: details ? details.full_name : `Politiker ${id}`,
-                party_name: details ? details.party_name : "Unbekannt",
+                name: name,
+                party_name: result?.party_name || "Unbekannt",
               };
             }),
           })
@@ -341,7 +131,7 @@ export async function GET(request: NextRequest) {
       case "recent": {
         // Letzte Auftritte
         const stmt = db.prepare(`
-          SELECT show_name, episode_date, politician_id, party_id
+          SELECT show_name, episode_date, politician_name, party_name
           FROM tv_show_politicians 
           ORDER BY episode_date DESC, id DESC
           LIMIT 20
@@ -349,22 +139,9 @@ export async function GET(request: NextRequest) {
 
         const results = stmt.all() as PoliticianAppearance[];
 
-        // Hole Parteinamen für alle party_ids
-        const partyIds = [
-          ...new Set(results.filter((r) => r.party_id).map((r) => r.party_id!)),
-        ];
-        const partyNames = await fetchMultiplePartyNames(partyIds);
-
-        const enrichedResults = results.map((result) => ({
-          ...result,
-          party_name: result.party_id
-            ? partyNames[result.party_id] || `Partei ${result.party_id}`
-            : "Unbekannt",
-        }));
-
         return NextResponse.json({
           success: true,
-          data: enrichedResults,
+          data: results,
         });
       }
 
@@ -372,7 +149,8 @@ export async function GET(request: NextRequest) {
         // Gesamt-Statistiken
         const showName = searchParams.get("show");
         let whereClause = "";
-        let whereClauseWithParty = "WHERE party_id IS NOT NULL";
+        let whereClauseWithParty =
+          "WHERE party_name IS NOT NULL AND party_name != ''";
         const params: string[] = [];
 
         if (
@@ -380,7 +158,8 @@ export async function GET(request: NextRequest) {
           (showName === "Markus Lanz" || showName === "Maybrit Illner")
         ) {
           whereClause = "WHERE show_name = ?";
-          whereClauseWithParty = "WHERE party_id IS NOT NULL AND show_name = ?";
+          whereClauseWithParty =
+            "WHERE party_name IS NOT NULL AND party_name != '' AND show_name = ?";
           params.push(showName);
         }
 
@@ -391,10 +170,10 @@ export async function GET(request: NextRequest) {
           `SELECT COUNT(DISTINCT episode_date) as episodes FROM tv_show_politicians ${whereClause}`
         );
         const politiciansStmt = db.prepare(
-          `SELECT COUNT(DISTINCT politician_id) as politicians FROM tv_show_politicians ${whereClause}`
+          `SELECT COUNT(DISTINCT politician_name) as politicians FROM tv_show_politicians ${whereClause}`
         );
         const partiesStmt = db.prepare(
-          `SELECT COUNT(DISTINCT party_id) as parties FROM tv_show_politicians ${whereClauseWithParty}`
+          `SELECT COUNT(DISTINCT party_name) as parties FROM tv_show_politicians ${whereClauseWithParty}`
         );
 
         const total =
@@ -451,17 +230,14 @@ export async function GET(request: NextRequest) {
 
         // NEUE QUERY: Direkte Namen aus der Datenbank verwenden
         const stmt = db.prepare(`
-          SELECT show_name, episode_date, politician_id, party_id, politician_name, party_name
+          SELECT show_name, episode_date, politician_name, party_name
           FROM tv_show_politicians 
           ${whereClause}
           ORDER BY episode_date DESC, id DESC
           LIMIT ? OFFSET ?
         `);
 
-        const results = stmt.all(...params) as (PoliticianAppearance & {
-          politician_name: string;
-          party_name: string;
-        })[];
+        const results = stmt.all(...params) as PoliticianAppearance[];
 
         // KEINE EXTERNEN API-CALLS MEHR - Verwende direkt die Datenbank-Daten
         const enrichedResults = results.map((appearance) => {
@@ -474,9 +250,7 @@ export async function GET(request: NextRequest) {
 
           return {
             ...appearance,
-            politician_name:
-              appearance.politician_name ||
-              `Politiker ${appearance.politician_id}`,
+            politician_name: appearance.politician_name || "Unbekannt",
             party_name: appearance.party_name || "Unbekannt",
             politician_details: {
               first_name: firstName,
@@ -506,6 +280,61 @@ export async function GET(request: NextRequest) {
             offset,
             total: totalCount as { count: number },
           },
+        });
+      }
+
+      case "episode-statistics": {
+        // Episoden-Statistiken für eine bestimmte Show
+        const showName = searchParams.get("show") || "Markus Lanz";
+
+        // Hole alle Episoden mit Politiker-Anzahl
+        const episodeStatsStmt = db.prepare(`
+          SELECT episode_date, COUNT(*) as politician_count
+          FROM tv_show_politicians 
+          WHERE show_name = ?
+          GROUP BY episode_date
+          ORDER BY episode_date DESC
+        `);
+
+        const episodeStats = episodeStatsStmt.all(showName) as {
+          episode_date: string;
+          politician_count: number;
+        }[];
+
+        // Hole auch die Gesamtanzahl der Auftritte
+        const totalAppearancesStmt = db.prepare(`
+          SELECT COUNT(*) as total_appearances
+          FROM tv_show_politicians 
+          WHERE show_name = ?
+        `);
+        const totalAppearances = totalAppearancesStmt.get(showName) as {
+          total_appearances: number;
+        };
+
+        const statistics = {
+          total_episodes: episodeStats.length,
+          total_appearances: totalAppearances.total_appearances,
+          episodes_with_politicians: episodeStats.length, // Alle haben Politiker (sonst wären sie nicht in der DB)
+          average_politicians_per_episode:
+            episodeStats.length > 0
+              ? parseFloat(
+                  (
+                    episodeStats.reduce(
+                      (sum, ep) => sum + ep.politician_count,
+                      0
+                    ) / episodeStats.length
+                  ).toFixed(2)
+                )
+              : 0,
+          max_politicians_in_episode:
+            episodeStats.length > 0
+              ? Math.max(...episodeStats.map((ep) => ep.politician_count))
+              : 0,
+        };
+
+        return NextResponse.json({
+          success: true,
+          data: statistics,
         });
       }
 
