@@ -1,32 +1,41 @@
 import db from "./db";
 
-// Types für die TV-Show-Politiker Tabelle
+// Types für die TV-Show-Politiker Tabelle (Version 2 - denormalisiert)
 interface TvShowPolitician {
   id?: number;
   show_name: string;
   episode_date: string; // YYYY-MM-DD Format
   politician_id: number;
+  politician_name: string; // NEU: Direkt gespeichert
   party_id?: number;
+  party_name?: string; // NEU: Direkt gespeichert
 }
 
 interface InsertTvShowPoliticianData {
   show_name: string;
   episode_date: string;
   politician_id: number;
+  politician_name: string; // NEU
   party_id?: number;
+  party_name?: string; // NEU
 }
 
 // Erstelle die Tabelle falls sie nicht existiert
 export function initTvShowPoliticiansTable() {
-  console.log("Initialisiere Tabelle 'tv_show_politicians'...");
+  console.log(
+    "Initialisiere Tabelle 'tv_show_politicians' (falls nicht vorhanden)..."
+  );
 
+  // Erstelle Tabelle nur falls sie nicht existiert (KEINE Löschung!)
   const createTableSQL = `
     CREATE TABLE IF NOT EXISTS tv_show_politicians (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       show_name TEXT NOT NULL,
       episode_date DATE NOT NULL,
       politician_id INTEGER NOT NULL,
+      politician_name TEXT NOT NULL,
       party_id INTEGER,
+      party_name TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       
@@ -62,8 +71,8 @@ export function insertTvShowPolitician(
 ): boolean {
   const stmt = db.prepare(`
     INSERT OR IGNORE INTO tv_show_politicians 
-    (show_name, episode_date, politician_id, party_id, updated_at)
-    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+    (show_name, episode_date, politician_id, politician_name, party_id, party_name, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
   `);
 
   try {
@@ -71,7 +80,9 @@ export function insertTvShowPolitician(
       data.show_name,
       data.episode_date,
       data.politician_id,
-      data.party_id || null
+      data.politician_name,
+      data.party_id || null,
+      data.party_name || null
     );
 
     return result.changes > 0;
@@ -85,7 +96,12 @@ export function insertTvShowPolitician(
 export function insertMultipleTvShowPoliticians(
   showName: string,
   episodeDate: string,
-  politicians: Array<{ politicianId: number; partyId?: number }>
+  politicians: Array<{
+    politicianId: number;
+    politicianName: string;
+    partyId?: number;
+    partyName?: string;
+  }>
 ): number {
   let insertedCount = 0;
 
@@ -94,7 +110,9 @@ export function insertMultipleTvShowPoliticians(
       show_name: showName,
       episode_date: episodeDate,
       politician_id: politician.politicianId,
+      politician_name: politician.politicianName,
       party_id: politician.partyId,
+      party_name: politician.partyName,
     });
 
     if (success) {
@@ -144,20 +162,25 @@ export function getShowsByPolitician(politicianId: number): TvShowPolitician[] {
   return stmt.all(politicianId) as TvShowPolitician[];
 }
 
-// Statistiken: Anzahl Auftritte pro Partei
+// Statistiken: Anzahl Auftritte pro Partei (ohne externe API-Calls benötigt!)
 export function getPoliticianStatsByParty(): Array<{
   party_id: number;
+  party_name: string;
   count: number;
 }> {
   const stmt = db.prepare(`
-    SELECT party_id, COUNT(*) as count
+    SELECT party_id, party_name, COUNT(*) as count
     FROM tv_show_politicians 
-    WHERE party_id IS NOT NULL
-    GROUP BY party_id
+    WHERE party_id IS NOT NULL AND party_name IS NOT NULL
+    GROUP BY party_id, party_name
     ORDER BY count DESC
   `);
 
-  return stmt.all() as Array<{ party_id: number; count: number }>;
+  return stmt.all() as Array<{
+    party_id: number;
+    party_name: string;
+    count: number;
+  }>;
 }
 
 // Statistiken: Anzahl Auftritte pro Sendung
@@ -187,4 +210,32 @@ export function checkTvShowPoliticiansTableExists(): boolean {
     .get();
 
   return !!result;
+}
+
+// Leere die komplette Tabelle für Neucrawl
+export function clearAllTvShowData(): void {
+  console.log("🗑️ Lösche alle TV-Show-Daten...");
+  const stmt = db.prepare("DELETE FROM tv_show_politicians");
+  const result = stmt.run();
+  console.log(`✅ ${result.changes} Einträge gelöscht`);
+}
+
+// Lösche nur Markus Lanz-Einträge
+export function clearLanzData(): void {
+  console.log("🗑️ Lösche Markus Lanz Daten...");
+  const stmt = db.prepare(
+    "DELETE FROM tv_show_politicians WHERE show_name = ?"
+  );
+  const result = stmt.run("Markus Lanz");
+  console.log(`✅ ${result.changes} Lanz-Einträge gelöscht`);
+}
+
+// Lösche nur Maybrit Illner-Einträge
+export function clearIllnerData(): void {
+  console.log("🗑️ Lösche Maybrit Illner Daten...");
+  const stmt = db.prepare(
+    "DELETE FROM tv_show_politicians WHERE show_name = ?"
+  );
+  const result = stmt.run("Maybrit Illner");
+  console.log(`✅ ${result.changes} Illner-Einträge gelöscht`);
 }

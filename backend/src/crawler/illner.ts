@@ -7,7 +7,7 @@ import {
 } from "../db-tv-shows";
 import { AbgeordnetenwatchPolitician } from "../types/abgeordnetenwatch";
 
-const LIST_URL = "https://www.zdf.de/talk/markus-lanz-114";
+const LIST_URL = "https://www.zdf.de/talk/maybrit-illner-128";
 
 interface GuestWithRole {
   name: string;
@@ -24,7 +24,9 @@ interface GuestDetails {
   name: string;
   isPolitician: boolean;
   politicianId: number | null;
+  politicianName?: string; // NEU: Vollständiger Name des Politikers
   party?: number;
+  partyName?: string; // NEU: Name der Partei
 }
 
 // Hilfsfunktion: Name in Vor- und Nachname aufteilen
@@ -97,7 +99,9 @@ const POLITICIAN_OVERRIDES: Record<string, GuestDetails> = {
     name: "Manfred Weber",
     isPolitician: true,
     politicianId: 28910,
+    politicianName: "Manfred Weber",
     party: 3, // CSU
+    partyName: "CSU",
   },
 };
 
@@ -144,7 +148,9 @@ async function checkPolitician(
         name,
         isPolitician: true,
         politicianId: hit.id,
+        politicianName: hit.label || name,
         party: hit.party?.id,
+        partyName: hit.party?.label,
       };
     }
 
@@ -163,7 +169,9 @@ async function checkPolitician(
           name,
           isPolitician: true,
           politicianId: selectedPolitician.id,
+          politicianName: selectedPolitician.label || name,
           party: selectedPolitician.party?.id,
+          partyName: selectedPolitician.party?.label,
         };
       }
     }
@@ -177,7 +185,9 @@ async function checkPolitician(
       name,
       isPolitician: true,
       politicianId: hit.id,
+      politicianName: hit.label || name,
       party: hit.party?.id,
+      partyName: hit.party?.label,
     };
   } catch {
     return {
@@ -193,7 +203,7 @@ async function getLatestEpisodeLinks(
   page: Page,
   limit = 10
 ): Promise<string[]> {
-  console.log("🔍 Lade die neuesten Episode-Links...");
+  console.log("🔍 Lade die neuesten Maybrit Illner Episode-Links...");
 
   await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 60000 });
 
@@ -209,14 +219,15 @@ async function getLatestEpisodeLinks(
     console.log("Kein Cookie-Banner gefunden oder bereits akzeptiert");
   }
 
-  // Hole die ersten Episode-Links (neueste zuerst)
+  // Hole Maybrit Illner Episode-Links
   const urls = await page.$$eval(
-    'a[href^="/video/talk/markus-lanz-114/"]',
-    (as) =>
+    'a[href^="/video/talk/maybrit-illner-128/"]',
+    (as, limitParam) =>
       Array.from(new Set(as.map((a) => (a as HTMLAnchorElement).href))).slice(
         0,
-        limit
-      )
+        limitParam
+      ),
+    limit
   );
 
   console.log(`📺 Gefunden: ${urls.length} Episode-Links`);
@@ -225,7 +236,7 @@ async function getLatestEpisodeLinks(
 
 // Extrahiere ALLE verfügbaren Episode-Links durch Scrollen und Paginierung
 async function getAllEpisodeLinks(page: Page): Promise<string[]> {
-  console.log("🔍 Lade ALLE verfügbaren Episode-Links...");
+  console.log("🔍 Lade ALLE verfügbaren Maybrit Illner Episode-Links...");
 
   await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 60000 });
 
@@ -251,7 +262,7 @@ async function getAllEpisodeLinks(page: Page): Promise<string[]> {
   while (scrollAttempts < maxScrollAttempts) {
     // Sammle alle aktuell sichtbaren Episode-Links
     const currentUrls = await page.$$eval(
-      'a[href^="/video/talk/markus-lanz-114/"]',
+      'a[href^="/video/talk/maybrit-illner-128/"]',
       (as) => as.map((a) => (a as HTMLAnchorElement).href)
     );
 
@@ -259,7 +270,7 @@ async function getAllEpisodeLinks(page: Page): Promise<string[]> {
     currentUrls.forEach((url) => allUrls.add(url));
 
     console.log(
-      `   � Gefunden: ${allUrls.size} Episoden (Runde ${scrollAttempts + 1})`
+      `   📊 Gefunden: ${allUrls.size} Episoden (Runde ${scrollAttempts + 1})`
     );
 
     // Wenn keine neuen URLs gefunden wurden, sind wir am Ende
@@ -306,16 +317,18 @@ async function getAllEpisodeLinks(page: Page): Promise<string[]> {
     .filter((ep) => ep.date !== null)
     .sort((a, b) => b.date!.localeCompare(a.date!));
 
-  console.log(
-    `📅 Zeitraum: ${urlsWithDates[urlsWithDates.length - 1]?.date} bis ${
-      urlsWithDates[0]?.date
-    }`
-  );
+  if (urlsWithDates.length > 0) {
+    console.log(
+      `📅 Zeitraum: ${urlsWithDates[urlsWithDates.length - 1]?.date} bis ${
+        urlsWithDates[0]?.date
+      }`
+    );
+  }
 
   return urlsWithDates.map((ep) => ep.url);
 }
 
-// Extrahiere Datum aus URL (bereits vorhandene Funktion)
+// Extrahiere Datum aus URL (ähnlich wie bei Lanz)
 function parseISODateFromUrl(url: string): string | null {
   const DE_MONTHS: Record<string, string> = {
     januar: "01",
@@ -353,7 +366,9 @@ function filterNewEpisodes(
   episodeUrls: string[],
   latestDbDate: string | null
 ): Array<{ url: string; date: string }> {
-  console.log(`🗓️  Letzte Episode in DB: ${latestDbDate || "Keine"}`);
+  console.log(
+    `🗓️  Letzte Maybrit Illner Episode in DB: ${latestDbDate || "Keine"}`
+  );
 
   const episodesWithDates = episodeUrls
     .map((url) => ({
@@ -383,12 +398,26 @@ function seemsLikePersonName(name: string): boolean {
   return re.test(name);
 }
 
-// Extrahiere Gäste aus einer Episode
+// Filtere Moderatoren/Hosts aus
+function isModeratorOrHost(name: string): boolean {
+  const moderators = [
+    "Maybrit Illner",
+    "Illner",
+    "Maybrit",
+    // Weitere bekannte Moderatoren können hier hinzugefügt werden
+  ];
+
+  return moderators.some((mod) =>
+    name.toLowerCase().includes(mod.toLowerCase())
+  );
+}
+
+// Extrahiere Gäste aus einer Maybrit Illner Episode
 async function extractGuestsFromEpisode(
   page: Page,
   episodeUrl: string
 ): Promise<GuestWithRole[]> {
-  console.log(`🎬 Crawle Episode: ${episodeUrl}`);
+  console.log(`🎬 Crawle Maybrit Illner Episode: ${episodeUrl}`);
 
   await page.goto(episodeUrl, { waitUntil: "networkidle2", timeout: 60000 });
   await page.setExtraHTTPHeaders({
@@ -412,46 +441,64 @@ async function extractGuestsFromEpisode(
     })
     .catch(() => {});
 
-  // Primär: Gäste-Sektion mit Rollen
+  // Primär: Suche nach der Gäste-Liste in <li> Elementen
   let guestsWithRoles: GuestWithRole[] = await page
-    .$$eval('section[tabindex="0"] p b, section.tdeoflm p b', (els) =>
-      Array.from(
-        new Set(
-          els
-            .map((el) => (el.textContent || "").replace(/\s+/g, " ").trim())
-            .filter(Boolean)
-            .filter((t) => t.includes(","))
-            .map((t) => {
-              const parts = t.split(",");
-              return {
-                name: parts[0].trim(),
-                role: parts.slice(1).join(",").trim() || undefined,
-              };
-            })
-        )
-      )
+    .$$eval(
+      'section[tabindex="0"] li span, section.tdeoflm li span',
+      (els) =>
+        els
+          .map((el) => {
+            const fullText = (el.textContent || "").replace(/\s+/g, " ").trim();
+            if (!fullText) return null;
+
+            // Extrahiere nur die ersten 2 Wörter als Namen
+            const words = fullText.split(/\s+/);
+            if (words.length < 2) return null;
+
+            const name = `${words[0]} ${words[1]}`;
+
+            // Extrahiere Partei aus Klammern falls vorhanden
+            const roleMatch = fullText.match(/\(([^)]+)\)/);
+            const role = roleMatch ? roleMatch[1] : undefined;
+
+            return { name, role };
+          })
+          .filter(Boolean) as GuestWithRole[]
     )
     .catch(() => []);
 
-  // Fallback: alle <b> Tags
+  console.log("📋 Gäste aus <li> Elementen:", guestsWithRoles);
+
+  // Fallback 1: Suche nach allen <li> Elementen im main Bereich
   if (!guestsWithRoles.length) {
+    console.log("🔄 Fallback: Suche nach <li> Elementen...");
     guestsWithRoles = await page
-      .$$eval("main b", (els) =>
-        Array.from(
-          new Set(
-            els
-              .map((el) => (el.textContent || "").replace(/\s+/g, " ").trim())
-              .filter(Boolean)
-              .filter((t) => t.includes(","))
-              .map((t) => {
-                const parts = t.split(",");
-                return {
-                  name: parts[0].trim(),
-                  role: parts.slice(1).join(",").trim() || undefined,
-                };
-              })
-          )
-        )
+      .$$eval(
+        "main li",
+        (els) =>
+          els
+            .map((el) => {
+              const fullText = (el.textContent || "")
+                .replace(/\s+/g, " ")
+                .trim();
+              if (!fullText) return null;
+
+              // Nur Elemente die wie Namen aussehen (mindestens 2 Wörter)
+              const words = fullText.split(/\s+/);
+              if (words.length < 2) return null;
+
+              const name = `${words[0]} ${words[1]}`;
+
+              // Prüfe ob es ein Name sein könnte (Großbuchstaben am Anfang)
+              if (!/^[A-ZÄÖÜ][a-zäöü]+ [A-ZÄÖÜ][a-zäöü]/.test(name))
+                return null;
+
+              const roleMatch = fullText.match(/\(([^)]+)\)/);
+              const role = roleMatch ? roleMatch[1] : undefined;
+
+              return { name, role };
+            })
+            .filter(Boolean) as GuestWithRole[]
       )
       .catch(() => []);
   }
@@ -460,7 +507,7 @@ async function extractGuestsFromEpisode(
   if (!guestsWithRoles.length) {
     const alt = await page
       .$eval(
-        'main img[alt*="Markus Lanz"]',
+        'main img[alt*="Maybrit Illner"], main img[alt*="Illner"]',
         (el) => el.getAttribute("alt") || ""
       )
       .catch(() => "");
@@ -475,10 +522,87 @@ async function extractGuestsFromEpisode(
     }
   }
 
+  // Fallback 2: Suche nach "Zu Gast" Text und extrahiere einfache Namen
+  if (!guestsWithRoles.length) {
+    console.log("� Fallback: Suche nach 'Zu Gast' Text...");
+
+    const guestText = await page.evaluate(() => {
+      const elements = document.querySelectorAll("*");
+      for (let el of elements) {
+        const text = el.textContent || "";
+        if (
+          text.includes("Zu Gast bei Maybrit Illner sind") ||
+          text.includes("Paul Ziemiak")
+        ) {
+          return text;
+        }
+      }
+      return "";
+    });
+
+    if (guestText) {
+      console.log(
+        "📋 Gefundener Gäste-Text (gekürzt):",
+        guestText.substring(0, 200) + "..."
+      );
+
+      // Einfache Extraktion: Suche nach Namen mit Partei-Kennzeichnung
+      const namePattern =
+        /([A-ZÄÖÜ][a-zäöü]+ [A-ZÄÖÜ][a-zäöü-]+)(?:\s*\(([^)]+)\))?/g;
+      const extractedNames = [];
+      let match;
+
+      while ((match = namePattern.exec(guestText)) !== null) {
+        const name = match[1].trim();
+        const role = match[2] ? match[2].trim() : undefined;
+
+        // Filter: Nur Namen die wie echte Personen aussehen
+        if (
+          name.length > 5 &&
+          !name.toLowerCase().includes("illner") &&
+          !name.toLowerCase().includes("deutschland") &&
+          !name.toLowerCase().includes("september")
+        ) {
+          extractedNames.push({ name, role });
+        }
+      }
+
+      if (extractedNames.length > 0) {
+        console.log("✅ Namen aus Gäste-Text extrahiert:", extractedNames);
+        guestsWithRoles = extractedNames;
+      }
+    }
+  }
+
+  // Letzter Fallback: Alt-Text vom Bild
+  if (!guestsWithRoles.length) {
+    const alt = await page
+      .$eval(
+        'main img[alt*="Maybrit Illner"], main img[alt*="Illner"]',
+        (el) => el.getAttribute("alt") || ""
+      )
+      .catch(() => "");
+
+    if (alt && alt.includes(":")) {
+      console.log("� Fallback: Alt-Text vom Bild");
+      const list = alt
+        .split(":")[1]
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .filter((name) => name.length > 5 && name.includes(" "))
+        .map((name) => {
+          const words = name.split(/\s+/);
+          return words.length >= 2 ? `${words[0]} ${words[1]}` : name;
+        });
+      guestsWithRoles = list.map((name) => ({ name, role: undefined }));
+    }
+  }
+
   // Filter und Duplikat-Entfernung
-  const filteredGuests = guestsWithRoles.filter((guest) =>
-    seemsLikePersonName(guest.name)
-  );
+  const filteredGuests = guestsWithRoles
+    .filter((guest) => seemsLikePersonName(guest.name))
+    .filter((guest) => !isModeratorOrHost(guest.name)); // Moderatorin ausfiltern
 
   const uniqueGuests = filteredGuests.reduce(
     (acc: GuestWithRole[], current) => {
@@ -498,15 +622,15 @@ async function extractGuestsFromEpisode(
 }
 
 // Hauptfunktion: Crawle nur neue Episoden
-export async function crawlNewMarkusLanzEpisodes(): Promise<void> {
-  console.log("🚀 Starte inkrementellen Markus Lanz Crawler...");
+export async function crawlNewMaybritIllnerEpisodes(): Promise<void> {
+  console.log("🚀 Starte inkrementellen Maybrit Illner Crawler...");
   console.log(`📅 Datum: ${new Date().toISOString()}`);
 
   // Stelle sicher dass die Tabelle existiert
   initTvShowPoliticiansTable();
 
   // Hole das letzte Datum aus der DB
-  const latestDbDate = getLatestEpisodeDate("Markus Lanz");
+  const latestDbDate = getLatestEpisodeDate("Maybrit Illner");
   console.log(`🗃️  Letzte Episode in DB: ${latestDbDate || "Keine"}`);
 
   const browser = await puppeteer.launch({
@@ -571,13 +695,21 @@ export async function crawlNewMarkusLanzEpisodes(): Promise<void> {
 
           const details = await checkPolitician(guest.name, guest.role);
 
-          if (details.isPolitician && details.politicianId) {
+          if (
+            details.isPolitician &&
+            details.politicianId &&
+            details.politicianName
+          ) {
             console.log(
-              `      ✅ Politiker: ID ${details.politicianId}, Partei ${details.party}`
+              `      ✅ Politiker: ${details.politicianName} (ID ${
+                details.politicianId
+              }), Partei: ${details.partyName || "unbekannt"}`
             );
             politicians.push({
               politicianId: details.politicianId,
+              politicianName: details.politicianName,
               partyId: details.party,
+              partyName: details.partyName,
             });
           } else {
             console.log(`      ❌ Kein Politiker`);
@@ -590,7 +722,7 @@ export async function crawlNewMarkusLanzEpisodes(): Promise<void> {
         // Speichere Politiker in die Datenbank
         if (politicians.length > 0) {
           const inserted = insertMultipleTvShowPoliticians(
-            "Markus Lanz",
+            "Maybrit Illner",
             episode.date,
             politicians
           );
@@ -612,7 +744,7 @@ export async function crawlNewMarkusLanzEpisodes(): Promise<void> {
       }
     }
 
-    console.log(`\n🎉 Inkrementeller Crawl abgeschlossen!`);
+    console.log(`\n🎉 Inkrementeller Maybrit Illner Crawl abgeschlossen!`);
     console.log(`📊 Episoden verarbeitet: ${episodesProcessed}`);
     console.log(`👥 Politiker eingefügt: ${totalPoliticiansInserted}`);
   } finally {
@@ -621,8 +753,8 @@ export async function crawlNewMarkusLanzEpisodes(): Promise<void> {
 }
 
 // Hauptfunktion: VOLLSTÄNDIGER historischer Crawl ALLER Episoden
-export async function crawlAllMarkusLanzEpisodes(): Promise<void> {
-  console.log("🚀 Starte VOLLSTÄNDIGEN Markus Lanz Crawler...");
+export async function crawlAllMaybritIllnerEpisodes(): Promise<void> {
+  console.log("🚀 Starte VOLLSTÄNDIGEN Maybrit Illner Crawler...");
   console.log(`📅 Datum: ${new Date().toISOString()}`);
 
   // Stelle sicher dass die Tabelle existiert
@@ -668,11 +800,13 @@ export async function crawlAllMarkusLanzEpisodes(): Promise<void> {
     }>; // Älteste zuerst für historischen Crawl
 
     console.log(`📺 Gefunden: ${allEpisodes.length} Episoden zum Crawlen`);
-    console.log(
-      `📅 Zeitraum: ${allEpisodes[0]?.date} bis ${
-        allEpisodes[allEpisodes.length - 1]?.date
-      }`
-    );
+    if (allEpisodes.length > 0) {
+      console.log(
+        `📅 Zeitraum: ${allEpisodes[0]?.date} bis ${
+          allEpisodes[allEpisodes.length - 1]?.date
+        }`
+      );
+    }
 
     let totalPoliticiansInserted = 0;
     let episodesProcessed = 0;
@@ -705,13 +839,21 @@ export async function crawlAllMarkusLanzEpisodes(): Promise<void> {
 
           const details = await checkPolitician(guest.name, guest.role);
 
-          if (details.isPolitician && details.politicianId) {
+          if (
+            details.isPolitician &&
+            details.politicianId &&
+            details.politicianName
+          ) {
             console.log(
-              `      ✅ Politiker: ID ${details.politicianId}, Partei ${details.party}`
+              `      ✅ Politiker: ${details.politicianName} (ID ${
+                details.politicianId
+              }), Partei: ${details.partyName || "unbekannt"}`
             );
             politicians.push({
               politicianId: details.politicianId,
+              politicianName: details.politicianName,
               partyId: details.party,
+              partyName: details.partyName,
             });
           } else {
             console.log(`      ❌ Kein Politiker`);
@@ -724,7 +866,7 @@ export async function crawlAllMarkusLanzEpisodes(): Promise<void> {
         // Speichere Politiker in die Datenbank
         if (politicians.length > 0) {
           const inserted = insertMultipleTvShowPoliticians(
-            "Markus Lanz",
+            "Maybrit Illner",
             episode.date,
             politicians
           );
@@ -754,7 +896,7 @@ export async function crawlAllMarkusLanzEpisodes(): Promise<void> {
       }
     }
 
-    console.log(`\n🎉 VOLLSTÄNDIGER Crawl abgeschlossen!`);
+    console.log(`\n🎉 VOLLSTÄNDIGER Maybrit Illner Crawl abgeschlossen!`);
     console.log(
       `📊 Episoden verarbeitet: ${episodesProcessed}/${allEpisodes.length}`
     );
@@ -775,26 +917,29 @@ export async function crawlAllMarkusLanzEpisodes(): Promise<void> {
 if (require.main === module) {
   const mode = process.argv[2] || "incremental";
 
-  console.log(`🎯 Crawler-Modus: ${mode}`);
+  console.log(`🎯 Maybrit Illner Crawler-Modus: ${mode}`);
 
   if (mode === "full" || mode === "all" || mode === "complete") {
-    crawlAllMarkusLanzEpisodes()
+    crawlAllMaybritIllnerEpisodes()
       .then(() => {
-        console.log("✅ Vollständiger Crawler beendet");
+        console.log("✅ Vollständiger Maybrit Illner Crawler beendet");
         process.exit(0);
       })
       .catch((error) => {
-        console.error("❌ Vollständiger Crawler Fehler:", error);
+        console.error("❌ Vollständiger Maybrit Illner Crawler Fehler:", error);
         process.exit(1);
       });
   } else {
-    crawlNewMarkusLanzEpisodes()
+    crawlNewMaybritIllnerEpisodes()
       .then(() => {
-        console.log("✅ Inkrementeller Crawler beendet");
+        console.log("✅ Inkrementeller Maybrit Illner Crawler beendet");
         process.exit(0);
       })
       .catch((error) => {
-        console.error("❌ Inkrementeller Crawler Fehler:", error);
+        console.error(
+          "❌ Inkrementeller Maybrit Illner Crawler Fehler:",
+          error
+        );
         process.exit(1);
       });
   }

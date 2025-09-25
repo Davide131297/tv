@@ -1,10 +1,10 @@
 import puppeteer, { Page } from "puppeteer";
 import axios from "axios";
-import { AbgeordnetenwatchPolitician } from "../../src/types/abgeordnetenwatch";
+import { AbgeordnetenwatchPolitician } from "../types/abgeordnetenwatch";
 import {
   initTvShowPoliticiansTable,
   insertMultipleTvShowPoliticians,
-} from "../../src/db-tv-shows";
+} from "../db-tv-shows";
 
 const LIST_URL = "https://www.zdf.de/talk/markus-lanz-114";
 
@@ -14,7 +14,9 @@ interface GuestDetails {
   name: string;
   isPolitician: boolean;
   politicianId: number | null;
+  politicianName?: string;
   party?: number;
+  partyName?: string;
 }
 
 interface GuestWithRole {
@@ -252,10 +254,28 @@ function splitFirstLast(name: string) {
   return { first: parts[0] ?? "", last: parts.slice(1).join(" ").trim() };
 }
 
+// Spezielle Override-Cases für bestimmte Politiker
+const POLITICIAN_OVERRIDES: Record<string, GuestDetails> = {
+  "Manfred Weber": {
+    name: "Manfred Weber",
+    isPolitician: true,
+    politicianId: 28910,
+    politicianName: "Manfred Weber",
+    party: 3, // CSU
+    partyName: "CSU",
+  },
+};
+
 export async function checkPolitician(
   name: string,
   role?: string
 ): Promise<GuestDetails> {
+  // Prüfe zuerst Override-Cases
+  if (POLITICIAN_OVERRIDES[name]) {
+    console.log(`✅ Override angewendet für ${name} -> CSU`);
+    return POLITICIAN_OVERRIDES[name];
+  }
+
   const { first, last } = splitFirstLast(name);
   if (!first || !last) {
     return {
@@ -288,7 +308,9 @@ export async function checkPolitician(
         name,
         isPolitician: true,
         politicianId: hit.id,
+        politicianName: hit.label || name,
         party: hit.party?.id,
+        partyName: hit.party?.label,
       };
     }
 
@@ -307,7 +329,9 @@ export async function checkPolitician(
           name,
           isPolitician: true,
           politicianId: selectedPolitician.id,
+          politicianName: selectedPolitician.label || name,
           party: selectedPolitician.party?.id,
+          partyName: selectedPolitician.party?.label,
         };
       }
     }
@@ -321,7 +345,9 @@ export async function checkPolitician(
       name,
       isPolitician: true,
       politicianId: hit.id,
+      politicianName: hit.label || name,
       party: hit.party?.id,
+      partyName: hit.party?.label,
     };
   } catch {
     return {
@@ -659,7 +685,9 @@ export async function crawlAllMarkusLanzEpisodes(): Promise<EpisodeResult[]> {
         .filter((guest) => guest.isPolitician && guest.politicianId)
         .map((guest) => ({
           politicianId: guest.politicianId!,
+          politicianName: guest.politicianName || guest.name,
           partyId: guest.party,
+          partyName: guest.partyName,
         }));
 
       if (politicians.length > 0) {
@@ -681,8 +709,6 @@ export async function crawlAllMarkusLanzEpisodes(): Promise<EpisodeResult[]> {
     console.log(`\n=== Datenbank-Speicherung Zusammenfassung ===`);
     console.log(`Episoden mit Politikern: ${episodesWithPoliticians}`);
     console.log(`Politiker gesamt eingefügt: ${totalPoliticiansInserted}`);
-
-    console.dir(finalResults, { depth: null });
 
     return finalResults;
   } finally {

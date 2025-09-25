@@ -23,6 +23,8 @@ interface PoliticianAppearance {
   episode_date: string;
   politician_id: number;
   party_id: number | null;
+  politician_name?: string; // NEU: Direkt aus Datenbank
+  party_name?: string; // NEU: Direkt aus Datenbank
 }
 
 // Neue Interfaces für API-Responses und Details
@@ -215,15 +217,27 @@ export async function GET(request: NextRequest) {
     switch (type) {
       case "party-stats": {
         // Statistiken pro Partei
+        const showName = searchParams.get("show");
+        let whereClause = "WHERE party_id IS NOT NULL";
+        const params: string[] = [];
+
+        if (
+          showName &&
+          (showName === "Markus Lanz" || showName === "Maybrit Illner")
+        ) {
+          whereClause += " AND show_name = ?";
+          params.push(showName);
+        }
+
         const stmt = db.prepare(`
           SELECT party_id, COUNT(*) as count
           FROM tv_show_politicians 
-          WHERE party_id IS NOT NULL
+          ${whereClause}
           GROUP BY party_id
           ORDER BY count DESC
         `);
 
-        const results = stmt.all() as PartyStats[];
+        const results = stmt.all(...params) as PartyStats[];
 
         // Hole Parteinamen von der API
         const partyIds = results.map((r) => r.party_id);
@@ -245,16 +259,18 @@ export async function GET(request: NextRequest) {
 
       case "episodes": {
         // Episoden mit Politiker-Anzahl
+        const showName = searchParams.get("show") || "Markus Lanz";
+
         const stmt = db.prepare(`
           SELECT episode_date, COUNT(*) as politician_count
           FROM tv_show_politicians 
-          WHERE show_name = 'Markus Lanz'
+          WHERE show_name = ?
           GROUP BY episode_date
           ORDER BY episode_date DESC
           LIMIT 50
         `);
 
-        const results = stmt.all() as EpisodeData[];
+        const results = stmt.all(showName) as EpisodeData[];
 
         return NextResponse.json({
           success: true,
@@ -264,15 +280,17 @@ export async function GET(request: NextRequest) {
 
       case "episodes-with-politicians": {
         // Episoden mit Politiker-Namen
+        const showName = searchParams.get("show") || "Markus Lanz";
+
         const stmt = db.prepare(`
           SELECT episode_date, politician_id, party_id
           FROM tv_show_politicians 
-          WHERE show_name = 'Markus Lanz'
+          WHERE show_name = ?
           ORDER BY episode_date DESC
           LIMIT 200
         `);
 
-        const results = stmt.all() as PoliticianAppearance[];
+        const results = stmt.all(showName) as PoliticianAppearance[];
 
         // Gruppiere nach episode_date
         const episodeMap = new Map<string, number[]>();
@@ -352,24 +370,53 @@ export async function GET(request: NextRequest) {
 
       case "summary": {
         // Gesamt-Statistiken
+        const showName = searchParams.get("show");
+        let whereClause = "";
+        let whereClauseWithParty = "WHERE party_id IS NOT NULL";
+        const params: string[] = [];
+
+        if (
+          showName &&
+          (showName === "Markus Lanz" || showName === "Maybrit Illner")
+        ) {
+          whereClause = "WHERE show_name = ?";
+          whereClauseWithParty = "WHERE party_id IS NOT NULL AND show_name = ?";
+          params.push(showName);
+        }
+
         const totalStmt = db.prepare(
-          "SELECT COUNT(*) as total FROM tv_show_politicians"
+          `SELECT COUNT(*) as total FROM tv_show_politicians ${whereClause}`
         );
         const episodesStmt = db.prepare(
-          "SELECT COUNT(DISTINCT episode_date) as episodes FROM tv_show_politicians"
+          `SELECT COUNT(DISTINCT episode_date) as episodes FROM tv_show_politicians ${whereClause}`
         );
         const politiciansStmt = db.prepare(
-          "SELECT COUNT(DISTINCT politician_id) as politicians FROM tv_show_politicians"
+          `SELECT COUNT(DISTINCT politician_id) as politicians FROM tv_show_politicians ${whereClause}`
         );
         const partiesStmt = db.prepare(
-          "SELECT COUNT(DISTINCT party_id) as parties FROM tv_show_politicians WHERE party_id IS NOT NULL"
+          `SELECT COUNT(DISTINCT party_id) as parties FROM tv_show_politicians ${whereClauseWithParty}`
         );
 
-        const total = (totalStmt.get() as { total: number }).total;
-        const episodes = (episodesStmt.get() as { episodes: number }).episodes;
-        const politicians = (politiciansStmt.get() as { politicians: number })
-          .politicians;
-        const parties = (partiesStmt.get() as { parties: number }).parties;
+        const total =
+          params.length > 0
+            ? (totalStmt.get(params[0]) as { total: number }).total
+            : (totalStmt.get() as { total: number }).total;
+
+        const episodes =
+          params.length > 0
+            ? (episodesStmt.get(params[0]) as { episodes: number }).episodes
+            : (episodesStmt.get() as { episodes: number }).episodes;
+
+        const politicians =
+          params.length > 0
+            ? (politiciansStmt.get(params[0]) as { politicians: number })
+                .politicians
+            : (politiciansStmt.get() as { politicians: number }).politicians;
+
+        const parties =
+          params.length > 0
+            ? (partiesStmt.get(params[0]) as { parties: number }).parties
+            : (partiesStmt.get() as { parties: number }).parties;
 
         return NextResponse.json({
           success: true,
@@ -378,44 +425,78 @@ export async function GET(request: NextRequest) {
             total_episodes: episodes,
             unique_politicians: politicians,
             parties_represented: parties,
+            show_name: showName || "Alle Shows",
           },
         });
       }
 
       case "detailed-appearances": {
-        // Detaillierte Auftritte mit Politiker-Infos
+        // Detaillierte Auftritte mit Politiker-Infos - JETZT mit direkt gespeicherten Namen
         const limit = parseInt(searchParams.get("limit") || "50");
         const offset = parseInt(searchParams.get("offset") || "0");
+        const showName = searchParams.get("show");
 
+        let whereClause = "";
+        const params: (string | number)[] = [];
+
+        if (
+          showName &&
+          (showName === "Markus Lanz" || showName === "Maybrit Illner")
+        ) {
+          whereClause = "WHERE show_name = ?";
+          params.push(showName, limit, offset);
+        } else {
+          params.push(limit, offset);
+        }
+
+        // NEUE QUERY: Direkte Namen aus der Datenbank verwenden
         const stmt = db.prepare(`
-          SELECT show_name, episode_date, politician_id, party_id
+          SELECT show_name, episode_date, politician_id, party_id, politician_name, party_name
           FROM tv_show_politicians 
+          ${whereClause}
           ORDER BY episode_date DESC, id DESC
           LIMIT ? OFFSET ?
         `);
 
-        const results = stmt.all(limit, offset) as PoliticianAppearance[];
+        const results = stmt.all(...params) as (PoliticianAppearance & {
+          politician_name: string;
+          party_name: string;
+        })[];
 
-        // Hole Politiker-Details für alle
-        const politicianPromises = results.map(async (appearance) => {
-          const politicianDetails = await fetchPoliticianDetails(
-            appearance.politician_id
-          );
+        // KEINE EXTERNEN API-CALLS MEHR - Verwende direkt die Datenbank-Daten
+        const enrichedResults = results.map((appearance) => {
+          // Fallback für Details (nur für UI-Zwecke, ohne externe API-Calls)
+          const nameParts = appearance.politician_name?.split(" ") || [
+            "Unbekannt",
+          ];
+          const firstName = nameParts[0] || "Unbekannt";
+          const lastName = nameParts.slice(1).join(" ") || "";
+
           return {
             ...appearance,
-            politician_name: politicianDetails.full_name,
-            party_name: politicianDetails.party_name || "Unbekannt",
+            politician_name:
+              appearance.politician_name ||
+              `Politiker ${appearance.politician_id}`,
+            party_name: appearance.party_name || "Unbekannt",
             politician_details: {
-              first_name: politicianDetails.first_name,
-              last_name: politicianDetails.last_name,
-              occupation: politicianDetails.occupation,
-              year_of_birth: politicianDetails.year_of_birth,
-              education: politicianDetails.education,
+              first_name: firstName,
+              last_name: lastName,
+              occupation: "Politiker", // Allgemeiner Fallback
+              year_of_birth: null,
+              education: "Keine Angabe",
             },
           };
         });
 
-        const enrichedResults = await Promise.all(politicianPromises);
+        const totalCount = showName
+          ? db
+              .prepare(
+                "SELECT COUNT(*) as count FROM tv_show_politicians WHERE show_name = ?"
+              )
+              .get(showName)
+          : db
+              .prepare("SELECT COUNT(*) as count FROM tv_show_politicians")
+              .get();
 
         return NextResponse.json({
           success: true,
@@ -423,10 +504,28 @@ export async function GET(request: NextRequest) {
           pagination: {
             limit,
             offset,
-            total: db
-              .prepare("SELECT COUNT(*) as count FROM tv_show_politicians")
-              .get() as { count: number },
+            total: totalCount as { count: number },
           },
+        });
+      }
+
+      case "shows": {
+        // Liste der verfügbaren Shows
+        const stmt = db.prepare(`
+          SELECT show_name, COUNT(*) as appearances, 
+                 COUNT(DISTINCT episode_date) as episodes,
+                 MIN(episode_date) as first_episode,
+                 MAX(episode_date) as latest_episode
+          FROM tv_show_politicians 
+          GROUP BY show_name
+          ORDER BY show_name
+        `);
+
+        const results = stmt.all();
+
+        return NextResponse.json({
+          success: true,
+          data: results,
         });
       }
 

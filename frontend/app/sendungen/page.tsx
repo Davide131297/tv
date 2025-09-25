@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 interface PoliticianInEpisode {
   id: number;
@@ -14,20 +14,29 @@ interface EpisodeData {
   politicians: PoliticianInEpisode[];
 }
 
+interface ShowOption {
+  value: string;
+  label: string;
+}
+
 export default function EpisodesPage() {
   const [episodes, setEpisodes] = useState<EpisodeData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedShow, setSelectedShow] = useState<string>("Markus Lanz");
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const showOptions: ShowOption[] = [
+    { value: "Markus Lanz", label: "Markus Lanz" },
+    { value: "Maybrit Illner", label: "Maybrit Illner" },
+  ];
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(
-        "/api/politics?type=episodes-with-politicians"
+        `/api/politics?type=episodes-with-politicians&show=${encodeURIComponent(
+          selectedShow
+        )}`
       );
 
       if (!response.ok) {
@@ -44,7 +53,11 @@ export default function EpisodesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedShow]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   if (loading) {
     return (
@@ -90,10 +103,33 @@ export default function EpisodesPage() {
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
           📺 Sendungsübersicht
         </h1>
-        <p className="text-gray-600">
-          Chronologische Übersicht aller Markus Lanz Sendungen mit
-          Politik-Gästen
+        <p className="text-gray-600 mb-4">
+          Chronologische Übersicht aller Sendungen mit Politik-Gästen
         </p>
+
+        {/* Show Auswahl */}
+        <div className="flex flex-wrap gap-2">
+          {showOptions.map((option) => (
+            <button
+              key={option.value}
+              onClick={() => setSelectedShow(option.value)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                selectedShow === option.value
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Show-spezifische Überschrift */}
+        <div className="mt-4">
+          <h2 className="text-xl font-semibold text-gray-800">
+            📊 Aktuelle Ansicht: {selectedShow}
+          </h2>
+        </div>
       </div>
 
       {/* Statistiken */}

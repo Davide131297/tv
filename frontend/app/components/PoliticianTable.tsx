@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -39,21 +39,30 @@ export default function PoliticianTable() {
     pageIndex: 0,
     pageSize: 20,
   });
+  const [selectedShow, setSelectedShow] = useState<string>("all");
+
+  const showOptions = [
+    { value: "all", label: "Alle Shows" },
+    { value: "Markus Lanz", label: "Markus Lanz" },
+    { value: "Maybrit Illner", label: "Maybrit Illner" },
+  ];
 
   // Lade Daten
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(
-        "/api/politics?type=detailed-appearances&limit=200"
-      );
+      const url =
+        selectedShow === "all"
+          ? "/api/politics?type=detailed-appearances&limit=200"
+          : `/api/politics?type=detailed-appearances&limit=200&show=${encodeURIComponent(
+              selectedShow
+            )}`;
+
+      const response = await fetch(url);
       const result = await response.json();
 
       if (result.success) {
+        console.log("Daten geladen:", result.data);
         setData(result.data);
       }
     } catch (error) {
@@ -61,11 +70,32 @@ export default function PoliticianTable() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedShow]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   // Definiere Spalten
   const columns = useMemo(
     () => [
+      columnHelper.accessor("show_name", {
+        header: "Show",
+        cell: (info) => {
+          const show = info.getValue();
+          return (
+            <span
+              className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                show === "Markus Lanz"
+                  ? "bg-blue-100 text-blue-800"
+                  : "bg-purple-100 text-purple-800"
+              }`}
+            >
+              {show}
+            </span>
+          );
+        },
+      }),
       columnHelper.accessor("episode_date", {
         header: "Datum",
         cell: (info) => {
@@ -164,7 +194,24 @@ export default function PoliticianTable() {
             </p>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            {/* Show Filter */}
+            <div className="flex flex-wrap gap-2">
+              {showOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setSelectedShow(option.value)}
+                  className={`px-3 py-1 text-sm rounded-lg transition-colors ${
+                    selectedShow === option.value
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+
             {/* Globale Suche */}
             <div className="relative">
               <input

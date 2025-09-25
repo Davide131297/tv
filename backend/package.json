@@ -8,7 +8,8 @@
     "start": "node dist/app.js",
     "dev": "ts-node src/app.ts",
     "watch": "tsc --watch",
-    "test": "jest"
+    "test": "jest",
+    "reset-db": "node dist/scripts/clear-and-recrawl.js"
   },
   "dependencies": {
     "axios": "^1.12.2",

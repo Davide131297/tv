@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import PartyChart from "../components/PartyChart";
 
 interface PartyStats {
@@ -9,19 +9,34 @@ interface PartyStats {
   party_name: string;
 }
 
+interface ShowOption {
+  value: string;
+  label: string;
+}
+
 export default function PartiesPage() {
   const [partyStats, setPartyStats] = useState<PartyStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedShow, setSelectedShow] = useState<string>("all");
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const showOptions: ShowOption[] = [
+    { value: "all", label: "Beide Shows" },
+    { value: "Markus Lanz", label: "Markus Lanz" },
+    { value: "Maybrit Illner", label: "Maybrit Illner" },
+  ];
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/politics?type=party-stats");
+      const url =
+        selectedShow === "all"
+          ? "/api/politics?type=party-stats"
+          : `/api/politics?type=party-stats&show=${encodeURIComponent(
+              selectedShow
+            )}`;
+
+      const response = await fetch(url);
 
       if (!response.ok) {
         throw new Error("Failed to fetch data");
@@ -37,7 +52,11 @@ export default function PartiesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedShow]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   if (loading) {
     return (
@@ -66,10 +85,27 @@ export default function PartiesPage() {
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
           📊 Partei-Statistiken
         </h1>
-        <p className="text-gray-600">
-          Verteilung der Politiker-Auftritte nach Parteien in der Markus Lanz
-          Sendung
+        <p className="text-gray-600 mb-4">
+          Verteilung der Politiker-Auftritte nach Parteien in deutschen
+          TV-Talkshows
         </p>
+
+        {/* Show Auswahl */}
+        <div className="flex flex-wrap gap-2">
+          {showOptions.map((option) => (
+            <button
+              key={option.value}
+              onClick={() => setSelectedShow(option.value)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                selectedShow === option.value
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <PartyChart data={partyStats} />

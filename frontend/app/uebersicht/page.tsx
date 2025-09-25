@@ -1,27 +1,43 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 interface SummaryData {
   total_appearances: number;
   total_episodes: number;
   unique_politicians: number;
   parties_represented: number;
+  show_name?: string;
+}
+
+interface ShowOption {
+  value: string;
+  label: string;
 }
 
 export default function OverviewPage() {
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedShow, setSelectedShow] = useState<string>("all");
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const showOptions: ShowOption[] = [
+    { value: "all", label: "Beide Shows" },
+    { value: "Markus Lanz", label: "Markus Lanz" },
+    { value: "Maybrit Illner", label: "Maybrit Illner" },
+  ];
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/politics?type=summary");
+      const url =
+        selectedShow === "all"
+          ? "/api/politics?type=summary"
+          : `/api/politics?type=summary&show=${encodeURIComponent(
+              selectedShow
+            )}`;
+
+      const response = await fetch(url);
 
       if (!response.ok) {
         throw new Error("Failed to fetch data");
@@ -37,7 +53,11 @@ export default function OverviewPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedShow]);
+
+  useEffect(() => {
+    fetchData();
+  }, [selectedShow, fetchData]);
 
   if (loading) {
     return (
@@ -66,13 +86,39 @@ export default function OverviewPage() {
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
           Gesamtübersicht
         </h1>
-        <p className="text-gray-600">
-          Übersicht über alle Politiker-Auftritte in der Markus Lanz Sendung
+        <p className="text-gray-600 mb-4">
+          Übersicht über alle Politiker-Auftritte in deutschen TV-Talkshows
         </p>
+
+        {/* Show Auswahl */}
+        <div className="flex flex-wrap gap-2">
+          {showOptions.map((option) => (
+            <button
+              key={option.value}
+              onClick={() => setSelectedShow(option.value)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                selectedShow === option.value
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {summary && (
         <>
+          {/* Show-spezifische Überschrift */}
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold text-gray-800">
+              📊 Statistiken für:{" "}
+              {summary.show_name ||
+                showOptions.find((opt) => opt.value === selectedShow)?.label}
+            </h2>
+          </div>
+
           {/* Hauptstatistiken */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">

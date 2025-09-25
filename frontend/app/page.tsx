@@ -9,8 +9,9 @@ export default function Home() {
           📺 TV Politik Dashboard
         </h1>
         <p className="text-xl md:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto">
-          Entdecken Sie die Politik-Landschaft der Markus Lanz Sendung mit
-          interaktiven Statistiken und detaillierten Analysen
+          Entdecken Sie die Politik-Landschaft deutscher Talkshows mit
+          interaktiven Statistiken und detaillierten Analysen von Markus Lanz
+          und Maybrit Illner
         </p>
 
         {/* Navigation Cards */}
@@ -110,10 +111,11 @@ export default function Home() {
           Über dieses Dashboard
         </h2>
         <p className="text-gray-600 max-w-2xl mx-auto">
-          Dieses Dashboard analysiert die Auftritte von Politikern in der Markus
-          Lanz Sendung und stellt die Daten in verschiedenen interaktiven
-          Formaten dar. Die Informationen werden regelmäßig aktualisiert und
-          basieren auf öffentlich verfügbaren Quellen.
+          Dieses Dashboard analysiert die Auftritte von Politikern in deutschen
+          Talkshows (Markus Lanz und Maybrit Illner) und stellt die Daten in
+          verschiedenen interaktiven Formaten dar. Die Informationen werden
+          regelmäßig aktualisiert und basieren auf öffentlich verfügbaren
+          Quellen.
         </p>
       </div>
     </div>

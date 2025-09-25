@@ -10,8 +10,8 @@ export default function PoliticiansPage() {
           📋 Politiker-Übersicht
         </h1>
         <p className="text-gray-600">
-          Detaillierte Übersicht aller Politiker mit ihren Auftritten in der
-          Markus Lanz Sendung
+          Detaillierte Übersicht aller Politiker mit ihren Auftritten in
+          deutschen TV-Talkshows
         </p>
       </div>
 
