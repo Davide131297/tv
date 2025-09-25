@@ -127,10 +127,33 @@ async function fetchMultiplePartyNames(
 // Cache für Politiker-Details
 const politicianDetailsCache = new Map<number, PoliticianDetails>();
 
+// Spezielle Ausnahmen für bestimmte Politiker
+const POLITICIAN_OVERRIDES: Record<number, PoliticianDetails> = {
+  28910: {
+    // Manfred Weber - Korrigierte CSU-Zuordnung
+    id: 28910,
+    first_name: "Manfred",
+    last_name: "Weber",
+    full_name: "Manfred Weber",
+    occupation: "MdEP",
+    year_of_birth: 1972,
+    education: "Dipl. Ingenieur",
+    party_id: 3,
+    party_name: "CSU",
+  },
+};
+
 // Hole Politiker-Details von der API
 async function fetchPoliticianDetails(
   politicianId: number
 ): Promise<PoliticianDetails> {
+  // Prüfe zuerst Overrides
+  if (POLITICIAN_OVERRIDES[politicianId]) {
+    const override = POLITICIAN_OVERRIDES[politicianId];
+    politicianDetailsCache.set(politicianId, override);
+    return override;
+  }
+
   if (politicianDetailsCache.has(politicianId)) {
     return politicianDetailsCache.get(politicianId)!;
   }

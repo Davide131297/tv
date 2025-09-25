@@ -70,7 +70,7 @@ function runMigration() {
     db.close();
     console.log("Migration abgeschlossen.");
 }
-// Führe Migration aus wenn direkt aufgerufen  
+// Führe Migration aus wenn direkt aufgerufen
 if (require.main === module) {
     runMigration();
 }

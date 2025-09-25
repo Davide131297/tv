@@ -91,11 +91,27 @@ function disambiguateByRole(
   return null;
 }
 
+// Spezielle Override-Cases für bestimmte Politiker
+const POLITICIAN_OVERRIDES: Record<string, GuestDetails> = {
+  "Manfred Weber": {
+    name: "Manfred Weber",
+    isPolitician: true,
+    politicianId: 28910,
+    party: 3, // CSU
+  },
+};
+
 // Politiker-Prüfung mit Disambiguierung
 async function checkPolitician(
   name: string,
   role?: string
 ): Promise<GuestDetails> {
+  // Prüfe zuerst Override-Cases
+  if (POLITICIAN_OVERRIDES[name]) {
+    console.log(`✅ Override angewendet für ${name} -> CSU`);
+    return POLITICIAN_OVERRIDES[name];
+  }
+
   const { first, last } = splitFirstLast(name);
   if (!first || !last) {
     return {
@@ -199,12 +215,104 @@ async function getLatestEpisodeLinks(
     (as) =>
       Array.from(new Set(as.map((a) => (a as HTMLAnchorElement).href))).slice(
         0,
-        10
-      ) // Nur die ersten 10 (neuesten)
+        limit
+      )
   );
 
-  console.log(`📺 Gefunden: ${urls.length} neueste Episode-Links`);
+  console.log(`📺 Gefunden: ${urls.length} Episode-Links`);
   return urls;
+}
+
+// Extrahiere ALLE verfügbaren Episode-Links durch Scrollen und Paginierung
+async function getAllEpisodeLinks(page: Page): Promise<string[]> {
+  console.log("🔍 Lade ALLE verfügbaren Episode-Links...");
+
+  await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 60000 });
+
+  // Cookie-Banner akzeptieren falls vorhanden
+  try {
+    await page.waitForSelector('[data-testid="cmp-accept-all"]', {
+      timeout: 5000,
+    });
+    await page.click('[data-testid="cmp-accept-all"]');
+    console.log("Cookie-Banner akzeptiert");
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  } catch (e) {
+    console.log("Kein Cookie-Banner gefunden oder bereits akzeptiert");
+  }
+
+  let allUrls = new Set<string>();
+  let previousCount = 0;
+  let scrollAttempts = 0;
+  const maxScrollAttempts = 100; // Verhindere Endlosschleife
+
+  console.log("📜 Scrolle für alle verfügbaren Episoden...");
+
+  while (scrollAttempts < maxScrollAttempts) {
+    // Sammle alle aktuell sichtbaren Episode-Links
+    const currentUrls = await page.$$eval(
+      'a[href^="/video/talk/markus-lanz-114/"]',
+      (as) => as.map((a) => (a as HTMLAnchorElement).href)
+    );
+
+    // Füge neue URLs hinzu
+    currentUrls.forEach((url) => allUrls.add(url));
+
+    console.log(
+      `   � Gefunden: ${allUrls.size} Episoden (Runde ${scrollAttempts + 1})`
+    );
+
+    // Wenn keine neuen URLs gefunden wurden, sind wir am Ende
+    if (allUrls.size === previousCount) {
+      console.log("   ✅ Keine neuen Episoden mehr gefunden");
+      break;
+    }
+
+    previousCount = allUrls.size;
+    scrollAttempts++;
+
+    // Scrolle nach unten für Lazy Loading
+    await page.evaluate(() => {
+      window.scrollBy(0, window.innerHeight * 2);
+    });
+
+    // Warte auf neuen Content
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    // Prüfe auf "Mehr laden" Button oder ähnliches
+    try {
+      const loadMoreButton = await page.$(
+        'button[data-tracking*="load"], button:contains("Mehr"), button:contains("Weitere")'
+      );
+      if (loadMoreButton) {
+        console.log("   🔄 Klicke 'Mehr laden' Button...");
+        await loadMoreButton.click();
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+      }
+    } catch (e) {
+      // Kein Load-More Button gefunden, das ist ok
+    }
+  }
+
+  const finalUrls = Array.from(allUrls);
+  console.log(`📺 Gesamt gefunden: ${finalUrls.length} Episode-Links`);
+
+  // Sortiere nach Datum (neuste zuerst)
+  const urlsWithDates = finalUrls
+    .map((url) => ({
+      url,
+      date: parseISODateFromUrl(url),
+    }))
+    .filter((ep) => ep.date !== null)
+    .sort((a, b) => b.date!.localeCompare(a.date!));
+
+  console.log(
+    `📅 Zeitraum: ${urlsWithDates[urlsWithDates.length - 1]?.date} bis ${
+      urlsWithDates[0]?.date
+    }`
+  );
+
+  return urlsWithDates.map((ep) => ep.url);
 }
 
 // Extrahiere Datum aus URL (bereits vorhandene Funktion)
@@ -512,15 +620,182 @@ export async function crawlNewMarkusLanzEpisodes(): Promise<void> {
   }
 }
 
+// Hauptfunktion: VOLLSTÄNDIGER historischer Crawl ALLER Episoden
+export async function crawlAllMarkusLanzEpisodes(): Promise<void> {
+  console.log("🚀 Starte VOLLSTÄNDIGEN Markus Lanz Crawler...");
+  console.log(`📅 Datum: ${new Date().toISOString()}`);
+
+  // Stelle sicher dass die Tabelle existiert
+  initTvShowPoliticiansTable();
+
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+    ],
+  });
+
+  try {
+    const page = await browser.newPage();
+    await page.setUserAgent(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+    );
+    await page.setViewport({ width: 1280, height: 1000 });
+    await page.setExtraHTTPHeaders({
+      "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
+    });
+
+    // Hole ALLE verfügbaren Episode-Links
+    const allEpisodeUrls = await getAllEpisodeLinks(page);
+
+    if (allEpisodeUrls.length === 0) {
+      console.log("❌ Keine Episode-Links gefunden");
+      return;
+    }
+
+    // Konvertiere URLs zu Episode-Objekten mit Datum
+    const allEpisodes = allEpisodeUrls
+      .map((url) => ({
+        url,
+        date: parseISODateFromUrl(url),
+      }))
+      .filter((ep) => ep.date !== null)
+      .sort((a, b) => a.date!.localeCompare(b.date!)) as Array<{
+      url: string;
+      date: string;
+    }>; // Älteste zuerst für historischen Crawl
+
+    console.log(`📺 Gefunden: ${allEpisodes.length} Episoden zum Crawlen`);
+    console.log(
+      `📅 Zeitraum: ${allEpisodes[0]?.date} bis ${
+        allEpisodes[allEpisodes.length - 1]?.date
+      }`
+    );
+
+    let totalPoliticiansInserted = 0;
+    let episodesProcessed = 0;
+    let episodesWithErrors = 0;
+
+    // Verarbeite jede Episode
+    for (let i = 0; i < allEpisodes.length; i++) {
+      const episode = allEpisodes[i];
+
+      try {
+        console.log(
+          `\n🎬 [${i + 1}/${allEpisodes.length}] Verarbeite Episode vom ${
+            episode.date
+          }`
+        );
+
+        const guests = await extractGuestsFromEpisode(page, episode.url);
+
+        if (guests.length === 0) {
+          console.log("   ❌ Keine Gäste gefunden");
+          continue;
+        }
+
+        // Prüfe jeden Gast auf Politiker-Status
+        const politicians = [];
+        for (const guest of guests) {
+          console.log(
+            `   🔍 Prüfe: ${guest.name}${guest.role ? ` (${guest.role})` : ""}`
+          );
+
+          const details = await checkPolitician(guest.name, guest.role);
+
+          if (details.isPolitician && details.politicianId) {
+            console.log(
+              `      ✅ Politiker: ID ${details.politicianId}, Partei ${details.party}`
+            );
+            politicians.push({
+              politicianId: details.politicianId,
+              partyId: details.party,
+            });
+          } else {
+            console.log(`      ❌ Kein Politiker`);
+          }
+
+          // Pause zwischen API-Calls
+          await new Promise((resolve) => setTimeout(resolve, 300));
+        }
+
+        // Speichere Politiker in die Datenbank
+        if (politicians.length > 0) {
+          const inserted = insertMultipleTvShowPoliticians(
+            "Markus Lanz",
+            episode.date,
+            politicians
+          );
+
+          totalPoliticiansInserted += inserted;
+          console.log(
+            `   💾 ${inserted}/${politicians.length} Politiker gespeichert`
+          );
+        } else {
+          console.log(`   📝 Keine Politiker in dieser Episode`);
+        }
+
+        episodesProcessed++;
+
+        // Fortschritt alle 10 Episoden
+        if ((i + 1) % 10 === 0) {
+          console.log(
+            `\n📊 Zwischenstand: ${episodesProcessed}/${allEpisodes.length} Episoden, ${totalPoliticiansInserted} Politiker`
+          );
+        }
+      } catch (error) {
+        console.error(
+          `❌ Fehler beim Verarbeiten von Episode ${episode.date}:`,
+          error
+        );
+        episodesWithErrors++;
+      }
+    }
+
+    console.log(`\n🎉 VOLLSTÄNDIGER Crawl abgeschlossen!`);
+    console.log(
+      `📊 Episoden verarbeitet: ${episodesProcessed}/${allEpisodes.length}`
+    );
+    console.log(`👥 Politiker eingefügt: ${totalPoliticiansInserted}`);
+    console.log(`❌ Episoden mit Fehlern: ${episodesWithErrors}`);
+
+    if (episodesWithErrors > 0) {
+      console.log(
+        `⚠️  ${episodesWithErrors} Episoden hatten Fehler und wurden übersprungen`
+      );
+    }
+  } finally {
+    await browser.close().catch(() => {});
+  }
+}
+
 // CLI-Support für direkten Aufruf
 if (require.main === module) {
-  crawlNewMarkusLanzEpisodes()
-    .then(() => {
-      console.log("✅ Crawler beendet");
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error("❌ Crawler Fehler:", error);
-      process.exit(1);
-    });
+  const mode = process.argv[2] || "incremental";
+
+  console.log(`🎯 Crawler-Modus: ${mode}`);
+
+  if (mode === "full" || mode === "all" || mode === "complete") {
+    crawlAllMarkusLanzEpisodes()
+      .then(() => {
+        console.log("✅ Vollständiger Crawler beendet");
+        process.exit(0);
+      })
+      .catch((error) => {
+        console.error("❌ Vollständiger Crawler Fehler:", error);
+        process.exit(1);
+      });
+  } else {
+    crawlNewMarkusLanzEpisodes()
+      .then(() => {
+        console.log("✅ Inkrementeller Crawler beendet");
+        process.exit(0);
+      })
+      .catch((error) => {
+        console.error("❌ Inkrementeller Crawler Fehler:", error);
+        process.exit(1);
+      });
+  }
 }
