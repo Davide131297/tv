@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import PartyChart from "../components/PartyChart";
+import PartyChart from "@/components/PartyChart";
 
 interface PartyStats {
   party_id: number;
@@ -108,7 +108,7 @@ export default function PartiesPage() {
         </div>
       </div>
 
-      <PartyChart data={partyStats} />
+      <PartyChart data={partyStats} selectedShow={selectedShow} />
 
       {/* Partei-Details Tabelle */}
       {partyStats.length > 0 && (

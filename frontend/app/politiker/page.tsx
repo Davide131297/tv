@@ -1,6 +1,6 @@
 "use client";
 
-import PoliticianTable from "../components/PoliticianTable";
+import PoliticianTable from "@/components/PoliticianTable";
 
 export default function PoliticiansPage() {
   return (

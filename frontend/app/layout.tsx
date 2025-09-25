@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Navigation from "./components/Navigation";
+import Navigation from "@/components/Navigation";
+import Footer from "@/components/Footer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,24 +25,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="de">
+    <html lang="de" className="h-full">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-gray-50`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 min-h-full flex flex-col`}
       >
         <Navigation />
-        <main>{children}</main>
-        <footer className="bg-white border-t mt-16">
-          <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-            <div className="text-center text-gray-500 text-sm">
-              <p>
-                Daten basierend auf Markus Lanz Sendungen und abgeordnetenwatch.de
-              </p>
-              <p className="mt-2">
-                Letztes Update: {new Date().toLocaleDateString("de-DE")}
-              </p>
-            </div>
-          </div>
-        </footer>
+        <main className="flex-grow">{children}</main>
+        <Footer />
       </body>
     </html>
   );
