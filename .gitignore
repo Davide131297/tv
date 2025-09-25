@@ -10,3 +10,6 @@ database/database.sqlite
 .env
 backend/.env
 frontend/.env
+
+#next.js
+.next
