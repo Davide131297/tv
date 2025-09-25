@@ -110,9 +110,9 @@ export default function PoliticianTable() {
         cell: (info) => (
           <div>
             <div className="font-semibold">{info.getValue()}</div>
-            <div className="text-sm text-gray-500">
+            {/* <div className="text-sm text-gray-500">
               {info.row.original.politician_details.occupation}
-            </div>
+            </div> */}
           </div>
         ),
       }),
@@ -204,7 +204,7 @@ export default function PoliticianTable() {
                   onClick={() => setSelectedShow(option.value)}
                   className={`px-3 py-1 text-sm rounded-lg transition-colors ${
                     selectedShow === option.value
-                      ? "bg-blue-600 text-white"
+                      ? "bg-blue-600 text-white hover:bg-blue-700"
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                 >

@@ -155,7 +155,7 @@ export default function EpisodesPage() {
               onClick={() => setSelectedShow(option.value)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 selectedShow === option.value
-                  ? "bg-blue-600 text-white"
+                  ? "bg-blue-600 text-white hover:bg-blue-700"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >

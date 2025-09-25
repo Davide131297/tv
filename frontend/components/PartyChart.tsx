@@ -95,12 +95,10 @@ export default function PartyChart({ data, selectedShow }: PartyChartProps) {
               tickLine={false}
               tickMargin={10}
               axisLine={false}
-              tickFormatter={(value) =>
-                value.length > 10 ? value.slice(0, 10) + "..." : value
-              }
-              angle={-45}
+              angle={-30}
               textAnchor="end"
-              height={80}
+              height={110}
+              fontSize={11}
             />
             <Bar dataKey="auftritte" radius={8}>
               <LabelList
