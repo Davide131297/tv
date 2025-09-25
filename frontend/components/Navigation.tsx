@@ -94,7 +94,7 @@ export default function Navigation() {
 
           {/* Info */}
           <div className="text-sm text-gray-500 hidden lg:block">
-            Markus Lanz Politiker-Statistiken
+            Politiker-Statistiken in TV Sendungen
           </div>
         </div>
       </div>
