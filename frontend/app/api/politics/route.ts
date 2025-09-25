@@ -239,6 +239,64 @@ export async function GET(request: NextRequest) {
         });
       }
 
+      case "episodes-with-politicians": {
+        // Episoden mit Politiker-Namen
+        const stmt = db.prepare(`
+          SELECT episode_date, politician_id, party_id
+          FROM tv_show_politicians 
+          WHERE show_name = 'Markus Lanz'
+          ORDER BY episode_date DESC
+          LIMIT 200
+        `);
+
+        const results = stmt.all() as PoliticianAppearance[];
+
+        // Gruppiere nach episode_date
+        const episodeMap = new Map<string, number[]>();
+        results.forEach((result) => {
+          if (!episodeMap.has(result.episode_date)) {
+            episodeMap.set(result.episode_date, []);
+          }
+          episodeMap.get(result.episode_date)!.push(result.politician_id);
+        });
+
+        // Hole Politiker-Details für alle einzigartigen IDs
+        const allPoliticianIds = [
+          ...new Set(results.map((r) => r.politician_id)),
+        ];
+        const politicianPromises = allPoliticianIds.map((id) =>
+          fetchPoliticianDetails(id)
+        );
+        const politicianDetails = await Promise.all(politicianPromises);
+
+        // Erstelle Map für schnelleren Zugriff
+        const politicianMap = new Map<number, PoliticianDetails>();
+        politicianDetails.forEach((details) => {
+          politicianMap.set(details.id, details);
+        });
+
+        // Erstelle finale Episoden-Liste
+        const episodesWithPoliticians = Array.from(episodeMap.entries()).map(
+          ([date, politicianIds]) => ({
+            episode_date: date,
+            politician_count: politicianIds.length,
+            politicians: politicianIds.map((id) => {
+              const details = politicianMap.get(id);
+              return {
+                id,
+                name: details ? details.full_name : `Politiker ${id}`,
+                party_name: details ? details.party_name : "Unbekannt",
+              };
+            }),
+          })
+        );
+
+        return NextResponse.json({
+          success: true,
+          data: episodesWithPoliticians.slice(0, 50),
+        });
+      }
+
       case "recent": {
         // Letzte Auftritte
         const stmt = db.prepare(`
