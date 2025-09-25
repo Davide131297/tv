@@ -1,184 +1,101 @@
 import puppeteer, { Page } from "puppeteer";
-import pLimit from "p-limit";
 import axios from "axios";
+import {
+  initTvShowPoliticiansTable,
+  insertMultipleTvShowPoliticians,
+  getLatestEpisodeDate,
+} from "../db-tv-shows";
 import { AbgeordnetenwatchPolitician } from "../types/abgeordnetenwatch";
 
 const LIST_URL = "https://www.zdf.de/talk/markus-lanz-114";
 
-// ---------------- Types ----------------
+interface GuestWithRole {
+  name: string;
+  role?: string;
+}
+
+interface NewEpisode {
+  episodeUrl: string;
+  date: string;
+  guests: GuestWithRole[];
+}
 
 interface GuestDetails {
   name: string;
   isPolitician: boolean;
-  politicianId: string | null;
+  politicianId: number | null;
   party?: number;
 }
 
-interface EpisodeResult {
-  episodeUrl: string;
-  date: string | null;
-  guests: string[];
-  guestsDetailed: GuestDetails[];
-}
-
-// ---------------- Lade mehr / Episoden-Links ----------------
-
-async function clickLoadMoreUntilDone(page: Page, maxClicks = 50) {
-  for (let i = 0; i < maxClicks; i++) {
-    const hasButton = await page.$('button[data-testid="pagination-button"]');
-    if (!hasButton) break;
-
-    const prevCount = await page
-      .$$eval("ol.c19e06ji > li", (els) => els.length)
-      .catch(() => 0);
-
-    await Promise.all([
-      page.click('button[data-testid="pagination-button"]'),
-      page
-        .waitForNetworkIdle({ idleTime: 600, timeout: 15000 })
-        .catch(() => {}),
-    ]);
-
-    const grew = await page
-      .waitForFunction(
-        (sel, prev) => document.querySelectorAll(sel).length > prev,
-        { timeout: 5000 },
-        "ol.c19e06ji > li",
-        prevCount
-      )
-      .catch(() => null);
-
-    if (!grew) break;
-  }
-}
-
-async function collectEpisodeLinks(page: Page) {
-  const urls = await page.$$eval(
-    'a[href^="/video/talk/markus-lanz-114/"]',
-    (as) => Array.from(new Set(as.map((a) => (a as HTMLAnchorElement).href)))
-  );
-  return urls;
-}
-
-// ---------------- Name-Filter / Heuristik ----------------
-
-function seemsLikePersonName(name: string) {
-  if (!/\S+\s+\S+/.test(name)) return false; // mind. zwei Wörter
-  const re =
-    /^[\p{Lu}][\p{L}\-]+(?:\s+(?:von|van|de|da|del|der|den|du|le|la|zu|zur|zum))?(?:\s+[\p{Lu}][\p{L}\-]+)+$/u;
-  return re.test(name);
-}
-
-// ---------------- Datum-Helfer ----------------
-
-function toISOFromDDMMYYYY(d: string) {
-  const m = d.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
-  if (!m) return null;
-  const [_, dd, mm, yyyy] = m;
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-const DE_MONTHS: Record<string, string> = {
-  januar: "01",
-  februar: "02",
-  märz: "03",
-  maerz: "03",
-  april: "04",
-  mai: "05",
-  juni: "06",
-  juli: "07",
-  august: "08",
-  september: "09",
-  oktober: "10",
-  november: "11",
-  dezember: "12",
-};
-
-function parseISODateFromUrl(url: string): string | null {
-  const m = url.match(/vom-(\d{1,2})-([a-zäöü]+)-(\d{4})/i);
-  if (!m) return null;
-  let [_, d, mon, y] = m;
-  const key = mon
-    .normalize("NFD")
-    .replace(/\u0308/g, "")
-    .toLowerCase();
-  const mm = DE_MONTHS[key];
-  if (!mm) return null;
-  const dd = d.padStart(2, "0");
-  return `${y}-${mm}-${dd}`;
-}
-
-async function extractDateISO(
-  page: Page,
-  episodeUrl: string
-): Promise<string | null> {
-  // 1) JSON-LD
-  const ldDates: string[] = await page
-    .$$eval('script[type="application/ld+json"]', (nodes) => {
-      const fields = [
-        "uploadDate",
-        "datePublished",
-        "dateCreated",
-        "startDate",
-        "endDate",
-      ];
-      const out: string[] = [];
-      function collect(obj: any) {
-        if (!obj || typeof obj !== "object") return;
-        for (const k of fields) {
-          const v = obj[k];
-          if (typeof v === "string") out.push(v);
-        }
-        if (Array.isArray(obj)) obj.forEach(collect);
-        else Object.values(obj).forEach((v) => collect(v));
-      }
-      nodes.forEach((n) => {
-        try {
-          const txt = n.textContent || "";
-          if (!txt.trim()) return;
-          collect(JSON.parse(txt));
-        } catch {}
-      });
-      return out;
-    })
-    .catch(() => []);
-
-  for (const cand of ldDates) {
-    const iso = cand.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
-    if (iso) return iso;
-    const de = cand.match(/\b\d{2}\.\d{2}\.\d{4}\b/)?.[0];
-    if (de) {
-      const conv = toISOFromDDMMYYYY(de);
-      if (conv) return conv;
-    }
-  }
-
-  // 2) DD.MM.YYYY im Text
-  const textDate = await page
-    .$eval("main", (el) => {
-      const t = el.textContent || "";
-      const m = t.match(/\b\d{2}\.\d{2}\.\d{4}\b/);
-      return m ? m[0] : null;
-    })
-    .catch(() => null);
-
-  if (textDate) {
-    const iso = toISOFromDDMMYYYY(textDate);
-    if (iso) return iso;
-  }
-
-  // 3) URL-Fallback
-  return parseISODateFromUrl(episodeUrl);
-}
-
-// ---------------- Politiker-Check ----------------
-
+// Hilfsfunktion: Name in Vor- und Nachname aufteilen
 function splitFirstLast(name: string) {
   const parts = name.split(/\s+/).filter(Boolean);
   return { first: parts[0] ?? "", last: parts.slice(1).join(" ").trim() };
 }
 
-async function checkPolitician(name: string): Promise<GuestDetails> {
+// Hilfsfunktion zur Disambiguierung basierend auf ZDF-Rolle
+function disambiguateByRole(
+  politicians: AbgeordnetenwatchPolitician[],
+  role: string
+): AbgeordnetenwatchPolitician | null {
+  const roleUpper = role.toUpperCase();
+
+  // Partei-Mappings für die Disambiguierung
+  const partyMappings: Record<string, string[]> = {
+    CDU: ["CDU", "CHRISTLICH DEMOKRATISCHE UNION"],
+    CSU: ["CSU", "CHRISTLICH-SOZIALE UNION"],
+    SPD: ["SPD", "SOZIALDEMOKRATISCHE PARTEI"],
+    FDP: ["FDP", "FREIE DEMOKRATISCHE PARTEI"],
+    GRÜNE: ["BÜNDNIS 90/DIE GRÜNEN", "DIE GRÜNEN"],
+    LINKE: ["DIE LINKE"],
+    AFD: ["AFD", "ALTERNATIVE FÜR DEUTSCHLAND"],
+  };
+
+  // Positionen für die Disambiguierung
+  const positionMappings: Record<string, string[]> = {
+    BUNDESKANZLER: ["BUNDESKANZLER", "KANZLER"],
+    MINISTERPRÄSIDENT: [
+      "MINISTERPRÄSIDENT",
+      "REGIERUNGSCHEF",
+      "LANDESVORSITZENDE",
+    ],
+    MINISTER: ["MINISTER", "BUNDESMINISTER", "STAATSSEKRETÄR"],
+    BUNDESTAG: ["BUNDESTAG", "MDB", "ABGEORDNETE"],
+    LANDTAG: ["LANDTAG", "MDL", "LANDESABGEORDNETE"],
+  };
+
+  // 1. Versuche Partei-Match
+  for (const [party, variants] of Object.entries(partyMappings)) {
+    if (variants.some((variant) => roleUpper.includes(variant))) {
+      const partyMatch = politicians.find(
+        (p) => p.party && p.party.label.toUpperCase().includes(party)
+      );
+      if (partyMatch) {
+        console.log(`✅ Partei-Match gefunden: ${party}`);
+        return partyMatch;
+      }
+    }
+  }
+
+  // 2. Versuche Position-Match
+  for (const [position, variants] of Object.entries(positionMappings)) {
+    if (variants.some((variant) => roleUpper.includes(variant))) {
+      // Für spezifische Positionen, nimm den ersten Treffer
+      if (["BUNDESKANZLER", "MINISTERPRÄSIDENT"].includes(position)) {
+        console.log(`✅ Position-Match gefunden: ${position}`);
+        return politicians[0];
+      }
+    }
+  }
+
+  return null;
+}
+
+// Politiker-Prüfung mit Disambiguierung
+async function checkPolitician(
+  name: string,
+  role?: string
+): Promise<GuestDetails> {
   const { first, last } = splitFirstLast(name);
   if (!first || !last) {
     return {
@@ -194,12 +111,57 @@ async function checkPolitician(name: string): Promise<GuestDetails> {
 
   try {
     const { data } = await axios.get(url, { timeout: 10000 });
-    const hit: AbgeordnetenwatchPolitician = data?.data?.[0];
+    const politicians: AbgeordnetenwatchPolitician[] = data?.data || [];
+
+    if (politicians.length === 0) {
+      return {
+        name,
+        isPolitician: false,
+        politicianId: null,
+      };
+    }
+
+    if (politicians.length === 1) {
+      // Nur ein Treffer - verwende ihn direkt
+      const hit = politicians[0];
+      return {
+        name,
+        isPolitician: true,
+        politicianId: hit.id,
+        party: hit.party?.id,
+      };
+    }
+
+    // Mehrere Treffer - versuche Disambiguierung über ZDF-Rolle
+    if (role && politicians.length > 1) {
+      console.log(
+        `🔍 Disambiguierung für ${name}: ${politicians.length} Treffer gefunden, Rolle: "${role}"`
+      );
+
+      const selectedPolitician = disambiguateByRole(politicians, role);
+      if (selectedPolitician) {
+        console.log(
+          `✅ Politiker ausgewählt: ${selectedPolitician.label} (${selectedPolitician.party?.label})`
+        );
+        return {
+          name,
+          isPolitician: true,
+          politicianId: selectedPolitician.id,
+          party: selectedPolitician.party?.id,
+        };
+      }
+    }
+
+    // Fallback: ersten Treffer verwenden
+    console.log(
+      `⚠️  Keine eindeutige Zuordnung für ${name}, verwende ersten Treffer`
+    );
+    const hit = politicians[0];
     return {
       name,
-      isPolitician: !!hit,
-      politicianId: hit?.id ? String(hit.id) : null,
-      party: hit?.party?.id,
+      isPolitician: true,
+      politicianId: hit.id,
+      party: hit.party?.id,
     };
   } catch {
     return {
@@ -210,16 +172,123 @@ async function checkPolitician(name: string): Promise<GuestDetails> {
   }
 }
 
-// ---------------- Gäste aus Episode ----------------
+// Extrahiere die neuesten Episode-Links (nur die ersten paar)
+async function getLatestEpisodeLinks(
+  page: Page,
+  limit = 10
+): Promise<string[]> {
+  console.log("🔍 Lade die neuesten Episode-Links...");
 
-async function extractGuestsFromEpisode(page: Page, episodeUrl: string) {
+  await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 60000 });
+
+  // Cookie-Banner akzeptieren falls vorhanden
+  try {
+    await page.waitForSelector('[data-testid="cmp-accept-all"]', {
+      timeout: 5000,
+    });
+    await page.click('[data-testid="cmp-accept-all"]');
+    console.log("Cookie-Banner akzeptiert");
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  } catch (e) {
+    console.log("Kein Cookie-Banner gefunden oder bereits akzeptiert");
+  }
+
+  // Hole die ersten Episode-Links (neueste zuerst)
+  const urls = await page.$$eval(
+    'a[href^="/video/talk/markus-lanz-114/"]',
+    (as) =>
+      Array.from(new Set(as.map((a) => (a as HTMLAnchorElement).href))).slice(
+        0,
+        10
+      ) // Nur die ersten 10 (neuesten)
+  );
+
+  console.log(`📺 Gefunden: ${urls.length} neueste Episode-Links`);
+  return urls;
+}
+
+// Extrahiere Datum aus URL (bereits vorhandene Funktion)
+function parseISODateFromUrl(url: string): string | null {
+  const DE_MONTHS: Record<string, string> = {
+    januar: "01",
+    februar: "02",
+    märz: "03",
+    maerz: "03",
+    april: "04",
+    mai: "05",
+    juni: "06",
+    juli: "07",
+    august: "08",
+    september: "09",
+    oktober: "10",
+    november: "11",
+    dezember: "12",
+  };
+
+  const m = url.match(/vom-(\d{1,2})-([a-zäöü]+)-(\d{4})/i);
+  if (!m) return null;
+
+  let [_, d, mon, y] = m;
+  const key = mon
+    .normalize("NFD")
+    .replace(/\u0308/g, "")
+    .toLowerCase();
+  const mm = DE_MONTHS[key];
+  if (!mm) return null;
+
+  const dd = d.padStart(2, "0");
+  return `${y}-${mm}-${dd}`;
+}
+
+// Filtere nur neue Episoden (neuere als das letzte Datum in der DB)
+function filterNewEpisodes(
+  episodeUrls: string[],
+  latestDbDate: string | null
+): Array<{ url: string; date: string }> {
+  console.log(`🗓️  Letzte Episode in DB: ${latestDbDate || "Keine"}`);
+
+  const episodesWithDates = episodeUrls
+    .map((url) => ({
+      url,
+      date: parseISODateFromUrl(url),
+    }))
+    .filter((ep) => ep.date !== null) as Array<{ url: string; date: string }>;
+
+  if (!latestDbDate) {
+    console.log("📋 Keine Episoden in DB - alle sind neu");
+    return episodesWithDates;
+  }
+
+  const newEpisodes = episodesWithDates.filter((ep) => ep.date > latestDbDate);
+  console.log(
+    `🆕 ${newEpisodes.length} neue Episoden gefunden (nach ${latestDbDate})`
+  );
+
+  return newEpisodes.sort((a, b) => b.date.localeCompare(a.date)); // Neueste zuerst
+}
+
+// Name-Filter (bereits vorhanden)
+function seemsLikePersonName(name: string): boolean {
+  if (!/\S+\s+\S+/.test(name)) return false;
+  const re =
+    /^[\p{Lu}][\p{L}\-]+(?:\s+(?:von|van|de|da|del|der|den|du|le|la|zu|zur|zum))?(?:\s+[\p{Lu}][\p{L}\-]+)+$/u;
+  return re.test(name);
+}
+
+// Extrahiere Gäste aus einer Episode
+async function extractGuestsFromEpisode(
+  page: Page,
+  episodeUrl: string
+): Promise<GuestWithRole[]> {
+  console.log(`🎬 Crawle Episode: ${episodeUrl}`);
+
   await page.goto(episodeUrl, { waitUntil: "networkidle2", timeout: 60000 });
   await page.setExtraHTTPHeaders({
     "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
   });
   await page.waitForSelector("main", { timeout: 15000 }).catch(() => {});
 
-  // sanft scrollen, um Lazy-Content zu triggern
+  // Sanft scrollen für Lazy-Content
   await page
     .evaluate(async () => {
       await new Promise<void>((res) => {
@@ -235,24 +304,30 @@ async function extractGuestsFromEpisode(page: Page, episodeUrl: string) {
     })
     .catch(() => {});
 
-  // Primär: typische Gäste-Sektion
-  let names: string[] = await page
+  // Primär: Gäste-Sektion mit Rollen
+  let guestsWithRoles: GuestWithRole[] = await page
     .$$eval('section[tabindex="0"] p b, section.tdeoflm p b', (els) =>
       Array.from(
         new Set(
           els
             .map((el) => (el.textContent || "").replace(/\s+/g, " ").trim())
             .filter(Boolean)
-            .filter((t) => t.includes(",")) // "Name, Rolle"
-            .map((t) => t.split(",")[0].trim())
+            .filter((t) => t.includes(","))
+            .map((t) => {
+              const parts = t.split(",");
+              return {
+                name: parts[0].trim(),
+                role: parts.slice(1).join(",").trim() || undefined,
+              };
+            })
         )
       )
     )
     .catch(() => []);
 
-  // Fallback 1: alle <b> unter <main>, streng filtern
-  if (!names.length) {
-    names = await page
+  // Fallback: alle <b> Tags
+  if (!guestsWithRoles.length) {
+    guestsWithRoles = await page
       .$$eval("main b", (els) =>
         Array.from(
           new Set(
@@ -260,38 +335,72 @@ async function extractGuestsFromEpisode(page: Page, episodeUrl: string) {
               .map((el) => (el.textContent || "").replace(/\s+/g, " ").trim())
               .filter(Boolean)
               .filter((t) => t.includes(","))
-              .map((t) => t.split(",")[0].trim())
+              .map((t) => {
+                const parts = t.split(",");
+                return {
+                  name: parts[0].trim(),
+                  role: parts.slice(1).join(",").trim() || undefined,
+                };
+              })
           )
         )
       )
       .catch(() => []);
   }
 
-  // Fallback 2: alt-Text des großen Bildes (dort stehen oft die Namen, kommasepariert)
-  if (!names.length) {
+  // Fallback: Alt-Text vom Bild
+  if (!guestsWithRoles.length) {
     const alt = await page
       .$eval(
         'main img[alt*="Markus Lanz"]',
         (el) => el.getAttribute("alt") || ""
       )
       .catch(() => "");
+
     if (alt && alt.includes(":")) {
       const list = alt
         .split(":")[1]
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean);
-      names = Array.from(new Set(list));
+      guestsWithRoles = list.map((name) => ({ name, role: undefined }));
     }
   }
 
-  // final: Heuristik
-  return names.filter(seemsLikePersonName);
+  // Filter und Duplikat-Entfernung
+  const filteredGuests = guestsWithRoles.filter((guest) =>
+    seemsLikePersonName(guest.name)
+  );
+
+  const uniqueGuests = filteredGuests.reduce(
+    (acc: GuestWithRole[], current) => {
+      const existing = acc.find((guest) => guest.name === current.name);
+      if (!existing) {
+        acc.push(current);
+      }
+      return acc;
+    },
+    []
+  );
+
+  console.log(
+    `👥 Gäste gefunden: ${uniqueGuests.map((g) => g.name).join(", ")}`
+  );
+  return uniqueGuests;
 }
 
-// ---------------- Hauptlauf ----------------
+// Hauptfunktion: Crawle nur neue Episoden
+export async function crawlNewMarkusLanzEpisodes(): Promise<void> {
+  console.log("🚀 Starte inkrementellen Markus Lanz Crawler...");
+  console.log(`📅 Datum: ${new Date().toISOString()}`);
 
-export async function crawlAllMarkusLanzEpisodes(): Promise<EpisodeResult[]> {
+  // Stelle sicher dass die Tabelle existiert
+  initTvShowPoliticiansTable();
+
+  // Hole das letzte Datum aus der DB
+  const latestDbDate = getLatestEpisodeDate("Markus Lanz");
+  console.log(`🗃️  Letzte Episode in DB: ${latestDbDate || "Keine"}`);
+
   const browser = await puppeteer.launch({
     headless: true,
     args: [
@@ -310,77 +419,108 @@ export async function crawlAllMarkusLanzEpisodes(): Promise<EpisodeResult[]> {
     await page.setExtraHTTPHeaders({
       "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
     });
-    await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 60000 });
 
-    await clickLoadMoreUntilDone(page);
+    // Hole die neuesten Episode-Links
+    const latestEpisodeUrls = await getLatestEpisodeLinks(page);
 
-    const episodeUrls = await collectEpisodeLinks(page);
-    if (!episodeUrls.length) {
-      console.warn("Keine Episoden-Links gefunden (clientseitig).");
-      return [];
+    if (latestEpisodeUrls.length === 0) {
+      console.log("❌ Keine Episode-Links gefunden");
+      return;
     }
 
-    const limit = pLimit(6); // Parallelität für Seiten
-    const apiLimit = pLimit(4); // Parallelität für API-Aufrufe (abgeordnetenwatch)
+    // Filtere nur neue Episoden
+    const newEpisodes = filterNewEpisodes(latestEpisodeUrls, latestDbDate);
 
-    // Dedup nach Datum
-    const byDate = new Map<string, EpisodeResult>();
+    if (newEpisodes.length === 0) {
+      console.log("✅ Keine neuen Episoden gefunden - alles aktuell!");
+      return;
+    }
 
-    const results = await Promise.all(
-      episodeUrls.map((url) =>
-        limit(async () => {
-          const p = await browser.newPage();
-          try {
-            const [guests, date] = await Promise.all([
-              extractGuestsFromEpisode(p, url),
-              extractDateISO(p, url),
-            ]);
+    console.log(`🆕 Crawle ${newEpisodes.length} neue Episoden:`);
+    newEpisodes.forEach((ep) => console.log(`   📺 ${ep.date}: ${ep.url}`));
 
-            // Politiker-Check je Gast
-            const guestsDetailed = await Promise.all(
-              guests.map((name) => apiLimit(() => checkPolitician(name)))
+    let totalPoliticiansInserted = 0;
+    let episodesProcessed = 0;
+
+    // Verarbeite jede neue Episode
+    for (const episode of newEpisodes) {
+      try {
+        console.log(`\n🎬 Verarbeite Episode vom ${episode.date}`);
+
+        const guests = await extractGuestsFromEpisode(page, episode.url);
+
+        if (guests.length === 0) {
+          console.log("   ❌ Keine Gäste gefunden");
+          continue;
+        }
+
+        // Prüfe jeden Gast auf Politiker-Status
+        const politicians = [];
+        for (const guest of guests) {
+          console.log(
+            `   🔍 Prüfe: ${guest.name}${guest.role ? ` (${guest.role})` : ""}`
+          );
+
+          const details = await checkPolitician(guest.name, guest.role);
+
+          if (details.isPolitician && details.politicianId) {
+            console.log(
+              `      ✅ Politiker: ID ${details.politicianId}, Partei ${details.party}`
             );
-
-            const res: EpisodeResult = {
-              episodeUrl: url,
-              date,
-              guests,
-              guestsDetailed,
-            };
-
-            // Dedup: pro Datum nur ein Eintrag, ggf. den mit mehr Gästen behalten
-            if (date) {
-              const prev = byDate.get(date);
-              if (!prev || guests.length > prev.guests.length) {
-                byDate.set(date, res);
-              }
-            }
-
-            console.log({ episodeUrl: url, date, guests });
-            return res;
-          } catch (e) {
-            console.warn("Fehler bei Episode:", url, e);
-            return {
-              episodeUrl: url,
-              date: null,
-              guests: [],
-              guestsDetailed: [],
-            };
-          } finally {
-            await p.close().catch(() => {});
+            politicians.push({
+              politicianId: details.politicianId,
+              partyId: details.party,
+            });
+          } else {
+            console.log(`      ❌ Kein Politiker`);
           }
-        })
-      )
-    );
 
-    const finalResults =
-      byDate.size > 0 ? Array.from(byDate.values()) : results;
+          // Pause zwischen API-Calls
+          await new Promise((resolve) => setTimeout(resolve, 300));
+        }
 
-    console.log("Fertig. Anzahl Episoden (dedupliziert):", finalResults.length);
-    console.dir(finalResults, { depth: null });
+        // Speichere Politiker in die Datenbank
+        if (politicians.length > 0) {
+          const inserted = insertMultipleTvShowPoliticians(
+            "Markus Lanz",
+            episode.date,
+            politicians
+          );
 
-    return finalResults;
+          totalPoliticiansInserted += inserted;
+          console.log(
+            `   💾 ${inserted}/${politicians.length} Politiker gespeichert`
+          );
+        } else {
+          console.log(`   📝 Keine Politiker in dieser Episode`);
+        }
+
+        episodesProcessed++;
+      } catch (error) {
+        console.error(
+          `❌ Fehler beim Verarbeiten von Episode ${episode.date}:`,
+          error
+        );
+      }
+    }
+
+    console.log(`\n🎉 Inkrementeller Crawl abgeschlossen!`);
+    console.log(`📊 Episoden verarbeitet: ${episodesProcessed}`);
+    console.log(`👥 Politiker eingefügt: ${totalPoliticiansInserted}`);
   } finally {
     await browser.close().catch(() => {});
   }
+}
+
+// CLI-Support für direkten Aufruf
+if (require.main === module) {
+  crawlNewMarkusLanzEpisodes()
+    .then(() => {
+      console.log("✅ Crawler beendet");
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error("❌ Crawler Fehler:", error);
+      process.exit(1);
+    });
 }
