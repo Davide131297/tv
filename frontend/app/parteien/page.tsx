@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import PartyChart from "@/components/PartyChart";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 
 interface PartyStats {
   party_name: string;
@@ -19,6 +20,7 @@ export default function PartiesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedShow, setSelectedShow] = useState<string>("all");
+  const [unionMode, setUnionMode] = useState(false);
 
   const showOptions: ShowOption[] = [
     { value: "all", label: "Beide Shows" },
@@ -79,6 +81,25 @@ export default function PartiesPage() {
     );
   }
 
+  // Hilfsfunktion: CDU & CSU zu Union zusammenfassen
+  const getUnionStats = (stats: PartyStats[]) => {
+    if (!unionMode) return stats;
+    let unionCount = 0;
+    const filtered = stats.filter((p) => {
+      if (p.party_name === "CDU" || p.party_name === "CSU") {
+        unionCount += p.count;
+        return false;
+      }
+      return true;
+    });
+    if (unionCount > 0) {
+      filtered.push({ party_name: "Union", count: unionCount });
+    }
+    return filtered;
+  };
+
+  const displayedStats = getUnionStats(partyStats);
+
   return (
     <div className="max-w-7xl mx-auto p-6">
       <div className="mb-8">
@@ -91,7 +112,7 @@ export default function PartiesPage() {
         </p>
 
         {/* Show Auswahl */}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 items-center mb-4">
           {showOptions.map((option) => (
             <Button
               key={option.value}
@@ -105,13 +126,26 @@ export default function PartiesPage() {
               {option.label}
             </Button>
           ))}
+          <div className="flex items-center gap-2 ml-6">
+            <Switch
+              id="union-switch"
+              checked={unionMode}
+              onCheckedChange={setUnionMode}
+            />
+            <label
+              htmlFor="union-switch"
+              className="text-sm select-none cursor-pointer"
+            >
+              CDU & CSU als Union zusammenfassen
+            </label>
+          </div>
         </div>
       </div>
 
-      <PartyChart data={partyStats} selectedShow={selectedShow} />
+      <PartyChart data={displayedStats} selectedShow={selectedShow} />
 
       {/* Partei-Details Tabelle */}
-      {partyStats.length > 0 && (
+      {displayedStats.length > 0 && (
         <div className="mt-8 bg-white rounded-lg shadow-md overflow-hidden">
           <div className="p-6 border-b border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900">
@@ -134,10 +168,10 @@ export default function PartiesPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {partyStats
+                {displayedStats
                   .sort((a, b) => b.count - a.count)
                   .map((party, index) => {
-                    const totalAppearances = partyStats.reduce(
+                    const totalAppearances = displayedStats.reduce(
                       (sum, p) => sum + p.count,
                       0
                     );

@@ -27,6 +27,7 @@ interface PartyChartProps {
 const PARTY_COLORS: Record<string, string> = {
   CDU: "#000000",
   CSU: "#1e40af",
+  Union: "#1e293b", // Union: dunkles Blau-Grau
   SPD: "#dc2626",
   FDP: "#facc15",
   "Die Linke": "#9333ea",
