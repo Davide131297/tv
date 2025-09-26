@@ -26,6 +26,21 @@ function initTvShowPoliticiansTable() {
     )
   `;
     db_1.default.exec(createTableSQL);
+    // Migration: Füge fehlende Spalten hinzu falls sie nicht existieren
+    try {
+        db_1.default.exec("ALTER TABLE tv_show_politicians ADD COLUMN politician_id INTEGER");
+        console.log("✅ Spalte 'politician_id' hinzugefügt");
+    }
+    catch (e) {
+        // Spalte existiert bereits
+    }
+    try {
+        db_1.default.exec("ALTER TABLE tv_show_politicians ADD COLUMN party_id INTEGER");
+        console.log("✅ Spalte 'party_id' hinzugefügt");
+    }
+    catch (e) {
+        // Spalte existiert bereits
+    }
     // Indices für bessere Performance
     db_1.default.exec(`
     CREATE INDEX IF NOT EXISTS idx_tv_show_politicians_show_date 
@@ -80,13 +95,28 @@ function insertMultipleTvShowPoliticians(showName, episodeDate, politicians) {
 exports.insertMultipleTvShowPoliticians = insertMultipleTvShowPoliticians;
 // Hole das Datum der neuesten Episode für eine bestimmte Sendung
 function getLatestEpisodeDate(showName) {
+    var _a;
     const stmt = db_1.default.prepare(`
-    SELECT MAX(episode_date) as latest_date 
+    SELECT episode_date
     FROM tv_show_politicians 
     WHERE show_name = ?
+    ORDER BY episode_date
   `);
-    const result = stmt.get(showName);
-    return (result === null || result === void 0 ? void 0 : result.latest_date) || null;
+    const results = stmt.all(showName);
+    if (results.length === 0) {
+        return null;
+    }
+    // Konvertiere dd.mm.yyyy zu yyyy-mm-dd für korrekte Sortierung
+    const sortedDates = results
+        .map(r => {
+        const [day, month, year] = r.episode_date.split('.');
+        return {
+            original: r.episode_date,
+            sortable: `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+        };
+    })
+        .sort((a, b) => b.sortable.localeCompare(a.sortable));
+    return ((_a = sortedDates[0]) === null || _a === void 0 ? void 0 : _a.original) || null;
 }
 exports.getLatestEpisodeDate = getLatestEpisodeDate;
 // Hole alle Politiker für eine bestimmte Sendung/Datum

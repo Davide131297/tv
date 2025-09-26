@@ -46,6 +46,21 @@ export function initTvShowPoliticiansTable() {
 
   db.exec(createTableSQL);
 
+  // Migration: Füge fehlende Spalten hinzu falls sie nicht existieren
+  try {
+    db.exec("ALTER TABLE tv_show_politicians ADD COLUMN politician_id INTEGER");
+    console.log("✅ Spalte 'politician_id' hinzugefügt");
+  } catch (e) {
+    // Spalte existiert bereits
+  }
+
+  try {
+    db.exec("ALTER TABLE tv_show_politicians ADD COLUMN party_id INTEGER");
+    console.log("✅ Spalte 'party_id' hinzugefügt");
+  } catch (e) {
+    // Spalte existiert bereits
+  }
+
   // Indices für bessere Performance
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_tv_show_politicians_show_date 
@@ -126,15 +141,30 @@ export function insertMultipleTvShowPoliticians(
 // Hole das Datum der neuesten Episode für eine bestimmte Sendung
 export function getLatestEpisodeDate(showName: string): string | null {
   const stmt = db.prepare(`
-    SELECT MAX(episode_date) as latest_date 
+    SELECT episode_date
     FROM tv_show_politicians 
     WHERE show_name = ?
+    ORDER BY episode_date
   `);
 
-  const result = stmt.get(showName) as
-    | { latest_date: string | null }
-    | undefined;
-  return result?.latest_date || null;
+  const results = stmt.all(showName) as { episode_date: string }[];
+
+  if (results.length === 0) {
+    return null;
+  }
+
+  // Konvertiere dd.mm.yyyy zu yyyy-mm-dd für korrekte Sortierung
+  const sortedDates = results
+    .map((r) => {
+      const [day, month, year] = r.episode_date.split(".");
+      return {
+        original: r.episode_date,
+        sortable: `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`,
+      };
+    })
+    .sort((a, b) => b.sortable.localeCompare(a.sortable));
+
+  return sortedDates[0]?.original || null;
 }
 
 // Hole alle Politiker für eine bestimmte Sendung/Datum

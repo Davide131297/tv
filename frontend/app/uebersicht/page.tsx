@@ -23,9 +23,10 @@ export default function OverviewPage() {
   const [selectedShow, setSelectedShow] = useState<string>("all");
 
   const showOptions: ShowOption[] = [
-    { value: "all", label: "Beide Shows" },
+    { value: "all", label: "Alle Shows" },
     { value: "Markus Lanz", label: "Markus Lanz" },
     { value: "Maybrit Illner", label: "Maybrit Illner" },
+    { value: "Caren Miosga", label: "Caren Miosga" },
   ];
 
   const fetchData = useCallback(async () => {

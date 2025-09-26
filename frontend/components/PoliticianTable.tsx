@@ -46,6 +46,7 @@ export default function PoliticianTable() {
     { value: "all", label: "Alle Shows" },
     { value: "Markus Lanz", label: "Markus Lanz" },
     { value: "Maybrit Illner", label: "Maybrit Illner" },
+    { value: "Caren Miosga", label: "Caren Miosga" },
   ];
 
   // Lade Daten
@@ -89,7 +90,9 @@ export default function PoliticianTable() {
               className={`px-2 py-1 rounded-full text-xs font-semibold ${
                 show === "Markus Lanz"
                   ? "bg-blue-100 text-blue-800"
-                  : "bg-purple-100 text-purple-800"
+                  : show === "Maybrit Illner"
+                  ? "bg-purple-100 text-purple-800"
+                  : "bg-green-100 text-green-800"
               }`}
             >
               {show}

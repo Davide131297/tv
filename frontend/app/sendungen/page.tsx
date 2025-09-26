@@ -37,6 +37,7 @@ export default function EpisodesPage() {
   const showOptions: ShowOption[] = [
     { value: "Markus Lanz", label: "Markus Lanz" },
     { value: "Maybrit Illner", label: "Maybrit Illner" },
+    { value: "Caren Miosga", label: "Caren Miosga" },
   ];
 
   const fetchData = useCallback(async () => {
