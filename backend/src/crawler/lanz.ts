@@ -1,10 +1,11 @@
 import puppeteer, { Page } from "puppeteer";
 import axios from "axios";
-import { AbgeordnetenwatchPolitician } from "../types/abgeordnetenwatch";
+import { AbgeordnetenwatchPolitician } from "../types/abgeordnetenwatch.js";
 import {
   initTvShowPoliticiansTable,
   insertMultipleTvShowPoliticians,
-} from "../db-tv-shows";
+  getLatestEpisodeDate,
+} from "../db-tv-shows.js";
 
 const LIST_URL = "https://www.zdf.de/talk/markus-lanz-114";
 
@@ -33,8 +34,12 @@ interface EpisodeResult {
 
 // ---------------- Lade mehr / Episoden-Links ----------------
 
-async function clickLoadMoreUntilDone(page: Page, maxClicks = 50) {
-  console.log("Beginne mit dem Laden aller verfügbaren Episoden...");
+async function clickLoadMoreUntilDone(
+  page: Page,
+  latestDbDate: string | null,
+  maxClicks = 50
+) {
+  console.log("Beginne mit intelligentem Laden der Episoden...");
 
   // Warte erstmal dass die Seite vollständig geladen ist
   await page.waitForSelector("main", { timeout: 15000 }).catch(() => {});
@@ -45,6 +50,47 @@ async function clickLoadMoreUntilDone(page: Page, maxClicks = 50) {
     (els) => els.length
   );
   console.log(`Initiale Episoden: ${currentCount}`);
+
+  // Prüfe die Daten der sichtbaren Episoden
+  if (latestDbDate) {
+    const currentUrls = await page.$$eval(
+      'a[href^="/video/talk/markus-lanz-114/"]',
+      (as) => as.map((a) => (a as HTMLAnchorElement).href)
+    );
+
+    let newerEpisodesCount = 0;
+    let oldestVisibleDate: string | null = null;
+
+    for (const url of currentUrls) {
+      const urlDate = parseISODateFromUrl(url);
+      if (urlDate) {
+        if (!oldestVisibleDate || urlDate < oldestVisibleDate) {
+          oldestVisibleDate = urlDate;
+        }
+        if (urlDate > latestDbDate) {
+          newerEpisodesCount++;
+        }
+      }
+    }
+
+    console.log(`Bereits ${newerEpisodesCount} neue Episoden sichtbar`);
+    console.log(`Älteste sichtbare Episode: ${oldestVisibleDate}`);
+    console.log(`Neueste DB-Episode: ${latestDbDate}`);
+
+    if (newerEpisodesCount > 0) {
+      console.log(
+        "✅ Neue Episoden bereits sichtbar - überspringe weiteres Laden"
+      );
+      return;
+    }
+
+    // Da ZDF die neuesten Episoden zuerst zeigt:
+    // Wenn keine neuen Episoden in den ersten 27 sichtbar sind, gibt es keine neuen
+    console.log(
+      "🚫 Keine neuen Episoden in den initialen Episoden - Abbruch ohne weiteres Laden"
+    );
+    return;
+  }
 
   for (let i = 0; i < maxClicks; i++) {
     console.log(`\n--- Versuch ${i + 1} ---`);
@@ -105,6 +151,29 @@ async function clickLoadMoreUntilDone(page: Page, maxClicks = 50) {
     );
     console.log(`Episode-Count: ${currentCount} -> ${newCount}`);
 
+    // Nach dem Laden: Prüfe ob wir jetzt neue Episoden haben
+    if (latestDbDate && newCount > currentCount) {
+      const currentUrls = await page.$$eval(
+        'a[href^="/video/talk/markus-lanz-114/"]',
+        (as) => as.map((a) => (a as HTMLAnchorElement).href)
+      );
+
+      let newerEpisodesCount = 0;
+      for (const url of currentUrls) {
+        const urlDate = parseISODateFromUrl(url);
+        if (urlDate && urlDate > latestDbDate) {
+          newerEpisodesCount++;
+        }
+      }
+
+      if (newerEpisodesCount > 0) {
+        console.log(
+          `✅ ${newerEpisodesCount} neue Episoden gefunden - stoppe weitere Suche`
+        );
+        break;
+      }
+    }
+
     if (newCount <= currentCount) {
       console.log("Keine neuen Episoden - versuche weiter");
       // Noch ein bisschen warten für lazy loading
@@ -125,7 +194,11 @@ async function clickLoadMoreUntilDone(page: Page, maxClicks = 50) {
     }
   }
 
-  console.log(`Laden beendet. Insgesamt ${currentCount} Episoden gefunden.`);
+  const finalCount = await page.$$eval(
+    'a[href^="/video/talk/markus-lanz-114/"]',
+    (els) => els.length
+  );
+  console.log(`Laden beendet. Insgesamt ${finalCount} Episoden gefunden.`);
 }
 
 async function collectEpisodeLinks(page: Page) {
@@ -508,6 +581,12 @@ export async function crawlAllMarkusLanzEpisodes(): Promise<EpisodeResult[]> {
   // Stelle sicher dass die Datenbank-Tabelle existiert
   initTvShowPoliticiansTable();
 
+  // Hole das Datum der neuesten Episode aus der DB
+  const latestEpisodeDate = getLatestEpisodeDate("Markus Lanz");
+  console.log(
+    `Neueste Episode in DB: ${latestEpisodeDate || "Keine vorhanden"}`
+  );
+
   const browser = await puppeteer.launch({
     headless: true,
     args: [
@@ -540,7 +619,7 @@ export async function crawlAllMarkusLanzEpisodes(): Promise<EpisodeResult[]> {
       console.log("Kein Cookie-Banner gefunden oder bereits akzeptiert");
     }
 
-    await clickLoadMoreUntilDone(page);
+    await clickLoadMoreUntilDone(page, latestEpisodeDate);
 
     const episodeUrls = await collectEpisodeLinks(page);
     console.log(`Gefundene Episode-URLs: ${episodeUrls.length}`);
@@ -550,9 +629,31 @@ export async function crawlAllMarkusLanzEpisodes(): Promise<EpisodeResult[]> {
       return [];
     }
 
+    // Filtere URLs nach Datum - nur neuere als die neueste in der DB
+    let filteredUrls = episodeUrls;
+    if (latestEpisodeDate) {
+      filteredUrls = episodeUrls.filter((url) => {
+        const urlDate = parseISODateFromUrl(url);
+        // Nur Episoden crawlen die neuer sind als die neueste in der DB
+        return urlDate && urlDate > latestEpisodeDate;
+      });
+      console.log(
+        `Nach Datum-Filter: ${filteredUrls.length}/${episodeUrls.length} URLs (nur neuer als ${latestEpisodeDate})`
+      );
+    } else {
+      console.log(
+        "Keine neueste Episode in DB gefunden - crawle alle Episoden"
+      );
+    }
+
+    if (!filteredUrls.length) {
+      console.log("Keine neuen Episoden zu crawlen gefunden");
+      return [];
+    }
+
     // Debug: zeige die ersten paar URLs und Daten
-    console.log("Erste 5 Episode-URLs:");
-    episodeUrls.slice(0, 5).forEach((url, i) => {
+    console.log("Erste 5 zu crawlende Episode-URLs:");
+    filteredUrls.slice(0, 5).forEach((url, i) => {
       console.log(`${i + 1}. ${url}`);
       const dateFromUrl = parseISODateFromUrl(url);
       if (dateFromUrl) console.log(`   -> Datum aus URL: ${dateFromUrl}`);
@@ -565,11 +666,11 @@ export async function crawlAllMarkusLanzEpisodes(): Promise<EpisodeResult[]> {
     const batchSize = 6;
     const results: EpisodeResult[] = [];
 
-    for (let i = 0; i < episodeUrls.length; i += batchSize) {
-      const batch = episodeUrls.slice(i, i + batchSize);
+    for (let i = 0; i < filteredUrls.length; i += batchSize) {
+      const batch = filteredUrls.slice(i, i + batchSize);
       console.log(
         `Verarbeite Batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(
-          episodeUrls.length / batchSize
+          filteredUrls.length / batchSize
         )} (${batch.length} Episoden)`
       );
 
@@ -627,7 +728,7 @@ export async function crawlAllMarkusLanzEpisodes(): Promise<EpisodeResult[]> {
       results.push(...batchResults);
 
       // Kurze Pause zwischen Batches
-      if (i + batchSize < episodeUrls.length) {
+      if (i + batchSize < filteredUrls.length) {
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
@@ -644,15 +745,22 @@ export async function crawlAllMarkusLanzEpisodes(): Promise<EpisodeResult[]> {
     });
 
     console.log(`\n=== Crawling-Zusammenfassung ===`);
-    console.log(`Gesamte Episoden: ${finalResults.length}`);
+    console.log(`Gesamte URLs gefunden: ${episodeUrls.length}`);
+    console.log(`Nach Filter (nur neue): ${filteredUrls.length}`);
+    console.log(`Erfolgreich gecrawlt: ${finalResults.length}`);
     console.log(
       `Episoden mit Datum: ${
         finalResults.filter((r: EpisodeResult) => r.date).length
       }`
     );
-    console.log(`Neueste Episode: ${finalResults[0]?.date || "Kein Datum"}`);
+    if (latestEpisodeDate) {
+      console.log(`Neueste DB-Episode vor Crawl: ${latestEpisodeDate}`);
+    }
     console.log(
-      `Älteste Episode: ${
+      `Neueste gecrawlte Episode: ${finalResults[0]?.date || "Kein Datum"}`
+    );
+    console.log(
+      `Älteste gecrawlte Episode: ${
         finalResults[finalResults.length - 1]?.date || "Kein Datum"
       }`
     );
@@ -714,4 +822,19 @@ export async function crawlAllMarkusLanzEpisodes(): Promise<EpisodeResult[]> {
   } finally {
     await browser.close().catch(() => {});
   }
+}
+
+// Hauptausführung wenn das Skript direkt aufgerufen wird
+if (import.meta.url === `file://${process.argv[1]}`) {
+  crawlAllMarkusLanzEpisodes()
+    .then((results) => {
+      console.log(
+        `✅ Crawling abgeschlossen. ${results.length} Episoden verarbeitet.`
+      );
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error("❌ Fehler beim Crawling:", error);
+      process.exit(1);
+    });
 }
