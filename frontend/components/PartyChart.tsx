@@ -46,11 +46,15 @@ export default function PartyChart({ data, selectedShow }: PartyChartProps) {
   const getTitle = () => {
     switch (selectedShow) {
       case "all":
-        return "Partei-Auftritte in beiden Shows";
+        return "Partei-Auftritte in allen Shows";
       case "Markus Lanz":
         return "Partei-Auftritte bei Markus Lanz";
       case "Maybrit Illner":
         return "Partei-Auftritte bei Maybrit Illner";
+      case "Caren Miosga":
+        return "Partei-Auftritte bei Caren Miosga";
+      case "Maischberger":
+        return "Partei-Auftritte bei Maischberger";
       default:
         return "Partei-Auftritte";
     }
