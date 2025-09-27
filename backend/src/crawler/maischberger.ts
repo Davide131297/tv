@@ -7,6 +7,7 @@ import {
   insertMultipleTvShowPoliticians,
   getLatestEpisodeDate,
 } from "../db-tv-shows.js";
+import { checkPoliticianOverride } from "../politician-overrides.js";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -182,6 +183,12 @@ async function checkPolitician(
   name: string,
   role?: string
 ): Promise<GuestDetails> {
+  // Prüfe zuerst Override-Cases
+  const override = checkPoliticianOverride(name);
+  if (override) {
+    return override;
+  }
+
   const { first, last } = splitFirstLast(name);
   if (!first || !last) {
     return {

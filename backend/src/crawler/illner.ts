@@ -4,8 +4,9 @@ import {
   initTvShowPoliticiansTable,
   insertMultipleTvShowPoliticians,
   getLatestEpisodeDate,
-} from "../db-tv-shows";
-import { AbgeordnetenwatchPolitician } from "../types/abgeordnetenwatch";
+} from "../db-tv-shows.js";
+import { AbgeordnetenwatchPolitician } from "../types/abgeordnetenwatch.js";
+import { checkPoliticianOverride } from "../politician-overrides.js";
 
 const LIST_URL = "https://www.zdf.de/talk/maybrit-illner-128";
 
@@ -93,27 +94,15 @@ function disambiguateByRole(
   return null;
 }
 
-// Spezielle Override-Cases für bestimmte Politiker
-const POLITICIAN_OVERRIDES: Record<string, GuestDetails> = {
-  "Manfred Weber": {
-    name: "Manfred Weber",
-    isPolitician: true,
-    politicianId: 28910,
-    politicianName: "Manfred Weber",
-    party: 3, // CSU
-    partyName: "CSU",
-  },
-};
-
 // Politiker-Prüfung mit Disambiguierung
 async function checkPolitician(
   name: string,
   role?: string
 ): Promise<GuestDetails> {
   // Prüfe zuerst Override-Cases
-  if (POLITICIAN_OVERRIDES[name]) {
-    console.log(`✅ Override angewendet für ${name} -> CSU`);
-    return POLITICIAN_OVERRIDES[name];
+  const override = checkPoliticianOverride(name);
+  if (override) {
+    return override;
   }
 
   const { first, last } = splitFirstLast(name);
