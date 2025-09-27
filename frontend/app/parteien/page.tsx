@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import PartyChart from "@/components/PartyChart";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -15,20 +16,67 @@ interface ShowOption {
   label: string;
 }
 
+const showOptions: ShowOption[] = [
+  { value: "all", label: "Alle Shows" },
+  { value: "Markus Lanz", label: "Markus Lanz" },
+  { value: "Maybrit Illner", label: "Maybrit Illner" },
+  { value: "Caren Miosga", label: "Caren Miosga" },
+  { value: "Maischberger", label: "Maischberger" },
+];
+
 export default function PartiesPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [partyStats, setPartyStats] = useState<PartyStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedShow, setSelectedShow] = useState<string>("all");
-  const [unionMode, setUnionMode] = useState(false);
 
-  const showOptions: ShowOption[] = [
-    { value: "all", label: "Alle Shows" },
-    { value: "Markus Lanz", label: "Markus Lanz" },
-    { value: "Maybrit Illner", label: "Maybrit Illner" },
-    { value: "Caren Miosga", label: "Caren Miosga" },
-    { value: "Maischberger", label: "Maischberger" },
-  ];
+  // Derive state from URL parameters
+  const selectedShow = useMemo(() => {
+    const showParam = searchParams.get("show");
+    if (showParam && showOptions.some((option) => option.value === showParam)) {
+      return showParam;
+    }
+    return "all";
+  }, [searchParams]);
+
+  const unionMode = useMemo(() => {
+    return searchParams.get("union") === "true";
+  }, [searchParams]);
+
+  const updateUrlParams = useCallback(
+    (updates: { show?: string; union?: boolean }) => {
+      const params = new URLSearchParams(searchParams.toString());
+
+      if (updates.show !== undefined) {
+        if (updates.show === "all") {
+          params.delete("show");
+        } else {
+          params.set("show", updates.show);
+        }
+      }
+
+      if (updates.union !== undefined) {
+        if (updates.union) {
+          params.set("union", "true");
+        } else {
+          params.delete("union");
+        }
+      }
+
+      const newUrl = params.toString() ? `?${params.toString()}` : "/parteien";
+      router.push(newUrl, { scroll: false });
+    },
+    [searchParams, router]
+  );
+
+  const handleShowChange = (showValue: string) => {
+    updateUrlParams({ show: showValue });
+  };
+
+  const handleUnionModeChange = (unionValue: boolean) => {
+    updateUrlParams({ union: unionValue });
+  };
 
   const fetchData = useCallback(async () => {
     try {
@@ -140,7 +188,7 @@ export default function PartiesPage() {
             return (
               <Button
                 key={option.value}
-                onClick={() => setSelectedShow(option.value)}
+                onClick={() => handleShowChange(option.value)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${getButtonColors(
                   option.value,
                   selectedShow === option.value
@@ -154,7 +202,7 @@ export default function PartiesPage() {
             <Switch
               id="union-switch"
               checked={unionMode}
-              onCheckedChange={setUnionMode}
+              onCheckedChange={handleUnionModeChange}
             />
             <label
               htmlFor="union-switch"

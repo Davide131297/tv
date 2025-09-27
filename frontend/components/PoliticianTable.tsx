@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   useReactTable,
   getCoreRowModel,
@@ -31,24 +32,73 @@ interface PoliticianAppearance {
 
 const columnHelper = createColumnHelper<PoliticianAppearance>();
 
+const showOptions = [
+  { value: "all", label: "Alle Shows" },
+  { value: "Markus Lanz", label: "Markus Lanz" },
+  { value: "Maybrit Illner", label: "Maybrit Illner" },
+  { value: "Caren Miosga", label: "Caren Miosga" },
+  { value: "Maischberger", label: "Maischberger" },
+];
+
 export default function PoliticianTable() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [data, setData] = useState<PoliticianAppearance[]>([]);
   const [loading, setLoading] = useState(true);
-  const [globalFilter, setGlobalFilter] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
   const [pagination, setPagination] = useState({
     pageIndex: 0,
     pageSize: 20,
   });
-  const [selectedShow, setSelectedShow] = useState<string>("all");
 
-  const showOptions = [
-    { value: "all", label: "Alle Shows" },
-    { value: "Markus Lanz", label: "Markus Lanz" },
-    { value: "Maybrit Illner", label: "Maybrit Illner" },
-    { value: "Caren Miosga", label: "Caren Miosga" },
-    { value: "Maischberger", label: "Maischberger" },
-  ];
+  // Derive state from URL parameters
+  const selectedShow = useMemo(() => {
+    const showParam = searchParams.get("show");
+    if (showParam && showOptions.some((option) => option.value === showParam)) {
+      return showParam;
+    }
+    return "all";
+  }, [searchParams]);
+
+  const globalFilter = useMemo(() => {
+    return searchParams.get("search") || "";
+  }, [searchParams]);
+
+  const updateUrlParams = useCallback(
+    (updates: { show?: string; search?: string }) => {
+      const params = new URLSearchParams(searchParams.toString());
+
+      if (updates.show !== undefined) {
+        if (updates.show === "all") {
+          params.delete("show");
+        } else {
+          params.set("show", updates.show);
+        }
+      }
+
+      if (updates.search !== undefined) {
+        if (updates.search === "") {
+          params.delete("search");
+        } else {
+          params.set("search", updates.search);
+        }
+      }
+
+      const newUrl = params.toString()
+        ? `?${params.toString()}`
+        : window.location.pathname;
+      router.push(newUrl, { scroll: false });
+    },
+    [searchParams, router]
+  );
+
+  const handleShowChange = (showValue: string) => {
+    updateUrlParams({ show: showValue });
+  };
+
+  const handleSearchChange = (searchValue: string) => {
+    updateUrlParams({ search: searchValue });
+  };
 
   // Lade Daten
   const fetchData = useCallback(async () => {
@@ -167,7 +217,7 @@ export default function PoliticianTable() {
       sorting,
       pagination,
     },
-    onGlobalFilterChange: setGlobalFilter,
+    onGlobalFilterChange: handleSearchChange,
     onSortingChange: setSorting,
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
@@ -231,7 +281,7 @@ export default function PoliticianTable() {
                 return (
                   <Button
                     key={option.value}
-                    onClick={() => setSelectedShow(option.value)}
+                    onClick={() => handleShowChange(option.value)}
                     className={`px-3 py-1 text-sm rounded-lg transition-colors ${getButtonColors(
                       option.value,
                       selectedShow === option.value
@@ -246,8 +296,8 @@ export default function PoliticianTable() {
             {/* Globale Suche */}
             <div className="relative">
               <input
-                value={globalFilter ?? ""}
-                onChange={(e) => setGlobalFilter(e.target.value)}
+                value={globalFilter}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 className="w-80 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Suche nach Name oder Partei..."
               />
