@@ -13,32 +13,10 @@ import {
   SortingState,
 } from "@tanstack/react-table";
 import { Button } from "./ui/button";
-
-interface PoliticianAppearance {
-  show_name: string;
-  episode_date: string;
-  politician_id: number;
-  party_id: number | null;
-  politician_name: string;
-  party_name: string;
-  politician_details: {
-    first_name: string;
-    last_name: string;
-    occupation: string;
-    year_of_birth: number;
-    education: string;
-  };
-}
+import type { PoliticianAppearance } from "@/types";
+import { SHOW_OPTIONS } from "@/types";
 
 const columnHelper = createColumnHelper<PoliticianAppearance>();
-
-const showOptions = [
-  { value: "all", label: "Alle Shows" },
-  { value: "Markus Lanz", label: "Markus Lanz" },
-  { value: "Maybrit Illner", label: "Maybrit Illner" },
-  { value: "Caren Miosga", label: "Caren Miosga" },
-  { value: "Maischberger", label: "Maischberger" },
-];
 
 export default function PoliticianTable() {
   const router = useRouter();
@@ -54,7 +32,10 @@ export default function PoliticianTable() {
   // Derive state from URL parameters
   const selectedShow = useMemo(() => {
     const showParam = searchParams.get("show");
-    if (showParam && showOptions.some((option) => option.value === showParam)) {
+    if (
+      showParam &&
+      SHOW_OPTIONS.some((option) => option.value === showParam)
+    ) {
       return showParam;
     }
     return "all";
@@ -256,7 +237,7 @@ export default function PoliticianTable() {
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
             {/* Show Filter */}
             <div className="flex flex-wrap gap-2">
-              {showOptions.map((option) => {
+              {SHOW_OPTIONS.map((option) => {
                 const getButtonColors = (
                   showValue: string,
                   isSelected: boolean

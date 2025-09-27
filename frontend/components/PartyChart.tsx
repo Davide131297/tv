@@ -12,31 +12,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ChartConfig, ChartContainer } from "@/components/ui/chart";
-
-interface PartyStats {
-  party_name: string;
-  count: number;
-}
-
-interface PartyChartProps {
-  data: PartyStats[];
-  selectedShow?: string;
-}
-
-// Party colors für recharts
-const PARTY_COLORS: Record<string, string> = {
-  CDU: "#000000",
-  CSU: "#1e40af",
-  Union: "#1e293b", // Union: dunkles Blau-Grau
-  SPD: "#dc2626",
-  FDP: "#facc15",
-  "Die Linke": "#9333ea",
-  "BÜNDNIS 90/DIE GRÜNEN": "#22c55e",
-  Grüne: "#22c55e",
-  AfD: "#2563eb",
-  BSW: "#a16207",
-  parteilos: "#6b7280",
-};
+import type { PartyChartProps } from "@/types";
+import { PARTY_COLORS } from "@/types";
 
 export default function PartyChart({ data, selectedShow }: PartyChartProps) {
   // Sortiere Daten nach Anzahl

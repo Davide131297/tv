@@ -4,25 +4,7 @@ import { useState, useEffect } from "react";
 import PartyChart from "./PartyChart";
 import PoliticianTable from "./PoliticianTable";
 import { Button } from "@/components/ui/button";
-
-// Types
-interface PartyStats {
-  party_id: number;
-  count: number;
-  party_name: string;
-}
-
-interface SummaryData {
-  total_appearances: number;
-  total_episodes: number;
-  unique_politicians: number;
-  parties_represented: number;
-}
-
-interface EpisodeData {
-  episode_date: string;
-  politician_count: number;
-}
+import type { PartyStats, SummaryData, EpisodeData } from "@/types";
 
 export default function PoliticsStats() {
   const [partyStats, setPartyStats] = useState<PartyStats[]>([]);

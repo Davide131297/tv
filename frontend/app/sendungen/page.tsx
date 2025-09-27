@@ -1,41 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import type { EpisodeData, Statistics } from "@/types";
+import { SHOW_OPTIONS_WITHOUT_ALL } from "@/types";
 
-interface PoliticianInEpisode {
-  name: string;
-  party_name: string;
-}
-
-interface EpisodeData {
-  episode_date: string;
-  politician_count: number;
-  politicians: PoliticianInEpisode[];
-}
-
-interface ShowOption {
-  value: string;
-  label: string;
-}
-
-interface Statistics {
-  total_episodes: number;
-  total_appearances: number;
-  episodes_with_politicians: number;
-  average_politicians_per_episode: number;
-  max_politicians_in_episode: number;
-}
-
-const showOptions: ShowOption[] = [
-  { value: "Markus Lanz", label: "Markus Lanz" },
-  { value: "Maybrit Illner", label: "Maybrit Illner" },
-  { value: "Caren Miosga", label: "Caren Miosga" },
-  { value: "Maischberger", label: "Maischberger" },
-];
-
-export default function EpisodesPage() {
+function Page() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [episodes, setEpisodes] = useState<EpisodeData[]>([]);
@@ -46,7 +17,10 @@ export default function EpisodesPage() {
   // Derive selectedShow from URL parameters
   const selectedShow = useMemo(() => {
     const showParam = searchParams.get("show");
-    if (showParam && showOptions.some((option) => option.value === showParam)) {
+    if (
+      showParam &&
+      SHOW_OPTIONS_WITHOUT_ALL.some((option) => option.value === showParam)
+    ) {
       return showParam;
     }
     return "Markus Lanz";
@@ -170,7 +144,7 @@ export default function EpisodesPage() {
 
         {/* Show Auswahl */}
         <div className="flex flex-wrap gap-2">
-          {showOptions.map((option) => {
+          {SHOW_OPTIONS_WITHOUT_ALL.map((option) => {
             const getButtonColors = (
               showValue: string,
               isSelected: boolean
@@ -341,5 +315,13 @@ export default function EpisodesPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function EpisodesPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <Page />
+    </Suspense>
   );
 }

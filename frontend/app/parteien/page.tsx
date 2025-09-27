@@ -1,30 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import PartyChart from "@/components/PartyChart";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import type { PartyStats } from "@/types";
+import { SHOW_OPTIONS } from "@/types";
 
-interface PartyStats {
-  party_name: string;
-  count: number;
-}
-
-interface ShowOption {
-  value: string;
-  label: string;
-}
-
-const showOptions: ShowOption[] = [
-  { value: "all", label: "Alle Shows" },
-  { value: "Markus Lanz", label: "Markus Lanz" },
-  { value: "Maybrit Illner", label: "Maybrit Illner" },
-  { value: "Caren Miosga", label: "Caren Miosga" },
-  { value: "Maischberger", label: "Maischberger" },
-];
-
-export default function PartiesPage() {
+function Page() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [partyStats, setPartyStats] = useState<PartyStats[]>([]);
@@ -34,7 +18,10 @@ export default function PartiesPage() {
   // Derive state from URL parameters
   const selectedShow = useMemo(() => {
     const showParam = searchParams.get("show");
-    if (showParam && showOptions.some((option) => option.value === showParam)) {
+    if (
+      showParam &&
+      SHOW_OPTIONS.some((option) => option.value === showParam)
+    ) {
       return showParam;
     }
     return "all";
@@ -163,7 +150,7 @@ export default function PartiesPage() {
 
         {/* Show Auswahl */}
         <div className="flex flex-wrap gap-2 items-center mb-4">
-          {showOptions.map((option) => {
+          {SHOW_OPTIONS.map((option) => {
             const getButtonColors = (
               showValue: string,
               isSelected: boolean
@@ -275,5 +262,13 @@ export default function PartiesPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function PartiesPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <Page />
+    </Suspense>
   );
 }

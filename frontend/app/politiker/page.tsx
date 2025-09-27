@@ -1,6 +1,7 @@
 "use client";
 
 import PoliticianTable from "@/components/PoliticianTable";
+import { Suspense } from "react";
 
 export default function PoliticiansPage() {
   return (
@@ -14,8 +15,9 @@ export default function PoliticiansPage() {
           deutschen TV-Talkshows
         </p>
       </div>
-
-      <PoliticianTable />
+      <Suspense fallback={<div>Loading...</div>}>
+        <PoliticianTable />
+      </Suspense>
     </div>
   );
 }
