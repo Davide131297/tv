@@ -1,4 +1,4 @@
-import db from "./db";
+import db from "./db.js";
 
 // Types für die TV-Show-Politiker Tabelle (Version 2 - denormalisiert)
 interface TvShowPolitician {
@@ -144,27 +144,18 @@ export function getLatestEpisodeDate(showName: string): string | null {
     SELECT episode_date
     FROM tv_show_politicians 
     WHERE show_name = ?
-    ORDER BY episode_date
+    ORDER BY episode_date DESC
+    LIMIT 1
   `);
 
-  const results = stmt.all(showName) as { episode_date: string }[];
+  const result = stmt.get(showName) as { episode_date: string } | undefined;
 
-  if (results.length === 0) {
+  if (!result) {
     return null;
   }
 
-  // Konvertiere dd.mm.yyyy zu yyyy-mm-dd für korrekte Sortierung
-  const sortedDates = results
-    .map((r) => {
-      const [day, month, year] = r.episode_date.split(".");
-      return {
-        original: r.episode_date,
-        sortable: `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`,
-      };
-    })
-    .sort((a, b) => b.sortable.localeCompare(a.sortable));
-
-  return sortedDates[0]?.original || null;
+  // Episoden werden bereits im yyyy-mm-dd Format gespeichert
+  return result.episode_date;
 }
 
 // Hole alle Politiker für eine bestimmte Sendung/Datum

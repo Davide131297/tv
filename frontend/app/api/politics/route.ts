@@ -124,7 +124,8 @@ export async function GET(request: NextRequest) {
           showName &&
           (showName === "Markus Lanz" ||
             showName === "Maybrit Illner" ||
-            showName === "Caren Miosga")
+            showName === "Caren Miosga" ||
+            showName === "Maischberger")
         ) {
           whereClause += " AND show_name = ?";
           params.push(showName);
@@ -243,7 +244,8 @@ export async function GET(request: NextRequest) {
           showName &&
           (showName === "Markus Lanz" ||
             showName === "Maybrit Illner" ||
-            showName === "Caren Miosga")
+            showName === "Caren Miosga" ||
+            showName === "Maischberger")
         ) {
           whereClause = "WHERE show_name = ?";
           whereClauseWithParty =
@@ -310,7 +312,8 @@ export async function GET(request: NextRequest) {
           showName &&
           (showName === "Markus Lanz" ||
             showName === "Maybrit Illner" ||
-            showName === "Caren Miosga")
+            showName === "Caren Miosga" ||
+            showName === "Maischberger")
         ) {
           whereClause = "WHERE show_name = ?";
           params.push(showName, limit, offset);

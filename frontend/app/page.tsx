@@ -11,7 +11,7 @@ export default function Home() {
         <p className="text-xl md:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto">
           Entdecken Sie die Politik-Landschaft deutscher Talkshows mit
           interaktiven Statistiken und detaillierten Analysen von Markus Lanz,
-          Maybrit Illner und Caren Miosga
+          Maybrit Illner, Caren Miosga und Maischberger
         </p>
 
         {/* Navigation Cards */}

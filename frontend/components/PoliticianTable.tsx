@@ -47,6 +47,7 @@ export default function PoliticianTable() {
     { value: "Markus Lanz", label: "Markus Lanz" },
     { value: "Maybrit Illner", label: "Maybrit Illner" },
     { value: "Caren Miosga", label: "Caren Miosga" },
+    { value: "Maischberger", label: "Maischberger" },
   ];
 
   // Lade Daten
@@ -92,7 +93,11 @@ export default function PoliticianTable() {
                   ? "bg-blue-100 text-blue-800"
                   : show === "Maybrit Illner"
                   ? "bg-purple-100 text-purple-800"
-                  : "bg-green-100 text-green-800"
+                  : show === "Caren Miosga"
+                  ? "bg-green-100 text-green-800"
+                  : show === "Maischberger"
+                  ? "bg-orange-100 text-orange-800"
+                  : "bg-gray-100 text-gray-800"
               }`}
             >
               {show}
@@ -201,19 +206,41 @@ export default function PoliticianTable() {
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
             {/* Show Filter */}
             <div className="flex flex-wrap gap-2">
-              {showOptions.map((option) => (
-                <Button
-                  key={option.value}
-                  onClick={() => setSelectedShow(option.value)}
-                  className={`px-3 py-1 text-sm rounded-lg transition-colors ${
-                    selectedShow === option.value
-                      ? "bg-blue-600 text-white hover:bg-blue-700"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}
-                >
-                  {option.label}
-                </Button>
-              ))}
+              {showOptions.map((option) => {
+                const getButtonColors = (
+                  showValue: string,
+                  isSelected: boolean
+                ) => {
+                  if (!isSelected)
+                    return "bg-gray-100 text-gray-700 hover:bg-gray-200";
+
+                  switch (showValue) {
+                    case "Markus Lanz":
+                      return "bg-blue-100 text-blue-800 hover:bg-blue-200";
+                    case "Maybrit Illner":
+                      return "bg-purple-100 text-purple-800 hover:bg-purple-200";
+                    case "Caren Miosga":
+                      return "bg-green-100 text-green-800 hover:bg-green-200";
+                    case "Maischberger":
+                      return "bg-orange-100 text-orange-800 hover:bg-orange-200";
+                    default:
+                      return "bg-black text-white hover:bg-gray-800 hover:text-white";
+                  }
+                };
+
+                return (
+                  <Button
+                    key={option.value}
+                    onClick={() => setSelectedShow(option.value)}
+                    className={`px-3 py-1 text-sm rounded-lg transition-colors ${getButtonColors(
+                      option.value,
+                      selectedShow === option.value
+                    )}`}
+                  >
+                    {option.label}
+                  </Button>
+                );
+              })}
             </div>
 
             {/* Globale Suche */}
@@ -221,7 +248,7 @@ export default function PoliticianTable() {
               <input
                 value={globalFilter ?? ""}
                 onChange={(e) => setGlobalFilter(e.target.value)}
-                className="w-96 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-80 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Suche nach Name oder Partei..."
               />
               <div className="absolute inset-y-0 right-0 pr-3 flex items-center">

@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "A Node.js backend project using Express and TypeScript",
   "main": "dist/app.js",
+  "type": "module",
   "scripts": {
     "build": "tsc",
     "start": "node dist/app.js",
@@ -12,6 +13,7 @@
     "reset-db": "node dist/scripts/clear-and-recrawl.js"
   },
   "dependencies": {
+    "@huggingface/inference": "^4.9.0",
     "axios": "^1.12.2",
     "better-sqlite3": "^11.10.0",
     "cheerio": "^1.1.0",

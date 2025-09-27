@@ -27,6 +27,7 @@ export default function OverviewPage() {
     { value: "Markus Lanz", label: "Markus Lanz" },
     { value: "Maybrit Illner", label: "Maybrit Illner" },
     { value: "Caren Miosga", label: "Caren Miosga" },
+    { value: "Maischberger", label: "Maischberger" },
   ];
 
   const fetchData = useCallback(async () => {
