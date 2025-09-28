@@ -1209,13 +1209,133 @@ export async function crawlAllCarenMiosgaEpisodes(): Promise<void> {
   }
 }
 
-// CLI-Support für direkten Aufruf
-if (require.main === module) {
+// Test-Funktion: Crawle die letzten 10 Episoden nur für Console-Output
+export async function testCrawlLast10Episodes(): Promise<void> {
+  console.log("🚀 Teste Caren Miosga Crawler - letzte 10 Episoden...");
+  console.log(`📅 Datum: ${new Date().toISOString()}`);
+
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+    ],
+  });
+
+  try {
+    const page = await browser.newPage();
+    await page.setUserAgent(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+    );
+    await page.setViewport({ width: 1280, height: 1000 });
+    await page.setExtraHTTPHeaders({
+      "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
+    });
+
+    // Hole die neuesten 10 Episode-Links
+    const latestEpisodes = await getLatestEpisodeLinks(page, 10);
+
+    if (latestEpisodes.length === 0) {
+      console.log("❌ Keine Episode-Links gefunden");
+      return;
+    }
+
+    console.log(`📺 Gefunden: ${latestEpisodes.length} Episode-Links`);
+    console.log("\n" + "=".repeat(80));
+
+    // Verarbeite jede Episode für Test-Output
+    for (let i = 0; i < latestEpisodes.length; i++) {
+      const episode = latestEpisodes[i];
+
+      console.log(
+        `\n🎬 [${i + 1}/${latestEpisodes.length}] Episode vom ${episode.date}`
+      );
+      console.log(`📺 Titel: ${episode.title}`);
+      console.log(`🔗 URL: ${episode.url}`);
+      console.log(
+        `👥 Gefundene Gäste: ${
+          episode.guests.length > 0
+            ? episode.guests.map((g) => g.name).join(", ")
+            : "Keine"
+        }`
+      );
+
+      if (episode.guests.length === 0) {
+        console.log("   ❌ Keine Gäste gefunden - überspringe Episode");
+        continue;
+      }
+
+      console.log("\n   🔍 Prüfe Politiker-Status der Gäste:");
+
+      // Prüfe jeden Gast auf Politiker-Status
+      for (let j = 0; j < episode.guests.length; j++) {
+        const guest = episode.guests[j];
+        console.log(
+          `\n   👤 [${j + 1}/${episode.guests.length}] ${guest.name}${
+            guest.role ? ` (${guest.role})` : ""
+          }`
+        );
+
+        try {
+          const details = await checkPolitician(guest.name, guest.role);
+
+          if (
+            details.isPolitician &&
+            details.politicianId &&
+            details.politicianName
+          ) {
+            console.log(`      ✅ POLITIKER GEFUNDEN!`);
+            console.log(`         Name: ${details.politicianName}`);
+            console.log(`         ID: ${details.politicianId}`);
+            console.log(
+              `         Partei: ${details.partyName || "unbekannt"} (ID: ${
+                details.party || "N/A"
+              })`
+            );
+          } else {
+            console.log(
+              `      ❌ Kein Politiker (nicht in Abgeordnetenwatch gefunden)`
+            );
+          }
+        } catch (error) {
+          console.log(`      ⚠️  Fehler bei Politiker-Prüfung: ${error}`);
+        }
+
+        // Pause zwischen API-Calls
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      }
+
+      console.log("\n" + "-".repeat(60));
+    }
+
+    console.log("\n" + "=".repeat(80));
+    console.log(
+      `🎉 Test-Crawl abgeschlossen! ${latestEpisodes.length} Episoden analysiert.`
+    );
+    console.log("💡 Keine Daten wurden in die Datenbank geschrieben.");
+  } finally {
+    await browser.close().catch(() => {});
+  }
+}
+
+// CLI-Support für direkten Aufruf (ES-Module kompatibel)
+if (import.meta.url === `file://${process.argv[1]}`) {
   const mode = process.argv[2] || "incremental";
 
   console.log(`🎯 Caren Miosga Crawler-Modus: ${mode}`);
 
-  if (mode === "full" || mode === "all" || mode === "complete") {
+  if (mode === "test") {
+    testCrawlLast10Episodes()
+      .then(() => {
+        console.log("✅ Test-Crawl beendet");
+        process.exit(0);
+      })
+      .catch((error) => {
+        console.error("❌ Test-Crawl Fehler:", error);
+        process.exit(1);
+      });
+  } else if (mode === "full" || mode === "all" || mode === "complete") {
     crawlAllCarenMiosgaEpisodes()
       .then(() => {
         console.log("✅ Vollständiger Caren Miosga Crawler beendet");
