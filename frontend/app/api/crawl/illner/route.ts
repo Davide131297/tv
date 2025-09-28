@@ -1,4 +1,4 @@
-import puppeteer, {Page} from "puppeteer";
+import { Page } from "puppeteer";
 import axios from "axios";
 import {
   initTvShowPoliticiansTable,
@@ -8,6 +8,7 @@ import {
 } from "@/lib/server-utils";
 import type {AbgeordnetenwatchPolitician} from "@/types";
 import {NextResponse, NextRequest} from "next/server";
+import { createBrowser, setupSimplePage } from "@/lib/browser-config";
 
 type GuestDetails = {
   name: string;
@@ -618,24 +619,10 @@ async function extractGuestsFromEpisode(
   const latestDbDate = getLatestEpisodeDate("Maybrit Illner");
   console.log(`🗃️  Letzte Episode in DB: ${latestDbDate || "Keine"}`);
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-    ],
-  });
+  const browser = await createBrowser();
 
   try {
-    const page = await browser.newPage();
-    await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
-    );
-    await page.setViewport({ width: 1280, height: 1000 });
-    await page.setExtraHTTPHeaders({
-      "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
-    });
+    const page = await setupSimplePage(browser);
 
     // Hole die neuesten Episode-Links
     const latestEpisodeUrls = await getLatestEpisodeLinks(page);
@@ -745,24 +732,10 @@ async function extractGuestsFromEpisode(
   // Stelle sicher dass die Tabelle existiert
   initTvShowPoliticiansTable();
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-    ],
-  });
+  const browser = await createBrowser();
 
   try {
-    const page = await browser.newPage();
-    await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
-    );
-    await page.setViewport({ width: 1280, height: 1000 });
-    await page.setExtraHTTPHeaders({
-      "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
-    });
+    const page = await setupSimplePage(browser);
 
     // Hole ALLE verfügbaren Episode-Links
     const allEpisodeUrls = await getAllEpisodeLinks(page);

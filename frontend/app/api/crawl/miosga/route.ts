@@ -1,4 +1,4 @@
-import puppeteer, { Page } from "puppeteer";
+import { Page } from "puppeteer";
 import axios from "axios";
 
 import {
@@ -10,6 +10,7 @@ import {
 
 import type { AbgeordnetenwatchPolitician, GuestDetails, GuestWithRole } from "@/types";
 import { NextRequest, NextResponse } from "next/server";
+import { createBrowser, setupSimplePage } from "@/lib/browser-config";
 
 const LIST_URL =
   "https://www.ardaudiothek.de/sendung/caren-miosga/urn:ard:show:d6e5ba24e1508004/";
@@ -711,24 +712,10 @@ async function crawlNewCarenMiosgaEpisodes(): Promise<void> {
   const latestDbDate = getLatestEpisodeDate("Caren Miosga");
   console.log(`🗃️  Letzte Episode in DB: ${latestDbDate || "Keine"}`);
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-    ],
-  });
+  const browser = await createBrowser();
 
   try {
-    const page = await browser.newPage();
-    await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
-    );
-    await page.setViewport({ width: 1280, height: 1000 });
-    await page.setExtraHTTPHeaders({
-      "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
-    });
+    const page = await setupSimplePage(browser);
 
     // Hole die neuesten Episode-Links
     const latestEpisodes = await getLatestEpisodeLinks(page);
@@ -843,24 +830,10 @@ async function crawlAllCarenMiosgaEpisodes(): Promise<void> {
   // Stelle sicher dass die Tabelle existiert
   initTvShowPoliticiansTable();
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-    ],
-  });
+  const browser = await createBrowser();
 
   try {
-    const page = await browser.newPage();
-    await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
-    );
-    await page.setViewport({ width: 1280, height: 1000 });
-    await page.setExtraHTTPHeaders({
-      "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
-    });
+    const page = await setupSimplePage(browser);
 
     // Hole ALLE verfügbaren Episode-Links
     const allEpisodes = await getAllEpisodeLinks(page);
@@ -998,24 +971,10 @@ async function testCrawlLast10Episodes(): Promise<void> {
   console.log("🚀 Teste Caren Miosga Crawler - letzte 10 Episoden...");
   console.log(`📅 Datum: ${new Date().toISOString()}`);
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-    ],
-  });
+  const browser = await createBrowser();
 
   try {
-    const page = await browser.newPage();
-    await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
-    );
-    await page.setViewport({ width: 1280, height: 1000 });
-    await page.setExtraHTTPHeaders({
-      "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
-    });
+    const page = await setupSimplePage(browser);
 
     // Hole die neuesten 10 Episode-Links
     const latestEpisodes = await getLatestEpisodeLinks(page, 10);

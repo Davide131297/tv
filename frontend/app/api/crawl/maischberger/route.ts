@@ -1,4 +1,4 @@
-import puppeteer, { Page } from "puppeteer";
+import { Page } from "puppeteer";
 import axios from "axios";
 import { InferenceClient } from "@huggingface/inference";
 import type { AbgeordnetenwatchPolitician } from "@/types";
@@ -10,6 +10,7 @@ import {
 } from "@/lib/server-utils";
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
+import { createBrowser, setupSimplePage } from "@/lib/browser-config";
 
 
 interface MaischbergerEpisode {
@@ -598,24 +599,10 @@ async function crawlNewMaischbergerEpisodes(): Promise<void> {
   const latestDbDate = getLatestEpisodeDate("Maischberger");
   console.log(`🗃️  Letzte Episode in DB: ${latestDbDate || "Keine"}`);
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-    ],
-  });
+  const browser = await createBrowser();
 
   try {
-    const page = await browser.newPage();
-    await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
-    );
-    await page.setViewport({ width: 1280, height: 1000 });
-    await page.setExtraHTTPHeaders({
-      "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
-    });
+    const page = await setupSimplePage(browser);
 
     // Crawle nur neue Episoden seit letztem DB-Eintrag
     const newEpisodes = await getNewMaischbergerEpisodes(page, latestDbDate);
@@ -777,24 +764,10 @@ async function crawlMaischberger2025(): Promise<void> {
   // Stelle sicher dass die Tabelle existiert
   initTvShowPoliticiansTable();
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-    ],
-  });
+  const browser = await createBrowser();
 
   try {
-    const page = await browser.newPage();
-    await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
-    );
-    await page.setViewport({ width: 1280, height: 1000 });
-    await page.setExtraHTTPHeaders({
-      "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
-    });
+    const page = await setupSimplePage(browser);
 
     // Crawle ALLE verfügbaren Episoden bis 2025 erreicht ist
     const all2025Episodes = await getAllMaischberger2025Episodes(page);

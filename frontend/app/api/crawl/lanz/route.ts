@@ -1,4 +1,4 @@
-import puppeteer, { Page } from "puppeteer";
+import { Page } from "puppeteer";
 import axios from "axios";
 import {
   initTvShowPoliticiansTable,
@@ -8,6 +8,7 @@ import {
 } from "@/lib/server-utils";
 import type { AbgeordnetenwatchPolitician } from "@/types";
 import { NextResponse } from "next/server";
+import { createBrowser, setupSimplePage } from "@/lib/browser-config";
 
 // ---------------- Types ----------------
 
@@ -581,24 +582,10 @@ export async function POST() {
     `Neueste Episode in DB: ${latestEpisodeDate || "Keine vorhanden"}`
   );
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-    ],
-  });
+  const browser = await createBrowser();
 
   try {
-    const page = await browser.newPage();
-    await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
-    );
-    await page.setViewport({ width: 1280, height: 1000 });
-    await page.setExtraHTTPHeaders({
-      "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
-    });
+    const page = await setupSimplePage(browser);
     await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 60000 });
 
     // Cookie-Banner akzeptieren falls vorhanden
@@ -670,7 +657,7 @@ export async function POST() {
 
       const batchResults = await Promise.all(
         batch.map(async (url) => {
-          const p = await browser.newPage();
+          const p = await setupSimplePage(browser);
           try {
             const [guests, date] = await Promise.all([
               extractGuestsFromEpisode(p, url),
