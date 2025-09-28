@@ -1,10 +1,5 @@
-import Database from "better-sqlite3";
 import { NextRequest, NextResponse } from "next/server";
-import path from "path";
-
-// Database connection
-const dbPath = path.resolve(process.cwd(), "../database/database.sqlite");
-const db = new Database(dbPath);
+import db from "@/lib/db";
 
 // Abgeordnetenwatch API integration
 interface AbgeordnetenwatchPolitician {

@@ -1,23 +1,15 @@
 import puppeteer, { Page } from "puppeteer";
 import axios from "axios";
 import { InferenceClient } from "@huggingface/inference";
-import { AbgeordnetenwatchPolitician } from "../types/abgeordnetenwatch.js";
+import type { AbgeordnetenwatchPolitician } from "@/types";
 import {
   initTvShowPoliticiansTable,
   insertMultipleTvShowPoliticians,
   getLatestEpisodeDate,
-} from "../db-tv-shows.js";
-import { checkPoliticianOverride } from "../politician-overrides.js";
-import dotenv from "dotenv";
-
-dotenv.config();
-
-const BASE_URL = "https://www.daserste.de";
-const LIST_URL =
-  "https://www.daserste.de/information/talk/maischberger/sendung/index.html";
-
-// HuggingFace Setup für AI-Gästeextraktion
-const MODEL = "swiss-ai/Apertus-8B-Instruct-2509";
+  checkPoliticianOverride
+} from "@/lib/server-utils";
+import { NextResponse } from "next/server";
+import db from "@/lib/db";
 
 
 interface MaischbergerEpisode {
@@ -35,6 +27,12 @@ interface GuestDetails {
   party?: number;
   partyName?: string;
 }
+
+const BASE_URL = "https://www.daserste.de";
+const LIST_URL =
+  "https://www.daserste.de/information/talk/maischberger/sendung/index.html";
+
+const MODEL = "swiss-ai/Apertus-8B-Instruct-2509";
 
 // Hilfsfunktion: AI-Extraktion der Gäste aus dem Teasertext
 async function extractGuestsWithAI(teaserText: string): Promise<string[]> {
@@ -89,13 +87,12 @@ Gib mir die Namen der Gäste im Text ausschließlich als JSON Array mit Strings 
 
     console.log("⚠️  AI-Extraktion unerwartetes Format, verwende Fallback");
     return extractGuestsFallback(teaserText);
-  } catch (error: any) {
-    console.error("❌ AI-Extraktion fehlgeschlagen:", error?.message);
+  } catch {
+    console.error("❌ AI-Extraktion fehlgeschlagen, verwende Fallback");
     return extractGuestsFallback(teaserText);
   }
 }
 
-// Fallback-Methode für Gästeextraktion ohne AI
 function extractGuestsFallback(teaserText: string): string[] {
   console.log("🔄 Verwende Fallback-Gästeextraktion...");
 
@@ -140,6 +137,7 @@ function splitFirstLast(name: string) {
   return { first: parts[0] ?? "", last: parts.slice(1).join(" ").trim() };
 }
 
+
 // Hilfsfunktion zur Disambiguierung basierend auf Partei-Info
 function disambiguateByRole(
   politicians: AbgeordnetenwatchPolitician[],
@@ -177,7 +175,8 @@ function disambiguateByRole(
 // Politiker-Prüfung mit Abgeordnetenwatch API
 async function checkPolitician(
   name: string,
-  role?: string
+  role?: string,
+  retries = 3
 ): Promise<GuestDetails> {
   // Prüfe zuerst Override-Cases
   const override = checkPoliticianOverride(name);
@@ -198,22 +197,78 @@ async function checkPolitician(
     first
   )}&last_name=${encodeURIComponent(last)}`;
 
-  try {
-    const { data } = await axios.get(url, { timeout: 10000 });
-    const politicians: AbgeordnetenwatchPolitician[] = data?.data || [];
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const { data } = await axios.get(url, { timeout: 10000 });
+      const politicians: AbgeordnetenwatchPolitician[] = data?.data || [];
 
-    if (politicians.length === 0) {
-      return {
-        name,
-        isPolitician: false,
-        politicianId: null,
-      };
-    }
+      if (politicians.length === 0) {
+        return {
+          name,
+          isPolitician: false,
+          politicianId: null,
+        };
+      }
 
-    if (politicians.length === 1) {
+      if (politicians.length === 1) {
+        const hit = politicians[0];
+
+        // Korrektur: Bayernpartei → CSU (häufiges Problem bei bayerischen CSU-Politikern)
+        let correctedPartyName = hit.party?.label;
+        if (correctedPartyName === "Bayernpartei") {
+          console.log(`🔧 Korrigiere Bayernpartei → CSU für ${hit.label}`);
+          correctedPartyName = "CSU";
+        }
+
+        return {
+          name,
+          isPolitician: true,
+          politicianId: hit.id,
+          politicianName: hit.label || name,
+          party: hit.party?.id,
+          partyName: correctedPartyName,
+        };
+      }
+
+      // Mehrere Treffer - versuche Disambiguierung
+      if (role && politicians.length > 1) {
+        console.log(
+          `🔍 Disambiguierung für ${name}: ${politicians.length} Treffer gefunden, Rolle: "${role}"`
+        );
+
+        const selectedPolitician = disambiguateByRole(politicians, role);
+        if (selectedPolitician) {
+          console.log(
+            `✅ Politiker ausgewählt: ${selectedPolitician.label} (${selectedPolitician.party?.label})`
+          );
+
+          // Korrektur: Bayernpartei → CSU
+          let correctedPartyName = selectedPolitician.party?.label;
+          if (correctedPartyName === "Bayernpartei") {
+            console.log(
+              `🔧 Korrigiere Bayernpartei → CSU für ${selectedPolitician.label}`
+            );
+            correctedPartyName = "CSU";
+          }
+
+          return {
+            name,
+            isPolitician: true,
+            politicianId: selectedPolitician.id,
+            politicianName: selectedPolitician.label || name,
+            party: selectedPolitician.party?.id,
+            partyName: correctedPartyName,
+          };
+        }
+      }
+
+      // Fallback: ersten Treffer verwenden
+      console.log(
+        `⚠️  Keine eindeutige Zuordnung für ${name}, verwende ersten Treffer`
+      );
       const hit = politicians[0];
 
-      // Korrektur: Bayernpartei → CSU (häufiges Problem bei bayerischen CSU-Politikern)
+      // Korrektur: Bayernpartei → CSU
       let correctedPartyName = hit.party?.label;
       if (correctedPartyName === "Bayernpartei") {
         console.log(`🔧 Korrigiere Bayernpartei → CSU für ${hit.label}`);
@@ -228,355 +283,313 @@ async function checkPolitician(
         party: hit.party?.id,
         partyName: correctedPartyName,
       };
-    }
-
-    // Mehrere Treffer - versuche Disambiguierung
-    if (role && politicians.length > 1) {
-      console.log(
-        `🔍 Disambiguierung für ${name}: ${politicians.length} Treffer gefunden, Rolle: "${role}"`
-      );
-
-      const selectedPolitician = disambiguateByRole(politicians, role);
-      if (selectedPolitician) {
-        console.log(
-          `✅ Politiker ausgewählt: ${selectedPolitician.label} (${selectedPolitician.party?.label})`
-        );
-
-        // Korrektur: Bayernpartei → CSU
-        let correctedPartyName = selectedPolitician.party?.label;
-        if (correctedPartyName === "Bayernpartei") {
-          console.log(
-            `🔧 Korrigiere Bayernpartei → CSU für ${selectedPolitician.label}`
-          );
-          correctedPartyName = "CSU";
-        }
-
+    } catch (error) {
+      console.error(`❌ API-Fehler für ${name} (Versuch ${attempt}/${retries}):`, error);
+      
+      if (attempt === retries) {
         return {
           name,
-          isPolitician: true,
-          politicianId: selectedPolitician.id,
-          politicianName: selectedPolitician.label || name,
-          party: selectedPolitician.party?.id,
-          partyName: correctedPartyName,
+          isPolitician: false,
+          politicianId: null,
         };
       }
     }
-
-    // Fallback: ersten Treffer verwenden
-    console.log(
-      `⚠️  Keine eindeutige Zuordnung für ${name}, verwende ersten Treffer`
-    );
-    const hit = politicians[0];
-
-    // Korrektur: Bayernpartei → CSU
-    let correctedPartyName = hit.party?.label;
-    if (correctedPartyName === "Bayernpartei") {
-      console.log(`🔧 Korrigiere Bayernpartei → CSU für ${hit.label}`);
-      correctedPartyName = "CSU";
-    }
-
-    return {
-      name,
-      isPolitician: true,
-      politicianId: hit.id,
-      politicianName: hit.label || name,
-      party: hit.party?.id,
-      partyName: correctedPartyName,
-    };
-  } catch (error) {
-    console.error(`❌ API-Fehler für ${name}:`, error);
-    return {
-      name,
-      isPolitician: false,
-      politicianId: null,
-    };
   }
+
+  // Fallback falls alle Versuche fehlschlagen
+  return {
+    name,
+    isPolitician: false,
+    politicianId: null,
+  };
 }
 
 // Extrahiere Maischberger Episoden mit Pagination
-async function getMaischbergerEpisodes(
-  page: Page,
-  limit = 10
-): Promise<MaischbergerEpisode[]> {
-  console.log("🔍 Lade Maischberger Episoden...");
+// async function getMaischbergerEpisodes(
+//   page: Page,
+//   limit = 10
+// ): Promise<MaischbergerEpisode[]> {
+//   console.log("🔍 Lade Maischberger Episoden...");
 
-  await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 60000 });
+//   await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 60000 });
 
-  // Cookie-Banner akzeptieren falls vorhanden
-  try {
-    await page.waitForSelector('button:contains("Akzeptieren")', {
-      timeout: 5000,
-    });
-    await page.click('button:contains("Akzeptieren")');
-    console.log("Cookie-Banner akzeptiert");
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-  } catch (e) {
-    console.log("Kein Cookie-Banner gefunden");
-  }
+//   // Cookie-Banner akzeptieren falls vorhanden
+//   try {
+//     await page.waitForSelector('button:contains("Akzeptieren")', {
+//       timeout: 5000,
+//     });
+//     await page.click('button:contains("Akzeptieren")');
+//     console.log("Cookie-Banner akzeptiert");
+//     await new Promise((resolve) => setTimeout(resolve, 2000));
+//   } catch {
+//     console.log("Kein Cookie-Banner gefunden");
+//   }
 
-  // Warte auf Content
-  await page.waitForSelector(".boxCon", { timeout: 15000 });
+//   // Warte auf Content
+//   await page.waitForSelector(".boxCon", { timeout: 15000 });
 
-  const allEpisodes: MaischbergerEpisode[] = [];
-  const validEpisodes: MaischbergerEpisode[] = [];
-  let currentPage = 1;
-  let hasMorePages = true;
+//   const allEpisodes: MaischbergerEpisode[] = [];
+//   const validEpisodes: MaischbergerEpisode[] = [];
+//   let currentPage = 1;
+//   let hasMorePages = true;
 
-  while (validEpisodes.length < limit && hasMorePages && currentPage <= 10) {
-    // Max 10 Seiten, stoppe wenn genug gültige Episoden
-    console.log(`📄 Crawle Seite ${currentPage}...`);
+//   while (validEpisodes.length < limit && hasMorePages && currentPage <= 10) {
+//     // Max 10 Seiten, stoppe wenn genug gültige Episoden
+//     console.log(`📄 Crawle Seite ${currentPage}...`);
 
-    const episodes = await page.evaluate((baseUrl) => {
-      const episodes: MaischbergerEpisode[] = [];
+//     const episodes = await page.evaluate((baseUrl) => {
+//       const episodes: MaischbergerEpisode[] = [];
 
-      // Finde alle Episode-Boxen
-      const boxes = document.querySelectorAll(".box.viewA");
-      console.log(`Gefunden: ${boxes.length} Episoden-Boxen auf Seite`);
+//       // Finde alle Episode-Boxen
+//       const boxes = document.querySelectorAll(".box.viewA");
+//       console.log(`Gefunden: ${boxes.length} Episoden-Boxen auf Seite`);
 
-      for (let i = 0; i < boxes.length; i++) {
-        const box = boxes[i];
+//       for (let i = 0; i < boxes.length; i++) {
+//         const box = boxes[i];
 
-        // Datum extrahieren
-        const dateElement = box.querySelector("h3.ressort");
-        const dateText = dateElement?.textContent || "";
-        const dateMatch = dateText.match(
-          /Sendung vom (\d{2})\.(\d{2})\.(\d{4})/
-        );
+//         // Datum extrahieren
+//         const dateElement = box.querySelector("h3.ressort");
+//         const dateText = dateElement?.textContent || "";
+//         const dateMatch = dateText.match(
+//           /Sendung vom (\d{2})\.(\d{2})\.(\d{4})/
+//         );
 
-        if (!dateMatch) {
-          console.log("Kein Datum gefunden in:", dateText);
-          continue;
-        }
+//         if (!dateMatch) {
+//           console.log("Kein Datum gefunden in:", dateText);
+//           continue;
+//         }
 
-        const [_, day, month, year] = dateMatch;
-        const isoDate = `${year}-${month}-${day}`;
+//         // eslint-disable-next-line @typescript-eslint/no-unused-vars
+//         const [_, day, month, year] = dateMatch;
+//         const isoDate = `${year}-${month}-${day}`;
 
-        // URL extrahieren
-        const linkElement = box.querySelector(
-          ".teasertext a"
-        ) as HTMLAnchorElement;
-        if (!linkElement) {
-          console.log("Kein Link gefunden in Box");
-          continue;
-        }
+//         // URL extrahieren
+//         const linkElement = box.querySelector(
+//           ".teasertext a"
+//         ) as HTMLAnchorElement;
+//         if (!linkElement) {
+//           console.log("Kein Link gefunden in Box");
+//           continue;
+//         }
 
-        let url = linkElement.href;
-        if (url.startsWith("/")) {
-          url = baseUrl + url;
-        }
+//         let url = linkElement.href;
+//         if (url.startsWith("/")) {
+//           url = baseUrl + url;
+//         }
 
-        // Titel extrahieren
-        const titleElement = box.querySelector("h4.headline a");
-        const title = titleElement?.textContent?.trim() || "maischberger";
+//         // Titel extrahieren
+//         const titleElement = box.querySelector("h4.headline a");
+//         const title = titleElement?.textContent?.trim() || "maischberger";
 
-        // Teasertext extrahieren (wichtig für Gäste!)
-        const teaserElement = box.querySelector(".teasertext a");
-        const teaserText = teaserElement?.textContent?.trim() || "";
+//         // Teasertext extrahieren (wichtig für Gäste!)
+//         const teaserElement = box.querySelector(".teasertext a");
+//         const teaserText = teaserElement?.textContent?.trim() || "";
 
-        console.log(`Episode gefunden: ${isoDate}, Teaser: "${teaserText}"`);
+//         console.log(`Episode gefunden: ${isoDate}, Teaser: "${teaserText}"`);
 
-        // Alle Episoden sammeln, Filterung später
-        episodes.push({
-          url,
-          date: isoDate,
-          title,
-          teaserText,
-        });
-      }
+//         // Alle Episoden sammeln, Filterung später
+//         episodes.push({
+//           url,
+//           date: isoDate,
+//           title,
+//           teaserText,
+//         });
+//       }
 
-      return episodes;
-    }, BASE_URL);
+//       return episodes;
+//     }, BASE_URL);
 
-    // Füge Episoden zur Gesamtliste hinzu
-    allEpisodes.push(...episodes);
+//     // Füge Episoden zur Gesamtliste hinzu
+//     allEpisodes.push(...episodes);
 
-    // Filtere sofort gültige Episoden und füge sie hinzu
-    const pageValidEpisodes = episodes.filter((ep) => {
-      if (!ep.teaserText || ep.teaserText.length < 10) {
-        console.log(`Episode übersprungen (kein Teasertext): ${ep.date}`);
-        return false;
-      }
+//     // Filtere sofort gültige Episoden und füge sie hinzu
+//     const pageValidEpisodes = episodes.filter((ep) => {
+//       if (!ep.teaserText || ep.teaserText.length < 10) {
+//         console.log(`Episode übersprungen (kein Teasertext): ${ep.date}`);
+//         return false;
+//       }
 
-      if (ep.teaserText.includes("Zu Gast:")) {
-        return true; // Hat Gäste-Info
-      }
+//       if (ep.teaserText.includes("Zu Gast:")) {
+//         return true; // Hat Gäste-Info
+//       }
 
-      if (ep.teaserText.length > 10 && !ep.teaserText.includes("mehr")) {
-        return true; // Hat Content, nicht nur "mehr" Link
-      }
+//       if (ep.teaserText.length > 10 && !ep.teaserText.includes("mehr")) {
+//         return true; // Hat Content, nicht nur "mehr" Link
+//       }
 
-      console.log(`Episode übersprungen (keine Gäste-Info): ${ep.date}`);
-      return false;
-    });
+//       console.log(`Episode übersprungen (keine Gäste-Info): ${ep.date}`);
+//       return false;
+//     });
 
-    validEpisodes.push(...pageValidEpisodes);
-    console.log(
-      `   ✅ ${episodes.length} Episoden gefunden, ${pageValidEpisodes.length} davon gültig (Gesamt gültig: ${validEpisodes.length})`
-    );
+//     validEpisodes.push(...pageValidEpisodes);
+//     console.log(
+//       `   ✅ ${episodes.length} Episoden gefunden, ${pageValidEpisodes.length} davon gültig (Gesamt gültig: ${validEpisodes.length})`
+//     );
 
-    // Stoppe wenn genug gültige Episoden gefunden
-    if (validEpisodes.length >= limit) {
-      console.log(`🎯 Gewünschte Anzahl ${limit} gültiger Episoden erreicht!`);
-      hasMorePages = false;
-    } else {
-      // Prüfe ob es eine nächste Seite gibt
-      const nextPageLink = await page.$('.button.right a[href*="seite"]');
+//     // Stoppe wenn genug gültige Episoden gefunden
+//     if (validEpisodes.length >= limit) {
+//       console.log(`🎯 Gewünschte Anzahl ${limit} gültiger Episoden erreicht!`);
+//       hasMorePages = false;
+//     } else {
+//       // Prüfe ob es eine nächste Seite gibt
+//       const nextPageLink = await page.$('.button.right a[href*="seite"]');
 
-      if (nextPageLink) {
-        console.log(
-          `🔄 Navigiere zur nächsten Seite (brauche noch ${
-            limit - validEpisodes.length
-          } gültige Episoden)...`
-        );
+//       if (nextPageLink) {
+//         console.log(
+//           `🔄 Navigiere zur nächsten Seite (brauche noch ${
+//             limit - validEpisodes.length
+//           } gültige Episoden)...`
+//         );
 
-        // Klicke auf "weiter" Button
-        await nextPageLink.click();
-        await page.waitForSelector(".boxCon", { timeout: 15000 });
-        await new Promise((resolve) => setTimeout(resolve, 2000)); // Kurz warten
+//         // Klicke auf "weiter" Button
+//         await nextPageLink.click();
+//         await page.waitForSelector(".boxCon", { timeout: 15000 });
+//         await new Promise((resolve) => setTimeout(resolve, 2000)); // Kurz warten
 
-        currentPage++;
-      } else {
-        console.log(`📄 Keine weitere Seite gefunden`);
-        hasMorePages = false;
-      }
-    }
-  }
+//         currentPage++;
+//       } else {
+//         console.log(`📄 Keine weitere Seite gefunden`);
+//         hasMorePages = false;
+//       }
+//     }
+//   }
 
-  // Sortiere nach Datum und limitiere
-  const sortedEpisodes = validEpisodes
-    .sort((a, b) => b.date.localeCompare(a.date)) // Neueste zuerst
-    .slice(0, limit);
+//   // Sortiere nach Datum und limitiere
+//   const sortedEpisodes = validEpisodes
+//     .sort((a, b) => b.date.localeCompare(a.date)) // Neueste zuerst
+//     .slice(0, limit);
 
-  console.log(
-    `📺 Gesamt gefunden: ${allEpisodes.length} Episoden auf ${currentPage} Seiten`
-  );
-  console.log(
-    `📋 Gültige Episoden mit Gäste-Informationen: ${sortedEpisodes.length}`
-  );
+//   console.log(
+//     `📺 Gesamt gefunden: ${allEpisodes.length} Episoden auf ${currentPage} Seiten`
+//   );
+//   console.log(
+//     `📋 Gültige Episoden mit Gäste-Informationen: ${sortedEpisodes.length}`
+//   );
 
-  return sortedEpisodes;
-}
+//   return sortedEpisodes;
+// }
 
 // Hauptfunktion: Crawle Maischberger Episoden
-export async function crawlMaischbergerEpisodes(): Promise<void> {
-  console.log("🚀 Starte Maischberger Crawler...");
-  console.log(`📅 Datum: ${new Date().toISOString()}`);
+// async function crawlMaischbergerEpisodes(): Promise<void> {
+//   console.log("🚀 Starte Maischberger Crawler...");
+//   console.log(`📅 Datum: ${new Date().toISOString()}`);
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-    ],
-  });
+//   const browser = await puppeteer.launch({
+//     headless: true,
+//     args: [
+//       "--no-sandbox",
+//       "--disable-setuid-sandbox",
+//       "--disable-dev-shm-usage",
+//     ],
+//   });
 
-  try {
-    const page = await browser.newPage();
-    await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
-    );
-    await page.setViewport({ width: 1280, height: 1000 });
-    await page.setExtraHTTPHeaders({
-      "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
-    });
+//   try {
+//     const page = await browser.newPage();
+//     await page.setUserAgent(
+//       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+//     );
+//     await page.setViewport({ width: 1280, height: 1000 });
+//     await page.setExtraHTTPHeaders({
+//       "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
+//     });
 
-    // Hole die letzten 10 Episoden
-    const episodes = await getMaischbergerEpisodes(page, 10);
+//     // Hole die letzten 10 Episoden
+//     const episodes = await getMaischbergerEpisodes(page, 10);
 
-    if (episodes.length === 0) {
-      console.log("❌ Keine Episoden gefunden");
-      return;
-    }
+//     if (episodes.length === 0) {
+//       console.log("❌ Keine Episoden gefunden");
+//       return;
+//     }
 
-    console.log(`🆕 Verarbeite ${episodes.length} Episoden:`);
-    episodes.forEach((ep) => console.log(`   📺 ${ep.date}: ${ep.title}`));
+//     console.log(`🆕 Verarbeite ${episodes.length} Episoden:`);
+//     episodes.forEach((ep) => console.log(`   📺 ${ep.date}: ${ep.title}`));
 
-    let totalPoliticiansFound = 0;
-    let episodesProcessed = 0;
+//     let totalPoliticiansFound = 0;
+//     let episodesProcessed = 0;
 
-    // Verarbeite jede Episode
-    for (const episode of episodes) {
-      try {
-        console.log(
-          `\n🎬 Verarbeite Episode vom ${episode.date}: ${episode.title}`
-        );
-        console.log(`📝 Teasertext: ${episode.teaserText}`);
+//     // Verarbeite jede Episode
+//     for (const episode of episodes) {
+//       try {
+//         console.log(
+//           `\n🎬 Verarbeite Episode vom ${episode.date}: ${episode.title}`
+//         );
+//         console.log(`📝 Teasertext: ${episode.teaserText}`);
 
-        if (!episode.teaserText || episode.teaserText.length < 10) {
-          console.log("   ❌ Kein verwertbarer Teasertext");
-          continue;
-        }
+//         if (!episode.teaserText || episode.teaserText.length < 10) {
+//           console.log("   ❌ Kein verwertbarer Teasertext");
+//           continue;
+//         }
 
-        // Extrahiere Gäste mit AI
-        const guestNames = await extractGuestsWithAI(episode.teaserText);
+//         // Extrahiere Gäste mit AI
+//         const guestNames = await extractGuestsWithAI(episode.teaserText);
 
-        if (guestNames.length === 0) {
-          console.log("   ❌ Keine Gäste extrahiert");
-          continue;
-        }
+//         if (guestNames.length === 0) {
+//           console.log("   ❌ Keine Gäste extrahiert");
+//           continue;
+//         }
 
-        console.log(`👥 Gefundene Gäste: ${guestNames.join(", ")}`);
+//         console.log(`👥 Gefundene Gäste: ${guestNames.join(", ")}`);
 
-        // Prüfe jeden Gast auf Politiker-Status
-        const politicians = [];
-        for (const guestName of guestNames) {
-          console.log(`   🔍 Prüfe: ${guestName}`);
+//         // Prüfe jeden Gast auf Politiker-Status
+//         const politicians = [];
+//         for (const guestName of guestNames) {
+//           console.log(`   🔍 Prüfe: ${guestName}`);
 
-          const details = await checkPolitician(guestName);
+//           const details = await checkPolitician(guestName);
 
-          if (
-            details.isPolitician &&
-            details.politicianId &&
-            details.politicianName
-          ) {
-            console.log(
-              `      ✅ Politiker: ${details.politicianName} (ID ${
-                details.politicianId
-              }), Partei: ${details.partyName || "unbekannt"}`
-            );
-            politicians.push(details);
-            totalPoliticiansFound++;
-          } else {
-            console.log(`      ❌ Kein Politiker`);
-          }
+//           if (
+//             details.isPolitician &&
+//             details.politicianId &&
+//             details.politicianName
+//           ) {
+//             console.log(
+//               `      ✅ Politiker: ${details.politicianName} (ID ${
+//                 details.politicianId
+//               }), Partei: ${details.partyName || "unbekannt"}`
+//             );
+//             politicians.push(details);
+//             totalPoliticiansFound++;
+//           } else {
+//             console.log(`      ❌ Kein Politiker`);
+//           }
 
-          // Pause zwischen API-Calls
-          await new Promise((resolve) => setTimeout(resolve, 500));
-        }
+//           // Pause zwischen API-Calls
+//           await new Promise((resolve) => setTimeout(resolve, 500));
+//         }
 
-        console.log(
-          `   📊 Episode ${episode.date}: ${politicians.length} Politiker gefunden`
-        );
+//         console.log(
+//           `   📊 Episode ${episode.date}: ${politicians.length} Politiker gefunden`
+//         );
 
-        if (politicians.length > 0) {
-          console.log("   🏛️  Politiker in dieser Episode:");
-          politicians.forEach((pol) => {
-            console.log(`      - ${pol.politicianName} (${pol.partyName})`);
-          });
-        }
+//         if (politicians.length > 0) {
+//           console.log("   🏛️  Politiker in dieser Episode:");
+//           politicians.forEach((pol) => {
+//             console.log(`      - ${pol.politicianName} (${pol.partyName})`);
+//           });
+//         }
 
-        episodesProcessed++;
-      } catch (error) {
-        console.error(
-          `❌ Fehler beim Verarbeiten von Episode ${episode.date}:`,
-          error
-        );
-      }
-    }
+//         episodesProcessed++;
+//       } catch (error) {
+//         console.error(
+//           `❌ Fehler beim Verarbeiten von Episode ${episode.date}:`,
+//           error
+//         );
+//       }
+//     }
 
-    console.log(`\n🎉 Maischberger Crawl abgeschlossen!`);
-    console.log(`📊 Episoden verarbeitet: ${episodesProcessed}`);
-    console.log(`👥 Politiker gefunden: ${totalPoliticiansFound}`);
-  } finally {
-    await browser.close().catch(() => {});
-  }
-}
+//     console.log(`\n🎉 Maischberger Crawl abgeschlossen!`);
+//     console.log(`📊 Episoden verarbeitet: ${episodesProcessed}`);
+//     console.log(`👥 Politiker gefunden: ${totalPoliticiansFound}`);
+//   } finally {
+//     await browser.close().catch(() => {});
+//   }
+// }
 
-// Hauptfunktion: Crawle nur NEUE Maischberger Episoden (inkrementell)
-export async function crawlNewMaischbergerEpisodes(): Promise<void> {
+// Hauptfunktion: Crawle nur NEUE Maischberger Episoden (inkrementell) - NUR 2025
+async function crawlNewMaischbergerEpisodes(): Promise<void> {
   console.log("🚀 Starte inkrementellen Maischberger Crawler...");
   console.log(`📅 Datum: ${new Date().toISOString()}`);
+  console.log(`🎯 Filterung: Nur Episoden aus dem Jahr 2025`);
 
   // Stelle sicher dass die Tabelle existiert
   initTvShowPoliticiansTable();
@@ -612,11 +625,22 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
       return;
     }
 
-    console.log(`🆕 Gefunden: ${newEpisodes.length} neue Episoden`);
-    if (newEpisodes.length > 0) {
+    // Filtere nur Episoden aus 2025
+    const episodes2025 = newEpisodes.filter((episode) => {
+      const year = parseInt(episode.date.split('-')[0]);
+      return year === 2025;
+    });
+
+    if (episodes2025.length === 0) {
+      console.log("✅ Keine neuen 2025 Episoden gefunden!");
+      return;
+    }
+
+    console.log(`🆕 Gefunden: ${episodes2025.length} neue 2025 Episoden (von ${newEpisodes.length} gesamt)`);
+    if (episodes2025.length > 0) {
       console.log(
-        `📅 Zeitraum: ${newEpisodes[newEpisodes.length - 1]?.date} bis ${
-          newEpisodes[0]?.date
+        `📅 2025 Zeitraum: ${episodes2025[episodes2025.length - 1]?.date} bis ${
+          episodes2025[0]?.date
         }`
       );
     }
@@ -626,7 +650,7 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
     let episodesWithErrors = 0;
 
     // Verarbeite jede Episode (älteste zuerst für chronologische Reihenfolge)
-    const sortedEpisodes = newEpisodes.sort(
+    const sortedEpisodes = episodes2025.sort(
       (a: MaischbergerEpisode, b: MaischbergerEpisode) =>
         a.date.localeCompare(b.date)
     );
@@ -636,7 +660,7 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
 
       try {
         console.log(
-          `\n🎬 [${i + 1}/${sortedEpisodes.length}] Verarbeite Episode vom ${
+          `\n🎬 [${i + 1}/${sortedEpisodes.length}] Verarbeite 2025 Episode vom ${
             episode.date
           }: ${episode.title}`
         );
@@ -645,10 +669,6 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
           console.log("   ❌ Kein verwertbarer Teasertext");
           continue;
         }
-
-        console.log(
-          `📝 Teasertext: ${episode.teaserText.substring(0, 100)}...`
-        );
 
         // Extrahiere Gäste mit AI
         const guestNames = await extractGuestsWithAI(episode.teaserText);
@@ -731,9 +751,9 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
       }
     }
 
-    console.log(`\n🎉 Inkrementeller Maischberger Crawl abgeschlossen!`);
+    console.log(`\n🎉 Inkrementeller Maischberger 2025 Crawl abgeschlossen!`);
     console.log(
-      `📊 Episoden verarbeitet: ${episodesProcessed}/${sortedEpisodes.length}`
+      `📊 2025 Episoden verarbeitet: ${episodesProcessed}/${sortedEpisodes.length}`
     );
     console.log(`👥 Politiker in DB gespeichert: ${totalPoliticiansInserted}`);
     console.log(`❌ Episoden mit Fehlern: ${episodesWithErrors}`);
@@ -749,7 +769,7 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
 }
 
 // Hauptfunktion: Crawle ALLE Maischberger Episoden für 2025 und speichere in DB (Vollständiger Crawl)
-export async function crawlMaischberger2025(): Promise<void> {
+async function crawlMaischberger2025(): Promise<void> {
   console.log("🚀 Starte VOLLSTÄNDIGEN Maischberger 2025 Crawler...");
   console.log(`📅 Datum: ${new Date().toISOString()}`);
   console.log(`🎯 Ziel: Alle Episoden ab 21.01.2025 bis heute`);
@@ -921,9 +941,7 @@ export async function crawlMaischberger2025(): Promise<void> {
 }
 
 // Extrahiere ALLE Maischberger Episoden für 2025 (ab 21.01.2025)
-async function getAllMaischberger2025Episodes(
-  page: Page
-): Promise<MaischbergerEpisode[]> {
+async function getAllMaischberger2025Episodes(page: Page): Promise<MaischbergerEpisode[]> {
   console.log("🔍 Lade ALLE Maischberger Episoden für 2025...");
 
   await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 60000 });
@@ -936,7 +954,7 @@ async function getAllMaischberger2025Episodes(
     await page.click('button:contains("Akzeptieren")');
     console.log("Cookie-Banner akzeptiert");
     await new Promise((resolve) => setTimeout(resolve, 2000));
-  } catch (e) {
+  } catch {
     console.log("Kein Cookie-Banner gefunden");
   }
 
@@ -975,6 +993,7 @@ async function getAllMaischberger2025Episodes(
           continue;
         }
 
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const [_, day, month, year] = dateMatch;
         const isoDate = `${year}-${month}-${day}`;
 
@@ -1106,7 +1125,7 @@ async function getNewMaischbergerEpisodes(
     await page.click('button:contains("Akzeptieren")');
     console.log("Cookie-Banner akzeptiert");
     await new Promise((resolve) => setTimeout(resolve, 2000));
-  } catch (e) {
+  } catch {
     console.log("Kein Cookie-Banner gefunden");
   }
 
@@ -1145,6 +1164,7 @@ async function getNewMaischbergerEpisodes(
           continue;
         }
 
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const [_, day, month, year] = dateMatch;
         const isoDate = `${year}-${month}-${day}`;
 
@@ -1263,52 +1283,73 @@ async function getNewMaischbergerEpisodes(
   return newEpisodes.sort((a, b) => b.date.localeCompare(a.date)); // Neueste zuerst
 }
 
-// CLI-Support für direkten Aufruf (ES Module Version)
-const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+// Funktion zum Löschen aller Maischberger-Daten aus der Tabelle
+function clearMaischbergerData(): number {
+  console.log("🗑️  Lösche alle Maischberger-Daten aus tv_show_politicians...");
+  
+  const deleteStmt = db.prepare(`
+    DELETE FROM tv_show_politicians 
+    WHERE show_name = 'Maischberger'
+  `);
+  
+  const result = deleteStmt.run();
+  console.log(`✅ ${result.changes} Maischberger-Einträge gelöscht`);
+  
+  return result.changes as number;
+}
 
-if (isMainModule) {
-  const mode = process.argv[2] || "2025";
+export async function POST(request: Request) {
+    let runType: "incremental" | "full" = "incremental";
 
-  if (mode === "2025" || mode === "full") {
-    crawlMaischberger2025()
-      .then(() => {
-        console.log("✅ Maischberger 2025 Vollcrawl beendet");
-        process.exit(0);
-      })
-      .catch((error: any) => {
-        console.error("❌ Maischberger 2025 Crawler Fehler:", error);
-        process.exit(1);
-      });
-  } else if (mode === "new" || mode === "incremental") {
-    crawlNewMaischbergerEpisodes()
-      .then(() => {
-        console.log("✅ Maischberger Inkrementeller Crawler beendet");
-        process.exit(0);
-      })
-      .catch((error: any) => {
-        console.error("❌ Maischberger Inkrementeller Crawler Fehler:", error);
-        process.exit(1);
-      });
-  } else if (mode === "test") {
-    crawlMaischbergerEpisodes()
-      .then(() => {
-        console.log("✅ Maischberger Test-Crawler beendet");
-        process.exit(0);
-      })
-      .catch((error: any) => {
-        console.error("❌ Maischberger Test-Crawler Fehler:", error);
-        process.exit(1);
-      });
-  } else {
-    // Standard: Inkrementeller Crawl (nur neue Episoden)
-    crawlNewMaischbergerEpisodes()
-      .then(() => {
-        console.log("✅ Maischberger Crawler beendet");
-        process.exit(0);
-      })
-      .catch((error: any) => {
-        console.error("❌ Maischberger Crawler Fehler:", error);
-        process.exit(1);
-      });
+    try {
+        const body = await request.json();
+        runType = body.runType || "incremental";
+    } catch (error) {
+        console.log("Fehler beim Parsen des Request Body - verwende Default 'incremental':", error);
+    }
+
+    try {
+        switch (runType) {
+            case "incremental":
+                await crawlNewMaischbergerEpisodes();
+                break;
+            case "full":
+                await crawlMaischberger2025();
+                break;
+            default:
+                await crawlNewMaischbergerEpisodes();
+                break;
+        }
+
+        return NextResponse.json({ message: "Maischberger Crawler erfolgreich" }, { status: 200 });
+    } catch (error) {
+        console.error("❌ Fehler im Maischberger Crawler:", error);
+        return NextResponse.json(
+        { error: "Fehler im Maischberger Crawler" },
+        { status: 500 }
+    );
+  }
+}
+
+
+export async function DELETE() {
+  try {
+    console.log("🗑️  Lösche alle Maischberger-Episoden aus der Datenbank...");
+    
+    const deletedCount = clearMaischbergerData();
+    
+    console.log(`✅ ${deletedCount} Maischberger-Episoden erfolgreich gelöscht`);
+    
+    return NextResponse.json({ 
+      message: `${deletedCount} Maischberger-Episoden erfolgreich gelöscht`,
+      deletedCount 
+    }, { status: 200 });
+    
+  } catch (error) {
+    console.error("❌ Fehler beim Löschen der Maischberger-Daten:", error);
+    return NextResponse.json(
+      { error: "Fehler beim Löschen der Maischberger-Daten" },
+      { status: 500 }
+    );
   }
 }
