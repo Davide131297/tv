@@ -7,8 +7,9 @@ frontend/node_modules/
 backend/dist/
 frontend/.next/
 
-# database
+# database (local development)
 database/database.sqlite
+# Note: public/database.sqlite should be committed for Vercel deployment
 
 # envs
 .env

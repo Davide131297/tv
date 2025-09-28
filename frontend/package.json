@@ -9,7 +9,9 @@
     "lint": "eslint",
     "prepare": "husky",
     "ts-check": "tsc --noEmit",
-    "test": "jest"
+    "test": "jest",
+    "sync-db": "../scripts/sync-db.sh",
+    "prebuild": "npm run sync-db"
   },
   "dependencies": {
     "@huggingface/inference": "^4.9.0",
