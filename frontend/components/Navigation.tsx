@@ -11,6 +11,14 @@ import {
   NavigationMenuList,
   NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 const navigationItems = [
@@ -38,6 +46,7 @@ const navigationItems = [
 
 export default function Navigation() {
   const pathname = usePathname();
+  const [isOpen, setIsOpen] = React.useState(false);
 
   return (
     <header className="bg-white shadow-sm border-b sticky top-0 z-50">
@@ -78,18 +87,48 @@ export default function Navigation() {
 
           {/* Mobile Navigation */}
           <div className="md:hidden">
-            <select
-              value={pathname}
-              onChange={(e) => (window.location.href = e.target.value)}
-              className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="/">Start</option>
-              {navigationItems.map((item) => (
-                <option key={item.href} value={item.href}>
-                  {item.title}
-                </option>
-              ))}
-            </select>
+            <DropdownMenu onOpenChange={setIsOpen}>
+              <DropdownMenuTrigger className="p-2 rounded-md hover:bg-gray-100 transition-colors">
+                <div className="w-6 h-6 flex flex-col justify-center items-center">
+                  <span
+                    className={cn(
+                      "block h-0.5 w-6 bg-gray-600 transition-all duration-300 ease-in-out",
+                      isOpen ? "rotate-45 translate-y-1" : "-translate-y-1"
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "block h-0.5 w-6 bg-gray-600 transition-all duration-300 ease-in-out",
+                      isOpen ? "opacity-0" : "opacity-100"
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "block h-0.5 w-6 bg-gray-600 transition-all duration-300 ease-in-out",
+                      isOpen ? "-rotate-45 -translate-y-1" : "translate-y-1"
+                    )}
+                  />
+                </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56">
+                <DropdownMenuLabel>Navigation</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {navigationItems.map((item) => (
+                  <DropdownMenuItem key={item.href} asChild>
+                    <Link
+                      href={item.href}
+                      className={cn(
+                        "w-full cursor-pointer",
+                        pathname === item.href &&
+                          "bg-accent text-accent-foreground"
+                      )}
+                    >
+                      {item.title}
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {/* Info */}
@@ -103,7 +142,7 @@ export default function Navigation() {
 }
 
 const ListItem = React.forwardRef<
-  React.ElementRef<"a">,
+  React.ComponentRef<"a">,
   React.ComponentPropsWithoutRef<"a"> & {
     isActive?: boolean;
     title: string;

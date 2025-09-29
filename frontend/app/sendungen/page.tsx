@@ -191,48 +191,48 @@ function Page() {
       </div>
 
       {/* Statistiken */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
-        <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
-          <div className="text-3xl font-bold text-blue-600 mb-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6 mb-8">
+        <div className="bg-blue-50 rounded-lg p-4 sm:p-6 border border-blue-200">
+          <div className="text-2xl sm:text-3xl font-bold text-blue-600 mb-2">
             {statisticsData.totalEpisodes}
           </div>
-          <div className="text-sm text-blue-700 font-medium">
+          <div className="text-xs sm:text-sm text-blue-700 font-medium">
             Gesamt-Sendungen
           </div>
         </div>
 
-        <div className="bg-red-50 rounded-lg p-6 border border-red-200">
-          <div className="text-3xl font-bold text-red-600 mb-2">
+        <div className="bg-red-50 rounded-lg p-4 sm:p-6 border border-red-200">
+          <div className="text-2xl sm:text-3xl font-bold text-red-600 mb-2">
             {statisticsData.totalAppearances}
           </div>
-          <div className="text-sm text-red-700 font-medium">
+          <div className="text-xs sm:text-sm text-red-700 font-medium">
             Politiker-Auftritte
           </div>
         </div>
 
-        <div className="bg-green-50 rounded-lg p-6 border border-green-200">
-          <div className="text-3xl font-bold text-green-600 mb-2">
+        <div className="bg-green-50 rounded-lg p-4 sm:p-6 border border-green-200">
+          <div className="text-2xl sm:text-3xl font-bold text-green-600 mb-2">
             {statisticsData.episodesWithPoliticians}
           </div>
-          <div className="text-sm text-green-700 font-medium">
+          <div className="text-xs sm:text-sm text-green-700 font-medium">
             Mit Politik-Gästen
           </div>
         </div>
 
-        <div className="bg-purple-50 rounded-lg p-6 border border-purple-200">
-          <div className="text-3xl font-bold text-purple-600 mb-2">
+        <div className="bg-purple-50 rounded-lg p-4 sm:p-6 border border-purple-200">
+          <div className="text-2xl sm:text-3xl font-bold text-purple-600 mb-2">
             ø {statisticsData.averagePoliticiansPerEpisode}
           </div>
-          <div className="text-sm text-purple-700 font-medium">
+          <div className="text-xs sm:text-sm text-purple-700 font-medium">
             Politiker pro Sendung
           </div>
         </div>
 
-        <div className="bg-orange-50 rounded-lg p-6 border border-orange-200">
-          <div className="text-3xl font-bold text-orange-600 mb-2">
+        <div className="bg-orange-50 rounded-lg p-4 sm:p-6 border border-orange-200">
+          <div className="text-2xl sm:text-3xl font-bold text-orange-600 mb-2">
             {statisticsData.maxPoliticiansInEpisode}
           </div>
-          <div className="text-sm text-orange-700 font-medium">
+          <div className="text-xs sm:text-sm text-orange-700 font-medium">
             Max. Politiker/Sendung
           </div>
         </div>
@@ -240,12 +240,72 @@ function Page() {
 
       {/* Sendungsliste */}
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">
+        <div className="p-4 sm:p-6 border-b border-gray-200">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
             Letzte Sendungen
           </h2>
         </div>
-        <div className="overflow-x-auto">
+
+        {/* Mobile Card Layout */}
+        <div className="block sm:hidden">
+          <div className="divide-y divide-gray-200">
+            {episodes.map((episode) => {
+              const date = new Date(episode.episode_date);
+              const formattedDate = date.toLocaleDateString("de-DE");
+              const weekday = date.toLocaleDateString("de-DE", {
+                weekday: "long",
+              });
+
+              return (
+                <div key={episode.episode_date} className="p-4 space-y-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="font-medium text-gray-900 text-sm">
+                        {formattedDate}
+                      </div>
+                      <div className="text-xs text-gray-500">{weekday}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-semibold text-gray-900">
+                        {episode.politician_count} Politiker
+                      </div>
+                    </div>
+                  </div>
+
+                  {episode.politicians.length > 0 ? (
+                    <div className="space-y-2">
+                      <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Anwesende Politiker
+                      </div>
+                      <div className="space-y-1">
+                        {episode.politicians.map((politician, idx) => (
+                          <div
+                            key={`${episode.episode_date}-${politician.name}-${idx}`}
+                            className="flex items-center justify-between text-sm"
+                          >
+                            <span className="font-medium text-gray-900">
+                              {politician.name}
+                            </span>
+                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                              {politician.party_name}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-500 italic">
+                      Keine Politik-Gäste
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Desktop Table Layout */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>

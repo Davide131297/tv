@@ -206,12 +206,48 @@ function Page() {
       {/* Partei-Details Tabelle */}
       {displayedStats.length > 0 && (
         <div className="mt-8 bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">
+          <div className="p-4 sm:p-6 border-b border-gray-200">
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
               Detaillierte Aufschlüsselung
             </h2>
           </div>
-          <div className="overflow-x-auto">
+
+          {/* Mobile Card Layout */}
+          <div className="block sm:hidden">
+            <div className="divide-y divide-gray-200">
+              {displayedStats
+                .sort((a, b) => b.count - a.count)
+                .map((party) => {
+                  const totalAppearances = displayedStats.reduce(
+                    (sum, p) => sum + p.count,
+                    0
+                  );
+                  const percentage = (
+                    (party.count / totalAppearances) *
+                    100
+                  ).toFixed(1);
+
+                  return (
+                    <div key={party.party_name} className="p-4 space-y-2">
+                      <div className="flex justify-between items-start">
+                        <span className="text-sm font-medium text-gray-900">
+                          {party.party_name}
+                        </span>
+                        <span className="text-sm text-gray-900 font-semibold">
+                          {party.count}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Anteil: {percentage}%
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+
+          {/* Desktop Table Layout */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
