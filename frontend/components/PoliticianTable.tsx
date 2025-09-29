@@ -96,7 +96,6 @@ export default function PoliticianTable() {
       const result = await response.json();
 
       if (result.success) {
-        console.log("Daten geladen:", result.data);
         setData(result.data);
       }
     } catch (error) {
