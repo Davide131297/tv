@@ -6,16 +6,18 @@ import {
   insertMultipleTvShowPoliticians,
   getLatestEpisodeDate,
   checkPoliticianOverride,
-} from "@/lib/server-utils";
+} from "@/lib/supabase-server-utils";
 
-import type { AbgeordnetenwatchPolitician, GuestDetails, GuestWithRole } from "@/types";
+import type {
+  AbgeordnetenwatchPolitician,
+  GuestDetails,
+  GuestWithRole,
+} from "@/types";
 import { NextRequest, NextResponse } from "next/server";
 import { createBrowser, setupSimplePage } from "@/lib/browser-config";
 
 const LIST_URL =
   "https://www.ardaudiothek.de/sendung/caren-miosga/urn:ard:show:d6e5ba24e1508004/";
-
-
 
 // Hilfsfunktion: Name in Vor- und Nachname aufteilen
 function splitFirstLast(name: string) {
@@ -609,7 +611,7 @@ async function getAllEpisodeLinks(
         await loadMoreButton.click();
         await new Promise((resolve) => setTimeout(resolve, 3000));
       }
-    } catch{
+    } catch {
       // Kein Load-More Button gefunden, das ist ok
     }
   }
@@ -709,7 +711,7 @@ async function crawlNewCarenMiosgaEpisodes(): Promise<void> {
   initTvShowPoliticiansTable();
 
   // Hole das letzte Datum aus der DB
-  const latestDbDate = getLatestEpisodeDate("Caren Miosga");
+  const latestDbDate = await getLatestEpisodeDate("Caren Miosga");
   console.log(`🗃️  Letzte Episode in DB: ${latestDbDate || "Keine"}`);
 
   const browser = await createBrowser();
@@ -791,7 +793,7 @@ async function crawlNewCarenMiosgaEpisodes(): Promise<void> {
 
         // Speichere Politiker in die Datenbank
         if (politicians.length > 0) {
-          const inserted = insertMultipleTvShowPoliticians(
+          const inserted = await insertMultipleTvShowPoliticians(
             "Caren Miosga",
             formatDateForDB(episode.date),
             politicians
@@ -917,7 +919,7 @@ async function crawlAllCarenMiosgaEpisodes(): Promise<void> {
 
         // Speichere Politiker in die Datenbank
         if (politicians.length > 0) {
-          const inserted = insertMultipleTvShowPoliticians(
+          const inserted = await insertMultipleTvShowPoliticians(
             "Caren Miosga",
             formatDateForDB(episode.date),
             politicians
@@ -1063,27 +1065,33 @@ async function testCrawlLast10Episodes(): Promise<void> {
 }
 
 export async function POST(request: NextRequest) {
-    let runType: "incremental" | "full" = "incremental"; // Default fallback
-    
-    try {
-        const body = await request.json();
-        runType = body.runType || "incremental";
-    } catch (error) {
-        console.log("Fehler beim Parsen des Request Body - verwende Default 'incremental':", error);
+  let runType: "incremental" | "full" = "incremental"; // Default fallback
+
+  try {
+    const body = await request.json();
+    runType = body.runType || "incremental";
+  } catch (error) {
+    console.log(
+      "Fehler beim Parsen des Request Body - verwende Default 'incremental':",
+      error
+    );
+  }
+
+  console.log(`\n\n=== Caren Miosga Crawler gestartet (${runType}) ===`);
+  try {
+    if (runType === "incremental") {
+      console.log("Starte inkrementellen Crawl...");
+      await crawlNewCarenMiosgaEpisodes();
+    } else if (runType === "full") {
+      console.log("Starte vollständigen Crawl...");
+      await crawlAllCarenMiosgaEpisodes();
     }
-    
-    console.log(`\n\n=== Caren Miosga Crawler gestartet (${runType}) ===`);
-    try {
-        if (runType === "incremental") {
-            console.log("Starte inkrementellen Crawl...");
-            await crawlNewCarenMiosgaEpisodes();
-        } else if (runType === "full") {
-            console.log("Starte vollständigen Crawl...");
-            await crawlAllCarenMiosgaEpisodes();
-        }
-        return NextResponse.json({ message: "Caren Miosga Crawl erfolgreich abgeschlossen", status: 200 });
-    } catch (error) {
-        console.error("Fehler im Caren Miosga Crawl:", error);
-        return NextResponse.json({ message: "Crawl fehlgeschlagen", status: 500 });
-    }
+    return NextResponse.json({
+      message: "Caren Miosga Crawl erfolgreich abgeschlossen",
+      status: 200,
+    });
+  } catch (error) {
+    console.error("Fehler im Caren Miosga Crawl:", error);
+    return NextResponse.json({ message: "Crawl fehlgeschlagen", status: 500 });
+  }
 }

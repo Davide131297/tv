@@ -5,7 +5,7 @@ import {
   insertMultipleTvShowPoliticians,
   getLatestEpisodeDate,
   checkPoliticianOverride,
-} from "@/lib/server-utils";
+} from "@/lib/supabase-server-utils";
 import type { AbgeordnetenwatchPolitician } from "@/types";
 import { NextResponse } from "next/server";
 import { createBrowser, setupSimplePage } from "@/lib/browser-config";
@@ -50,7 +50,6 @@ const DE_MONTHS: Record<string, string> = {
   november: "11",
   dezember: "12",
 };
-
 
 // ---------------- Lade mehr / Episoden-Links ----------------
 
@@ -247,7 +246,6 @@ function toISOFromDDMMYYYY(d: string) {
   const [_, dd, mm, yyyy] = m;
   return `${yyyy}-${mm}-${dd}`;
 }
-
 
 function parseISODateFromUrl(url: string): string | null {
   const m = url.match(/vom-(\d{1,2})-([a-zäöü]+)-(\d{4})/i);
@@ -571,13 +569,11 @@ async function extractGuestsFromEpisode(
   return uniqueGuests;
 }
 
-
 export async function POST() {
-
   initTvShowPoliticiansTable();
 
   // Hole das Datum der neuesten Episode aus der DB
-  const latestEpisodeDate = getLatestEpisodeDate("Markus Lanz");
+  const latestEpisodeDate = await getLatestEpisodeDate("Markus Lanz");
   console.log(
     `Neueste Episode in DB: ${latestEpisodeDate || "Keine vorhanden"}`
   );
@@ -607,7 +603,10 @@ export async function POST() {
 
     if (!episodeUrls.length) {
       console.warn("Keine Episoden-Links gefunden (clientseitig).");
-      return NextResponse.json({ message: "Keine Episoden-Links gefunden", status: 404 });
+      return NextResponse.json({
+        message: "Keine Episoden-Links gefunden",
+        status: 404,
+      });
     }
 
     // Filtere URLs nach Datum - nur neuere als die neueste in der DB
@@ -629,7 +628,10 @@ export async function POST() {
 
     if (!filteredUrls.length) {
       console.log("Keine neuen Episoden zu crawlen gefunden");
-      return NextResponse.json({ message: "Keine neuen Episoden zu crawlen gefunden", status: 200 });
+      return NextResponse.json({
+        message: "Keine neuen Episoden zu crawlen gefunden",
+        status: 200,
+      });
     }
 
     // Debug: zeige die ersten paar URLs und Daten
@@ -780,7 +782,7 @@ export async function POST() {
         }));
 
       if (politicians.length > 0) {
-        const inserted = insertMultipleTvShowPoliticians(
+        const inserted = await insertMultipleTvShowPoliticians(
           "Markus Lanz",
           episode.date,
           politicians
@@ -799,7 +801,10 @@ export async function POST() {
     console.log(`Episoden mit Politikern: ${episodesWithPoliticians}`);
     console.log(`Politiker gesamt eingefügt: ${totalPoliticiansInserted}`);
 
-    return NextResponse.json({ message: "Lanz Crawling erfolgreich", status: 200 });
+    return NextResponse.json({
+      message: "Lanz Crawling erfolgreich",
+      status: 200,
+    });
   } finally {
     await browser.close().catch(() => {});
   }

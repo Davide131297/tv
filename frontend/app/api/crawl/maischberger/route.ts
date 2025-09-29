@@ -6,12 +6,10 @@ import {
   initTvShowPoliticiansTable,
   insertMultipleTvShowPoliticians,
   getLatestEpisodeDate,
-  checkPoliticianOverride
-} from "@/lib/server-utils";
+  checkPoliticianOverride,
+} from "@/lib/supabase-server-utils";
 import { NextResponse } from "next/server";
-import db from "@/lib/db";
 import { createBrowser, setupSimplePage } from "@/lib/browser-config";
-
 
 interface MaischbergerEpisode {
   url: string;
@@ -137,7 +135,6 @@ function splitFirstLast(name: string) {
   const parts = name.split(/\s+/).filter(Boolean);
   return { first: parts[0] ?? "", last: parts.slice(1).join(" ").trim() };
 }
-
 
 // Hilfsfunktion zur Disambiguierung basierend auf Partei-Info
 function disambiguateByRole(
@@ -285,8 +282,11 @@ async function checkPolitician(
         partyName: correctedPartyName,
       };
     } catch (error) {
-      console.error(`❌ API-Fehler für ${name} (Versuch ${attempt}/${retries}):`, error);
-      
+      console.error(
+        `❌ API-Fehler für ${name} (Versuch ${attempt}/${retries}):`,
+        error
+      );
+
       if (attempt === retries) {
         return {
           name,
@@ -596,7 +596,7 @@ async function crawlNewMaischbergerEpisodes(): Promise<void> {
   initTvShowPoliticiansTable();
 
   // Hole das letzte Datum aus der DB
-  const latestDbDate = getLatestEpisodeDate("Maischberger");
+  const latestDbDate = await await getLatestEpisodeDate("Maischberger");
   console.log(`🗃️  Letzte Episode in DB: ${latestDbDate || "Keine"}`);
 
   const browser = await createBrowser();
@@ -614,7 +614,7 @@ async function crawlNewMaischbergerEpisodes(): Promise<void> {
 
     // Filtere nur Episoden aus 2025
     const episodes2025 = newEpisodes.filter((episode) => {
-      const year = parseInt(episode.date.split('-')[0]);
+      const year = parseInt(episode.date.split("-")[0]);
       return year === 2025;
     });
 
@@ -623,7 +623,9 @@ async function crawlNewMaischbergerEpisodes(): Promise<void> {
       return;
     }
 
-    console.log(`🆕 Gefunden: ${episodes2025.length} neue 2025 Episoden (von ${newEpisodes.length} gesamt)`);
+    console.log(
+      `🆕 Gefunden: ${episodes2025.length} neue 2025 Episoden (von ${newEpisodes.length} gesamt)`
+    );
     if (episodes2025.length > 0) {
       console.log(
         `📅 2025 Zeitraum: ${episodes2025[episodes2025.length - 1]?.date} bis ${
@@ -647,9 +649,9 @@ async function crawlNewMaischbergerEpisodes(): Promise<void> {
 
       try {
         console.log(
-          `\n🎬 [${i + 1}/${sortedEpisodes.length}] Verarbeite 2025 Episode vom ${
-            episode.date
-          }: ${episode.title}`
+          `\n🎬 [${i + 1}/${
+            sortedEpisodes.length
+          }] Verarbeite 2025 Episode vom ${episode.date}: ${episode.title}`
         );
 
         if (!episode.teaserText || episode.teaserText.length < 10) {
@@ -700,7 +702,7 @@ async function crawlNewMaischbergerEpisodes(): Promise<void> {
 
         // Speichere Politiker in die Datenbank
         if (politicians.length > 0) {
-          const inserted = insertMultipleTvShowPoliticians(
+          const inserted = await insertMultipleTvShowPoliticians(
             "Maischberger",
             episode.date,
             politicians
@@ -858,7 +860,7 @@ async function crawlMaischberger2025(): Promise<void> {
 
         // Speichere Politiker in die Datenbank
         if (politicians.length > 0) {
-          const inserted = insertMultipleTvShowPoliticians(
+          const inserted = await insertMultipleTvShowPoliticians(
             "Maischberger",
             episode.date,
             politicians
@@ -914,7 +916,9 @@ async function crawlMaischberger2025(): Promise<void> {
 }
 
 // Extrahiere ALLE Maischberger Episoden für 2025 (ab 21.01.2025)
-async function getAllMaischberger2025Episodes(page: Page): Promise<MaischbergerEpisode[]> {
+async function getAllMaischberger2025Episodes(
+  page: Page
+): Promise<MaischbergerEpisode[]> {
   console.log("🔍 Lade ALLE Maischberger Episoden für 2025...");
 
   await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 60000 });
@@ -1257,67 +1261,83 @@ async function getNewMaischbergerEpisodes(
 }
 
 // Funktion zum Löschen aller Maischberger-Daten aus der Tabelle
-function clearMaischbergerData(): number {
+async function clearMaischbergerData(): Promise<number> {
   console.log("🗑️  Lösche alle Maischberger-Daten aus tv_show_politicians...");
-  
-  const deleteStmt = db.prepare(`
-    DELETE FROM tv_show_politicians 
-    WHERE show_name = 'Maischberger'
-  `);
-  
-  const result = deleteStmt.run();
-  console.log(`✅ ${result.changes} Maischberger-Einträge gelöscht`);
-  
-  return result.changes as number;
+
+  const { supabase } = await import("@/lib/supabase");
+
+  const { error, count } = await supabase
+    .from("tv_show_politicians")
+    .delete({ count: "exact" })
+    .eq("show_name", "Maischberger");
+
+  if (error) {
+    console.error("❌ Fehler beim Löschen:", error);
+    throw error;
+  }
+
+  const deletedCount = count || 0;
+  console.log(`✅ ${deletedCount} Maischberger-Einträge gelöscht`);
+
+  return deletedCount;
 }
 
 export async function POST(request: Request) {
-    let runType: "incremental" | "full" = "incremental";
+  let runType: "incremental" | "full" = "incremental";
 
-    try {
-        const body = await request.json();
-        runType = body.runType || "incremental";
-    } catch (error) {
-        console.log("Fehler beim Parsen des Request Body - verwende Default 'incremental':", error);
+  try {
+    const body = await request.json();
+    runType = body.runType || "incremental";
+  } catch (error) {
+    console.log(
+      "Fehler beim Parsen des Request Body - verwende Default 'incremental':",
+      error
+    );
+  }
+
+  try {
+    switch (runType) {
+      case "incremental":
+        await crawlNewMaischbergerEpisodes();
+        break;
+      case "full":
+        await crawlMaischberger2025();
+        break;
+      default:
+        await crawlNewMaischbergerEpisodes();
+        break;
     }
 
-    try {
-        switch (runType) {
-            case "incremental":
-                await crawlNewMaischbergerEpisodes();
-                break;
-            case "full":
-                await crawlMaischberger2025();
-                break;
-            default:
-                await crawlNewMaischbergerEpisodes();
-                break;
-        }
-
-        return NextResponse.json({ message: "Maischberger Crawler erfolgreich" }, { status: 200 });
-    } catch (error) {
-        console.error("❌ Fehler im Maischberger Crawler:", error);
-        return NextResponse.json(
-        { error: "Fehler im Maischberger Crawler" },
-        { status: 500 }
+    return NextResponse.json(
+      { message: "Maischberger Crawler erfolgreich" },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("❌ Fehler im Maischberger Crawler:", error);
+    return NextResponse.json(
+      { error: "Fehler im Maischberger Crawler" },
+      { status: 500 }
     );
   }
 }
 
-
 export async function DELETE() {
   try {
     console.log("🗑️  Lösche alle Maischberger-Episoden aus der Datenbank...");
-    
-    const deletedCount = clearMaischbergerData();
-    
-    console.log(`✅ ${deletedCount} Maischberger-Episoden erfolgreich gelöscht`);
-    
-    return NextResponse.json({ 
-      message: `${deletedCount} Maischberger-Episoden erfolgreich gelöscht`,
-      deletedCount 
-    }, { status: 200 });
-    
+
+    const deletedCount = await clearMaischbergerData();
+
+    console.log(
+      `✅ ${deletedCount} Maischberger-Episoden erfolgreich gelöscht`
+    );
+
+    return NextResponse.json(
+      {
+        message: `${deletedCount} Maischberger-Episoden erfolgreich gelöscht`,
+        deletedCount,
+      },
+      { status: 200 }
+    );
   } catch (error) {
     console.error("❌ Fehler beim Löschen der Maischberger-Daten:", error);
     return NextResponse.json(

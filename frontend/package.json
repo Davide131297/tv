@@ -22,6 +22,7 @@
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-switch": "^1.2.6",
     "@sparticuz/chromium": "^131.0.1",
+    "@supabase/supabase-js": "^2.58.0",
     "@tanstack/react-table": "^8.21.3",
     "@types/better-sqlite3": "^7.6.13",
     "axios": "^1.12.2",

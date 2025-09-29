@@ -2,12 +2,12 @@ import { Page } from "puppeteer";
 import axios from "axios";
 import {
   initTvShowPoliticiansTable,
-    checkPoliticianOverride,
-  insertMultipleTvShowPoliticians, 
-  getLatestEpisodeDate
-} from "@/lib/server-utils";
-import type {AbgeordnetenwatchPolitician} from "@/types";
-import {NextResponse, NextRequest} from "next/server";
+  checkPoliticianOverride,
+  insertMultipleTvShowPoliticians,
+  getLatestEpisodeDate,
+} from "@/lib/supabase-server-utils";
+import type { AbgeordnetenwatchPolitician } from "@/types";
+import { NextResponse, NextRequest } from "next/server";
 import { createBrowser, setupSimplePage } from "@/lib/browser-config";
 
 type GuestDetails = {
@@ -17,7 +17,7 @@ type GuestDetails = {
   politicianName?: string;
   party?: number;
   partyName?: string;
-}
+};
 
 interface GuestWithRole {
   name: string;
@@ -608,7 +608,7 @@ async function extractGuestsFromEpisode(
 }
 
 // Hauptfunktion: Crawle nur neue Episoden
- async function crawlNewMaybritIllnerEpisodes(): Promise<void> {
+async function crawlNewMaybritIllnerEpisodes(): Promise<void> {
   console.log("🚀 Starte inkrementellen Maybrit Illner Crawler...");
   console.log(`📅 Datum: ${new Date().toISOString()}`);
 
@@ -616,7 +616,7 @@ async function extractGuestsFromEpisode(
   initTvShowPoliticiansTable();
 
   // Hole das letzte Datum aus der DB
-  const latestDbDate = getLatestEpisodeDate("Maybrit Illner");
+  const latestDbDate = await getLatestEpisodeDate("Maybrit Illner");
   console.log(`🗃️  Letzte Episode in DB: ${latestDbDate || "Keine"}`);
 
   const browser = await createBrowser();
@@ -693,7 +693,7 @@ async function extractGuestsFromEpisode(
 
         // Speichere Politiker in die Datenbank
         if (politicians.length > 0) {
-          const inserted = insertMultipleTvShowPoliticians(
+          const inserted = await insertMultipleTvShowPoliticians(
             "Maybrit Illner",
             episode.date,
             politicians
@@ -725,7 +725,7 @@ async function extractGuestsFromEpisode(
 }
 
 // Hauptfunktion: VOLLSTÄNDIGER historischer Crawl ALLER Episoden
- async function crawlAllMaybritIllnerEpisodes(): Promise<void> {
+async function crawlAllMaybritIllnerEpisodes(): Promise<void> {
   console.log("🚀 Starte VOLLSTÄNDIGEN Maybrit Illner Crawler...");
   console.log(`📅 Datum: ${new Date().toISOString()}`);
 
@@ -823,7 +823,7 @@ async function extractGuestsFromEpisode(
 
         // Speichere Politiker in die Datenbank
         if (politicians.length > 0) {
-          const inserted = insertMultipleTvShowPoliticians(
+          const inserted = await insertMultipleTvShowPoliticians(
             "Maybrit Illner",
             episode.date,
             politicians
@@ -872,30 +872,33 @@ async function extractGuestsFromEpisode(
 }
 
 export async function POST(request: NextRequest) {
-    let runType: "incremental" | "full" = "incremental";
-    
-    try {
-        const body = await request.json();
-        runType = body.runType || "incremental";
-    } catch (error) {
-        console.log("Fehler beim Parsen des Request Body - verwende Default 'incremental':", error);
-    }
+  let runType: "incremental" | "full" = "incremental";
 
-    try {
-        if (runType === "incremental") {
-            crawlNewMaybritIllnerEpisodes()
-        } else {
-            crawlAllMaybritIllnerEpisodes()
-        }
-        return NextResponse.json(
-            { message: `Maybrit Illner Crawler erfolgreich abgeschlossen` },
-            { status: 200 }
-        );
-    } catch (error) {
-        console.error("❌ Fehler im Maybrit Illner Crawler:", error);
-        return NextResponse.json(
-            { message: "Fehler beim Durchführen des Maybrit Illner Crawlers" },
-            { status: 500 }
-        );
+  try {
+    const body = await request.json();
+    runType = body.runType || "incremental";
+  } catch (error) {
+    console.log(
+      "Fehler beim Parsen des Request Body - verwende Default 'incremental':",
+      error
+    );
+  }
+
+  try {
+    if (runType === "incremental") {
+      crawlNewMaybritIllnerEpisodes();
+    } else {
+      crawlAllMaybritIllnerEpisodes();
     }
+    return NextResponse.json(
+      { message: `Maybrit Illner Crawler erfolgreich abgeschlossen` },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("❌ Fehler im Maybrit Illner Crawler:", error);
+    return NextResponse.json(
+      { message: "Fehler beim Durchführen des Maybrit Illner Crawlers" },
+      { status: 500 }
+    );
+  }
 }

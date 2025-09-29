@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import db from "@/lib/db";
+import { supabase } from "@/lib/supabase";
 
 // Abgeordnetenwatch API integration
 interface AbgeordnetenwatchPolitician {
@@ -96,13 +96,6 @@ interface EpisodeData {
   politician_count: number;
 }
 
-interface PoliticianAppearance {
-  show_name: string;
-  episode_date: string;
-  politician_name: string;
-  party_name: string | null;
-}
-
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -112,8 +105,12 @@ export async function GET(request: NextRequest) {
       case "party-stats": {
         // Statistiken pro Partei
         const showName = searchParams.get("show");
-        let whereClause = "WHERE party_name IS NOT NULL AND party_name != ''";
-        const params: string[] = [];
+
+        let query = supabase
+          .from("tv_show_politicians")
+          .select("party_name")
+          .not("party_name", "is", null)
+          .neq("party_name", "");
 
         if (
           showName &&
@@ -122,19 +119,25 @@ export async function GET(request: NextRequest) {
             showName === "Caren Miosga" ||
             showName === "Maischberger")
         ) {
-          whereClause += " AND show_name = ?";
-          params.push(showName);
+          query = query.eq("show_name", showName);
         }
 
-        const stmt = db.prepare(`
-          SELECT party_name, COUNT(*) as count
-          FROM tv_show_politicians 
-          ${whereClause}
-          GROUP BY party_name
-          ORDER BY count DESC
-        `);
+        const { data, error } = await query;
 
-        const results = stmt.all(...params) as PartyStats[];
+        if (error) {
+          throw error;
+        }
+
+        // Gruppiere und zähle die Parteien
+        const partyCount = data.reduce((acc: Record<string, number>, row) => {
+          const party = row.party_name as string;
+          acc[party] = (acc[party] || 0) + 1;
+          return acc;
+        }, {});
+
+        const results: PartyStats[] = Object.entries(partyCount)
+          .map(([party_name, count]) => ({ party_name, count }))
+          .sort((a, b) => b.count - a.count);
 
         return NextResponse.json({
           success: true,
@@ -147,16 +150,30 @@ export async function GET(request: NextRequest) {
         // Episoden mit Politiker-Anzahl
         const showName = searchParams.get("show") || "Markus Lanz";
 
-        const stmt = db.prepare(`
-          SELECT episode_date, COUNT(*) as politician_count
-          FROM tv_show_politicians 
-          WHERE show_name = ?
-          GROUP BY episode_date
-          ORDER BY episode_date DESC
-          LIMIT 50
-        `);
+        const { data, error } = await supabase
+          .from("tv_show_politicians")
+          .select("episode_date")
+          .eq("show_name", showName)
+          .order("episode_date", { ascending: false })
+          .limit(50);
 
-        const results = stmt.all(showName) as EpisodeData[];
+        if (error) {
+          throw error;
+        }
+
+        // Gruppiere nach episode_date und zähle
+        const episodeCount = data.reduce((acc: Record<string, number>, row) => {
+          const date = row.episode_date;
+          acc[date] = (acc[date] || 0) + 1;
+          return acc;
+        }, {});
+
+        const results: EpisodeData[] = Object.entries(episodeCount)
+          .map(([episode_date, politician_count]) => ({
+            episode_date,
+            politician_count,
+          }))
+          .sort((a, b) => b.episode_date.localeCompare(a.episode_date));
 
         return NextResponse.json({
           success: true,
@@ -168,19 +185,20 @@ export async function GET(request: NextRequest) {
         // Episoden mit Politiker-Namen
         const showName = searchParams.get("show") || "Markus Lanz";
 
-        const stmt = db.prepare(`
-          SELECT episode_date, politician_name, party_name
-          FROM tv_show_politicians 
-          WHERE show_name = ?
-          ORDER BY episode_date DESC
-          LIMIT 200
-        `);
+        const { data, error } = await supabase
+          .from("tv_show_politicians")
+          .select("episode_date, politician_name, party_name")
+          .eq("show_name", showName)
+          .order("episode_date", { ascending: false })
+          .limit(200);
 
-        const results = stmt.all(showName) as PoliticianAppearance[];
+        if (error) {
+          throw error;
+        }
 
         // Gruppiere nach episode_date
         const episodeMap = new Map<string, string[]>();
-        results.forEach((result) => {
+        data.forEach((result) => {
           if (!episodeMap.has(result.episode_date)) {
             episodeMap.set(result.episode_date, []);
           }
@@ -193,7 +211,7 @@ export async function GET(request: NextRequest) {
             episode_date: date,
             politician_count: politicianNames.length,
             politicians: politicianNames.map((name) => {
-              const result = results.find(
+              const result = data.find(
                 (r) => r.politician_name === name && r.episode_date === date
               );
               return {
@@ -212,28 +230,28 @@ export async function GET(request: NextRequest) {
 
       case "recent": {
         // Letzte Auftritte
-        const stmt = db.prepare(`
-          SELECT show_name, episode_date, politician_name, party_name
-          FROM tv_show_politicians 
-          ORDER BY episode_date DESC, id DESC
-          LIMIT 20
-        `);
+        const { data, error } = await supabase
+          .from("tv_show_politicians")
+          .select("show_name, episode_date, politician_name, party_name")
+          .order("episode_date", { ascending: false })
+          .order("id", { ascending: false })
+          .limit(20);
 
-        const results = stmt.all() as PoliticianAppearance[];
+        if (error) {
+          throw error;
+        }
 
         return NextResponse.json({
           success: true,
-          data: results,
+          data: data,
         });
       }
 
       case "summary": {
         // Gesamt-Statistiken
         const showName = searchParams.get("show");
-        let whereClause = "";
-        let whereClauseWithParty =
-          "WHERE party_name IS NOT NULL AND party_name != ''";
-        const params: string[] = [];
+
+        let query = supabase.from("tv_show_politicians").select("*");
 
         if (
           showName &&
@@ -242,45 +260,27 @@ export async function GET(request: NextRequest) {
             showName === "Caren Miosga" ||
             showName === "Maischberger")
         ) {
-          whereClause = "WHERE show_name = ?";
-          whereClauseWithParty =
-            "WHERE party_name IS NOT NULL AND party_name != '' AND show_name = ?";
-          params.push(showName);
+          query = query.eq("show_name", showName);
         }
 
-        const totalStmt = db.prepare(
-          `SELECT COUNT(*) as total FROM tv_show_politicians ${whereClause}`
-        );
-        const episodesStmt = db.prepare(
-          `SELECT COUNT(DISTINCT episode_date) as episodes FROM tv_show_politicians ${whereClause}`
-        );
-        const politiciansStmt = db.prepare(
-          `SELECT COUNT(DISTINCT politician_name) as politicians FROM tv_show_politicians ${whereClause}`
-        );
-        const partiesStmt = db.prepare(
-          `SELECT COUNT(DISTINCT party_name) as parties FROM tv_show_politicians ${whereClauseWithParty}`
-        );
+        const { data: allData, error } = await query;
 
-        const total =
-          params.length > 0
-            ? (totalStmt.get(params[0]) as { total: number }).total
-            : (totalStmt.get() as { total: number }).total;
+        if (error) {
+          throw error;
+        }
 
-        const episodes =
-          params.length > 0
-            ? (episodesStmt.get(params[0]) as { episodes: number }).episodes
-            : (episodesStmt.get() as { episodes: number }).episodes;
-
-        const politicians =
-          params.length > 0
-            ? (politiciansStmt.get(params[0]) as { politicians: number })
-                .politicians
-            : (politiciansStmt.get() as { politicians: number }).politicians;
-
-        const parties =
-          params.length > 0
-            ? (partiesStmt.get(params[0]) as { parties: number }).parties
-            : (partiesStmt.get() as { parties: number }).parties;
+        const total = allData?.length || 0;
+        const episodes = new Set(
+          allData?.map((d: { episode_date: string }) => d.episode_date)
+        ).size;
+        const politicians = new Set(
+          allData?.map((d: { politician_name: string }) => d.politician_name)
+        ).size;
+        const parties = new Set(
+          allData
+            ?.filter((d: { party_name: string | null }) => d.party_name)
+            .map((d: { party_name: string }) => d.party_name)
+        ).size;
 
         return NextResponse.json({
           success: true,
@@ -295,13 +295,17 @@ export async function GET(request: NextRequest) {
       }
 
       case "detailed-appearances": {
-        // Detaillierte Auftritte mit Politiker-Infos - JETZT mit direkt gespeicherten Namen
+        // Detaillierte Auftritte mit Politiker-Infos
         const limit = parseInt(searchParams.get("limit") || "50");
         const offset = parseInt(searchParams.get("offset") || "0");
         const showName = searchParams.get("show");
 
-        let whereClause = "";
-        const params: (string | number)[] = [];
+        let query = supabase
+          .from("tv_show_politicians")
+          .select("show_name, episode_date, politician_name, party_name")
+          .order("episode_date", { ascending: false })
+          .order("id", { ascending: false })
+          .range(offset, offset + limit - 1);
 
         if (
           showName &&
@@ -310,26 +314,18 @@ export async function GET(request: NextRequest) {
             showName === "Caren Miosga" ||
             showName === "Maischberger")
         ) {
-          whereClause = "WHERE show_name = ?";
-          params.push(showName, limit, offset);
-        } else {
-          params.push(limit, offset);
+          query = query.eq("show_name", showName);
         }
 
-        // NEUE QUERY: Direkte Namen aus der Datenbank verwenden
-        const stmt = db.prepare(`
-          SELECT show_name, episode_date, politician_name, party_name
-          FROM tv_show_politicians 
-          ${whereClause}
-          ORDER BY episode_date DESC, id DESC
-          LIMIT ? OFFSET ?
-        `);
+        const { data, error } = await query;
 
-        const results = stmt.all(...params) as PoliticianAppearance[];
+        if (error) {
+          throw error;
+        }
 
         // Anreicherung mit Abgeordnetenwatch-Daten
         const enrichedResults = await Promise.all(
-          results.map(async (appearance) => {
+          (data || []).map(async (appearance) => {
             const nameParts = appearance.politician_name?.split(" ") || [
               "Unbekannt",
             ];
@@ -387,15 +383,22 @@ export async function GET(request: NextRequest) {
           })
         );
 
-        const totalCount = showName
-          ? db
-              .prepare(
-                "SELECT COUNT(*) as count FROM tv_show_politicians WHERE show_name = ?"
-              )
-              .get(showName)
-          : db
-              .prepare("SELECT COUNT(*) as count FROM tv_show_politicians")
-              .get();
+        // Hole Gesamtanzahl für Pagination
+        let countQuery = supabase
+          .from("tv_show_politicians")
+          .select("*", { count: "exact", head: true });
+
+        if (
+          showName &&
+          (showName === "Markus Lanz" ||
+            showName === "Maybrit Illner" ||
+            showName === "Caren Miosga" ||
+            showName === "Maischberger")
+        ) {
+          countQuery = countQuery.eq("show_name", showName);
+        }
+
+        const { count: totalCount } = await countQuery;
 
         return NextResponse.json({
           success: true,
@@ -403,7 +406,7 @@ export async function GET(request: NextRequest) {
           pagination: {
             limit,
             offset,
-            total: totalCount as { count: number },
+            total: { count: totalCount || 0 },
           },
         });
       }
@@ -412,34 +415,33 @@ export async function GET(request: NextRequest) {
         // Episoden-Statistiken für eine bestimmte Show
         const showName = searchParams.get("show") || "Markus Lanz";
 
-        // Hole alle Episoden mit Politiker-Anzahl
-        const episodeStatsStmt = db.prepare(`
-          SELECT episode_date, COUNT(*) as politician_count
-          FROM tv_show_politicians 
-          WHERE show_name = ?
-          GROUP BY episode_date
-          ORDER BY episode_date DESC
-        `);
+        const { data, error } = await supabase
+          .from("tv_show_politicians")
+          .select("episode_date")
+          .eq("show_name", showName);
 
-        const episodeStats = episodeStatsStmt.all(showName) as {
-          episode_date: string;
-          politician_count: number;
-        }[];
+        if (error) {
+          throw error;
+        }
 
-        // Hole auch die Gesamtanzahl der Auftritte
-        const totalAppearancesStmt = db.prepare(`
-          SELECT COUNT(*) as total_appearances
-          FROM tv_show_politicians 
-          WHERE show_name = ?
-        `);
-        const totalAppearances = totalAppearancesStmt.get(showName) as {
-          total_appearances: number;
-        };
+        // Gruppiere nach Episode
+        const episodeCount = data.reduce((acc: Record<string, number>, row) => {
+          const date = row.episode_date;
+          acc[date] = (acc[date] || 0) + 1;
+          return acc;
+        }, {});
+
+        const episodeStats = Object.entries(episodeCount).map(
+          ([episode_date, politician_count]) => ({
+            episode_date,
+            politician_count,
+          })
+        );
 
         const statistics = {
           total_episodes: episodeStats.length,
-          total_appearances: totalAppearances.total_appearances,
-          episodes_with_politicians: episodeStats.length, // Alle haben Politiker (sonst wären sie nicht in der DB)
+          total_appearances: data.length,
+          episodes_with_politicians: episodeStats.length,
           average_politicians_per_episode:
             episodeStats.length > 0
               ? parseFloat(
@@ -465,17 +467,62 @@ export async function GET(request: NextRequest) {
 
       case "shows": {
         // Liste der verfügbaren Shows
-        const stmt = db.prepare(`
-          SELECT show_name, COUNT(*) as appearances, 
-                 COUNT(DISTINCT episode_date) as episodes,
-                 MIN(episode_date) as first_episode,
-                 MAX(episode_date) as latest_episode
-          FROM tv_show_politicians 
-          GROUP BY show_name
-          ORDER BY show_name
-        `);
+        const { data, error } = await supabase
+          .from("tv_show_politicians")
+          .select("show_name, episode_date");
 
-        const results = stmt.all();
+        if (error) {
+          throw error;
+        }
+
+        // Gruppiere nach Show
+        const showStats = data.reduce(
+          (
+            acc: Record<
+              string,
+              {
+                show_name: string;
+                appearances: number;
+                episodes: Set<string>;
+                first_episode: string;
+                latest_episode: string;
+              }
+            >,
+            row
+          ) => {
+            const show = row.show_name;
+            if (!acc[show]) {
+              acc[show] = {
+                show_name: show,
+                appearances: 0,
+                episodes: new Set(),
+                first_episode: row.episode_date,
+                latest_episode: row.episode_date,
+              };
+            }
+
+            acc[show].appearances++;
+            acc[show].episodes.add(row.episode_date);
+
+            if (row.episode_date < acc[show].first_episode) {
+              acc[show].first_episode = row.episode_date;
+            }
+            if (row.episode_date > acc[show].latest_episode) {
+              acc[show].latest_episode = row.episode_date;
+            }
+
+            return acc;
+          },
+          {}
+        );
+
+        const results = Object.values(showStats).map((show) => ({
+          show_name: show.show_name,
+          appearances: show.appearances,
+          episodes: show.episodes.size,
+          first_episode: show.first_episode,
+          latest_episode: show.latest_episode,
+        }));
 
         return NextResponse.json({
           success: true,
