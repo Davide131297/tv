@@ -50,6 +50,7 @@ function Page() {
       }
 
       const episodesData = await episodesResponse.json();
+      console.log("Fetched episodes data:", episodesData.data);
       if (episodesData.success) {
         setEpisodes(episodesData.data);
       }

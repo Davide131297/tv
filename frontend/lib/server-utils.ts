@@ -7,7 +7,7 @@ type GuestDetails = {
   politicianName?: string;
   party?: number;
   partyName?: string;
-}
+};
 
 interface InsertTvShowPoliticianData {
   show_name: string;
@@ -35,6 +35,14 @@ export const POLITICIAN_OVERRIDES: Record<string, GuestDetails> = {
     politicianName: "Michael Kretschmer",
     party: 2, // CDU
     partyName: "CDU",
+  },
+  "Philipp Türmer": {
+    name: "Philipp Türmer",
+    isPolitician: true,
+    politicianId: null, // Beispiel-ID, anpassen wenn bekannt
+    politicianName: "Philipp Türmer",
+    party: 1, // SPD
+    partyName: "SPD",
   },
 };
 

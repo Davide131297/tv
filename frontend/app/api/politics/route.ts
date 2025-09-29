@@ -184,13 +184,20 @@ export async function GET(request: NextRequest) {
       case "episodes-with-politicians": {
         // Episoden mit Politiker-Namen
         const showName = searchParams.get("show") || "Markus Lanz";
+        const limit = parseInt(searchParams.get("limit") || "0"); // 0 = alle
 
-        const { data, error } = await supabase
+        let query = supabase
           .from("tv_show_politicians")
           .select("episode_date, politician_name, party_name")
           .eq("show_name", showName)
-          .order("episode_date", { ascending: false })
-          .limit(200);
+          .order("episode_date", { ascending: false });
+
+        // Nur limitieren wenn explizit gesetzt
+        if (limit > 0) {
+          query = query.limit(limit);
+        }
+
+        const { data, error } = await query;
 
         if (error) {
           throw error;
@@ -224,7 +231,7 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json({
           success: true,
-          data: episodesWithPoliticians.slice(0, 50),
+          data: episodesWithPoliticians, // Entferne das slice(0, 50)
         });
       }
 

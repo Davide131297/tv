@@ -28,6 +28,14 @@ export const POLITICIAN_OVERRIDES: Record<string, GuestDetails> = {
     party: 2, // CDU
     partyName: "CDU",
   },
+  "Philipp Türmer": {
+    name: "Philipp Türmer",
+    isPolitician: true,
+    politicianId: null, // Beispiel-ID, anpassen wenn bekannt
+    politicianName: "Philipp Türmer",
+    party: 1, // SPD
+    partyName: "SPD",
+  },
 };
 
 // Hilfsfunktion um Override-Prüfung zu zentralisieren
