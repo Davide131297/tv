@@ -10,11 +10,8 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     runType = body.runType || "incremental";
-  } catch (error) {
-    console.log(
-      "Fehler beim Parsen des Request Body - verwende Default 'incremental':",
-      error
-    );
+  } catch {
+    console.log("⚠️ No valid JSON body found, using default 'incremental'");
   }
 
   try {
@@ -30,7 +27,9 @@ export async function POST(request: NextRequest) {
         break;
     }
     return NextResponse.json(
-      { message: `Maybrit Illner Crawler erfolgreich abgeschlossen` },
+      {
+        message: `Maybrit Illner Crawler erfolgreich abgeschlossen (${runType})`,
+      },
       { status: 200 }
     );
   } catch (error) {

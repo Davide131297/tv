@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import type { EpisodeData, Statistics } from "@/types";
 import { SHOW_OPTIONS_WITHOUT_ALL } from "@/types";
+import { FETCH_HEADERS } from "@/lib/utils";
 
 function Page() {
   const router = useRouter();
@@ -42,7 +43,11 @@ function Page() {
       const episodesResponse = await fetch(
         `/api/politics?type=episodes-with-politicians&show=${encodeURIComponent(
           selectedShow
-        )}`
+        )}`,
+        {
+          method: "GET",
+          headers: FETCH_HEADERS,
+        }
       );
 
       if (!episodesResponse.ok) {
@@ -59,7 +64,11 @@ function Page() {
       const statsResponse = await fetch(
         `/api/politics?type=episode-statistics&show=${encodeURIComponent(
           selectedShow
-        )}`
+        )}`,
+        {
+          method: "GET",
+          headers: FETCH_HEADERS,
+        }
       );
 
       if (statsResponse.ok) {

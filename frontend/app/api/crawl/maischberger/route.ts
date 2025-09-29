@@ -1,21 +1,18 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import {
   crawlMaischberger2025,
   crawlNewMaischbergerEpisodes,
   clearMaischbergerData,
 } from "@/crawler/maischberger";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   let runType: "incremental" | "full" = "incremental";
 
   try {
     const body = await request.json();
     runType = body.runType || "incremental";
-  } catch (error) {
-    console.log(
-      "Fehler beim Parsen des Request Body - verwende Default 'incremental':",
-      error
-    );
+  } catch {
+    console.log("⚠️ No valid JSON body found, using default 'incremental'");
   }
 
   try {
@@ -32,7 +29,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      { message: "Maischberger Crawler erfolgreich" },
+      { message: `Maischberger Crawler erfolgreich (${runType})` },
       { status: 200 }
     );
   } catch (error) {

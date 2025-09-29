@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import type { PartyStats } from "@/types";
 import { SHOW_OPTIONS } from "@/types";
+import { FETCH_HEADERS } from "@/lib/utils";
 
 function Page() {
   const router = useRouter();
@@ -75,7 +76,10 @@ function Page() {
               selectedShow
             )}`;
 
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        method: "GET",
+        headers: FETCH_HEADERS,
+      });
 
       if (!response.ok) {
         throw new Error("Failed to fetch data");

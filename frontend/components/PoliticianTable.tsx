@@ -15,6 +15,7 @@ import {
 import { Button } from "./ui/button";
 import type { PoliticianAppearance } from "@/types";
 import { SHOW_OPTIONS } from "@/types";
+import { FETCH_HEADERS } from "@/lib/utils";
 
 const columnHelper = createColumnHelper<PoliticianAppearance>();
 
@@ -92,7 +93,10 @@ export default function PoliticianTable() {
               selectedShow
             )}`;
 
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        method: "GET",
+        headers: FETCH_HEADERS,
+      });
       const result = await response.json();
 
       if (result.success) {
