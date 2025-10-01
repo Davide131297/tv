@@ -113,6 +113,8 @@ export default function PoliticianTable() {
     fetchData();
   }, [fetchData]);
 
+  const paginationStyle= "px-2 sm:px-3 py-1 text-xs sm:text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700";
+
   // Definiere Spalten
   const columns = useMemo(
     () => [
@@ -442,28 +444,27 @@ export default function PoliticianTable() {
           <Button
             onClick={() => table.setPageIndex(0)}
             disabled={!table.getCanPreviousPage()}
-            className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+            className={paginationStyle}
           >
             {"<<"}
           </Button>
           <Button
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
-            className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-          >
+            className={paginationStyle}>
             {"<"}
           </Button>
           <Button
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
-            className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+            className={paginationStyle}
           >
             {">"}
           </Button>
           <Button
             onClick={() => table.setPageIndex(table.getPageCount() - 1)}
             disabled={!table.getCanNextPage()}
-            className="px-2 sm:px-3 py-1 text-xs sm:text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+            className={paginationStyle}
           >
             {">>"}
           </Button>
