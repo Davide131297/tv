@@ -6,5 +6,5 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export const FETCH_HEADERS = {
-  Authorization: `Bearer ${process.env.POLITICS_API_KEY}`,
+  Authorization: `Bearer ${process.env.NEXT_PUBLIC_POLITICS_API_KEY}`,
 };

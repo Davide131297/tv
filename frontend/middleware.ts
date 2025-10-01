@@ -4,8 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
 
 // Environment variables
-const CRAWL_API_KEY = process.env.CRAWL_API_KEY;
-const POLITICS_API_KEY = process.env.POLITICS_API_KEY;
+const CRAWL_API_KEY = process.env.NEXT_PUBLIC_CRAWL_API_KEY;
+const POLITICS_API_KEY = process.env.NEXT_PUBLIC_POLITICS_API_KEY;
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -19,18 +19,10 @@ export function middleware(request: NextRequest) {
   }
 
   const startTime = Date.now();
-  const userAgent = request.headers.get("user-agent") || "unknown";
   const ip =
     request.headers.get("x-forwarded-for") ||
     request.headers.get("x-real-ip") ||
     "unknown";
-
-  console.log(`🔄 [${new Date().toISOString()}] Protected API Request:`, {
-    method: request.method,
-    pathname,
-    ip,
-    userAgent: userAgent.substring(0, 100),
-  });
 
   try {
     // Method validation - different rules for different APIs
@@ -44,7 +36,6 @@ export function middleware(request: NextRequest) {
     }
 
     if (!allowedMethods.includes(request.method)) {
-      console.log(`❌ Method ${request.method} not allowed for ${pathname}`);
       return NextResponse.json(
         { error: `Method ${request.method} not allowed` },
         { status: 405 }
@@ -73,7 +64,6 @@ export function middleware(request: NextRequest) {
     if (rateLimitEntry) {
       if (now < rateLimitEntry.resetTime) {
         if (rateLimitEntry.count >= maxRequestsPerWindow) {
-          console.log(`🚫 Rate limit exceeded for IP: ${ip}`);
           return NextResponse.json(
             {
               error: "Rate limit exceeded",
@@ -98,12 +88,14 @@ export function middleware(request: NextRequest) {
     // Authentication check - different API keys for different routes
     let requireAuth = false;
     let expectedApiKey = "";
-    
+
     if (pathname.startsWith("/api/crawl/")) {
       requireAuth = !!(CRAWL_API_KEY && CRAWL_API_KEY !== "default-dev-key");
       expectedApiKey = CRAWL_API_KEY || "";
     } else if (pathname.startsWith("/api/politics")) {
-      requireAuth = !!(POLITICS_API_KEY && POLITICS_API_KEY !== "default-dev-key");
+      requireAuth = !!(
+        POLITICS_API_KEY && POLITICS_API_KEY !== "default-dev-key"
+      );
       expectedApiKey = POLITICS_API_KEY || "";
     }
 
@@ -112,17 +104,11 @@ export function middleware(request: NextRequest) {
       const apiKeyFromHeader = authHeader?.replace("Bearer ", "");
 
       if (!apiKeyFromHeader || apiKeyFromHeader !== expectedApiKey) {
-        console.log(
-          `🔐 Authentication failed for IP: ${ip}, path: ${pathname}`
-        );
         return NextResponse.json(
           { error: "Unauthorized: Invalid or missing API key" },
           { status: 401 }
         );
       }
-      console.log(
-        `✅ Authentication successful for IP: ${ip}, path: ${pathname}`
-      );
     }
 
     // Continue to the API route

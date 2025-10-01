@@ -34,7 +34,7 @@ const MODEL = "swiss-ai/Apertus-8B-Instruct-2509";
 
 // Hilfsfunktion: AI-Extraktion der Gäste aus dem Teasertext
 async function extractGuestsWithAI(teaserText: string): Promise<string[]> {
-  const token = process.env.HF_ACCESS_TOKEN;
+  const token = process.env.NEXT_PUBLIC_HF_ACCESS_TOKEN;
   if (!token) {
     console.error("❌ HF_ACCESS_TOKEN fehlt in .env");
     return [];

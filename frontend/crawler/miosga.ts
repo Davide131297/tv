@@ -44,7 +44,7 @@ async function extractGuestsWithAI(
   teaserText: string,
   retryCount = 0
 ): Promise<string[]> {
-  const token = process.env.HF_ACCESS_TOKEN;
+  const token = process.env.NEXT_PUBLIC_HF_ACCESS_TOKEN;
   if (!token) {
     console.error("❌ HF_ACCESS_TOKEN fehlt in .env");
     return extractGuestsFallback(teaserText);
