@@ -88,8 +88,8 @@ export default function PoliticianTable() {
       setLoading(true);
       const url =
         selectedShow === "all"
-          ? "/api/politics?type=detailed-appearances&limit=200"
-          : `/api/politics?type=detailed-appearances&limit=200&show=${encodeURIComponent(
+          ? "/api/politics?type=detailed-appearances&limit=500"
+          : `/api/politics?type=detailed-appearances&limit=500&show=${encodeURIComponent(
               selectedShow
             )}`;
 
