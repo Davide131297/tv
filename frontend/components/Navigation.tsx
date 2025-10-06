@@ -19,8 +19,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { useAuth } from "@/components/auth/AuthProvider";
 import { cn } from "@/lib/utils";
 
 const navigationItems = [
@@ -54,15 +52,6 @@ const navigationItems = [
 export default function Navigation() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = React.useState(false);
-  const { user, loading, signOut } = useAuth();
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-    } catch (error) {
-      console.error("Error signing out:", error);
-    }
-  };
 
   return (
     <header className="bg-white shadow-sm border-b sticky top-0 z-50">
@@ -101,95 +90,50 @@ export default function Navigation() {
             </NavigationMenuList>
           </NavigationMenu>
 
-          {/* Auth Section */}
-          <div className="flex items-center space-x-4">
-            {loading ? (
-              <div className="w-8 h-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
-            ) : user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="flex items-center space-x-2"
-                  >
-                    <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
-                      {user.email?.charAt(0).toUpperCase()}
-                    </div>
-                    <span className="hidden sm:inline">{user.email}</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>Mein Account</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link href="/account" className="cursor-pointer">
-                      Account-Einstellungen
+          {/* Mobile Navigation */}
+          <div className="md:hidden">
+            <DropdownMenu onOpenChange={setIsOpen}>
+              <DropdownMenuTrigger className="p-2 rounded-md hover:bg-gray-100 transition-colors">
+                <div className="w-6 h-6 flex flex-col justify-center items-center">
+                  <span
+                    className={cn(
+                      "block h-0.5 w-6 bg-gray-600 transition-all duration-300 ease-in-out",
+                      isOpen ? "rotate-45 translate-y-1" : "-translate-y-1"
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "block h-0.5 w-6 bg-gray-600 transition-all duration-300 ease-in-out",
+                      isOpen ? "opacity-0" : "opacity-100"
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "block h-0.5 w-6 bg-gray-600 transition-all duration-300 ease-in-out",
+                      isOpen ? "-rotate-45 -translate-y-1" : "translate-y-1"
+                    )}
+                  />
+                </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56">
+                <DropdownMenuLabel>Navigation</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {navigationItems.map((item) => (
+                  <DropdownMenuItem key={item.href} asChild>
+                    <Link
+                      href={item.href}
+                      className={cn(
+                        "w-full cursor-pointer",
+                        pathname === item.href &&
+                          "bg-accent text-accent-foreground"
+                      )}
+                    >
+                      {item.title}
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleSignOut}>
-                    Abmelden
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <Link href="/auth/login">
-                <Button size="sm">Anmelden / Registrieren</Button>
-              </Link>
-            )}
-
-            {/* Mobile Navigation */}
-            <div className="md:hidden">
-              <DropdownMenu onOpenChange={setIsOpen}>
-                <DropdownMenuTrigger className="p-2 rounded-md hover:bg-gray-100 transition-colors">
-                  <div className="w-6 h-6 flex flex-col justify-center items-center">
-                    <span
-                      className={cn(
-                        "block h-0.5 w-6 bg-gray-600 transition-all duration-300 ease-in-out",
-                        isOpen ? "rotate-45 translate-y-1" : "-translate-y-1"
-                      )}
-                    />
-                    <span
-                      className={cn(
-                        "block h-0.5 w-6 bg-gray-600 transition-all duration-300 ease-in-out",
-                        isOpen ? "opacity-0" : "opacity-100"
-                      )}
-                    />
-                    <span
-                      className={cn(
-                        "block h-0.5 w-6 bg-gray-600 transition-all duration-300 ease-in-out",
-                        isOpen ? "-rotate-45 -translate-y-1" : "translate-y-1"
-                      )}
-                    />
-                  </div>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56">
-                  <DropdownMenuLabel>Navigation</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {navigationItems.map((item) => (
-                    <DropdownMenuItem key={item.href} asChild>
-                      <Link
-                        href={item.href}
-                        className={cn(
-                          "w-full cursor-pointer",
-                          pathname === item.href &&
-                            "bg-accent text-accent-foreground"
-                        )}
-                      >
-                        {item.title}
-                      </Link>
-                    </DropdownMenuItem>
-                  ))}
-                  {user && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleSignOut}>
-                        Abmelden
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {/* Info - moved to be responsive */}
