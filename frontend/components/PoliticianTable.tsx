@@ -12,6 +12,12 @@ import {
   createColumnHelper,
   SortingState,
 } from "@tanstack/react-table";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { Button } from "./ui/button";
 import type { PoliticianAppearance } from "@/types";
 import { SHOW_OPTIONS } from "@/types";
@@ -244,7 +250,7 @@ export default function PoliticianTable() {
             </p>
           </div>
 
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col xl:flex-row gap-4 xl:justify-between">
             {/* Show Filter */}
             <div className="flex flex-wrap gap-2">
               {SHOW_OPTIONS.map((option) => {
@@ -277,28 +283,18 @@ export default function PoliticianTable() {
             </div>
 
             {/* Globale Suche */}
-            <div className="relative">
-              <input
-                value={globalFilter}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                className="w-full sm:w-80 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base sm:text-sm"
-                placeholder="Suche nach Name oder Partei..."
-              />
-              <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                <svg
-                  className="h-4 w-4 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
-                </svg>
-              </div>
+            <div className="relative w-80">
+              <InputGroup>
+                <InputGroupInput
+                  placeholder="Suche nach Name oder Partei..."
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                />
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton variant={"secondary"}>
+                    Suchen
+                  </InputGroupButton>
+                </InputGroupAddon>
+              </InputGroup>
             </div>
           </div>
         </div>
