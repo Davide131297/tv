@@ -16,6 +16,7 @@ import { Button } from "./ui/button";
 import type { PoliticianAppearance } from "@/types";
 import { SHOW_OPTIONS } from "@/types";
 import { FETCH_HEADERS } from "@/lib/utils";
+import ShowOptionsButtons from "./ShowOptionsButtons";
 
 const columnHelper = createColumnHelper<PoliticianAppearance>();
 
@@ -113,7 +114,8 @@ export default function PoliticianTable() {
     fetchData();
   }, [fetchData]);
 
-  const paginationStyle= "px-2 sm:px-3 py-1 text-xs sm:text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700";
+  const paginationStyle =
+    "px-2 sm:px-3 py-1 text-xs sm:text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700";
 
   // Definiere Spalten
   const columns = useMemo(
@@ -126,13 +128,15 @@ export default function PoliticianTable() {
             <span
               className={`px-2 py-1 rounded-full text-xs font-semibold ${
                 show === "Markus Lanz"
-                  ? "bg-blue-100 text-blue-800"
+                  ? "bg-orange-100 text-orange-800"
                   : show === "Maybrit Illner"
                   ? "bg-purple-100 text-purple-800"
                   : show === "Caren Miosga"
                   ? "bg-green-100 text-green-800"
                   : show === "Maischberger"
-                  ? "bg-orange-100 text-orange-800"
+                  ? "bg-teal-100 text-teal-800"
+                  : show === "Hart aber fair"
+                  ? "bg-blue-100 text-blue-800"
                   : "bg-gray-100 text-gray-800"
               }`}
             >
@@ -172,6 +176,7 @@ export default function PoliticianTable() {
               FDP: "bg-yellow-400 text-black",
               "Die Linke": "bg-purple-600 text-white",
               "BÜNDNIS 90/DIE GRÜNEN": "bg-green-600 text-white",
+              "Bündnis 90/Die Grünen": "bg-green-600 text-white",
               Grüne: "bg-green-600 text-white",
               AfD: "bg-blue-600 text-white",
               BSW: "bg-yellow-700 text-white",
@@ -250,24 +255,16 @@ export default function PoliticianTable() {
                   if (!isSelected)
                     return "bg-gray-100 text-gray-700 hover:bg-gray-200";
 
-                  switch (showValue) {
-                    case "Markus Lanz":
-                      return "bg-blue-100 text-blue-800 hover:bg-blue-200";
-                    case "Maybrit Illner":
-                      return "bg-purple-100 text-purple-800 hover:bg-purple-200";
-                    case "Caren Miosga":
-                      return "bg-green-100 text-green-800 hover:bg-green-200";
-                    case "Maischberger":
-                      return "bg-orange-100 text-orange-800 hover:bg-orange-200";
-                    default:
-                      return "bg-black text-white hover:bg-gray-800 hover:text-white";
-                  }
+                  return ShowOptionsButtons(showValue);
                 };
 
                 return (
                   <Button
                     key={option.value}
-                    onClick={() => handleShowChange(option.value)}
+                    onClick={() => {
+                      console.log("Button clicked for show:", option.value); // Debug log
+                      handleShowChange(option.value);
+                    }}
                     className={`px-2 sm:px-3 py-1 text-xs sm:text-sm rounded-lg transition-colors ${getButtonColors(
                       option.value,
                       selectedShow === option.value
@@ -333,13 +330,15 @@ export default function PoliticianTable() {
             const getShowColor = (show: string) => {
               switch (show) {
                 case "Markus Lanz":
-                  return "bg-blue-100 text-blue-800";
+                  return "bg-orange-100 text-orange-800";
                 case "Maybrit Illner":
                   return "bg-purple-100 text-purple-800";
                 case "Caren Miosga":
                   return "bg-green-100 text-green-800";
                 case "Maischberger":
-                  return "bg-orange-100 text-orange-800";
+                  return "bg-teal-100 text-teal-800";
+                case "Hart aber fair":
+                  return "bg-blue-100 text-blue-800";
                 default:
                   return "bg-gray-100 text-gray-800";
               }
@@ -451,7 +450,8 @@ export default function PoliticianTable() {
           <Button
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
-            className={paginationStyle}>
+            className={paginationStyle}
+          >
             {"<"}
           </Button>
           <Button

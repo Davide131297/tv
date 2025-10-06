@@ -117,7 +117,8 @@ export async function GET(request: NextRequest) {
           (showName === "Markus Lanz" ||
             showName === "Maybrit Illner" ||
             showName === "Caren Miosga" ||
-            showName === "Maischberger")
+            showName === "Maischberger" ||
+            showName === "Hart aber fair")
         ) {
           query = query.eq("show_name", showName);
         }
@@ -265,7 +266,8 @@ export async function GET(request: NextRequest) {
           (showName === "Markus Lanz" ||
             showName === "Maybrit Illner" ||
             showName === "Caren Miosga" ||
-            showName === "Maischberger")
+            showName === "Maischberger" ||
+            showName === "Hart aber fair")
         ) {
           query = query.eq("show_name", showName);
         }
@@ -319,7 +321,8 @@ export async function GET(request: NextRequest) {
           (showName === "Markus Lanz" ||
             showName === "Maybrit Illner" ||
             showName === "Caren Miosga" ||
-            showName === "Maischberger")
+            showName === "Maischberger" ||
+            showName === "Hart aber fair")
         ) {
           query = query.eq("show_name", showName);
         }
@@ -400,7 +403,8 @@ export async function GET(request: NextRequest) {
           (showName === "Markus Lanz" ||
             showName === "Maybrit Illner" ||
             showName === "Caren Miosga" ||
-            showName === "Maischberger")
+            showName === "Maischberger" ||
+            showName === "Hart aber fair")
         ) {
           countQuery = countQuery.eq("show_name", showName);
         }

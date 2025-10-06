@@ -42,47 +42,42 @@ export function middleware(request: NextRequest) {
       );
     }
 
-    // Rate limiting - different limits for different APIs
-    const rateLimitKey = `api:${ip}`;
-    const now = Date.now();
-    const rateLimitWindowMs = 60 * 1000; // 1 minute
-
-    let maxRequestsPerWindow: number;
+    // Rate limiting - only for crawl APIs with higher limits
     if (pathname.startsWith("/api/crawl/")) {
-      maxRequestsPerWindow =
+      const rateLimitKey = `api:${ip}`;
+      const now = Date.now();
+      const rateLimitWindowMs = 60 * 1000; // 1 minute
+
+      const maxRequestsPerWindow =
         pathname.includes("maischberger") && request.method === "DELETE"
-          ? 3
-          : 5;
-    } else if (pathname.startsWith("/api/politics")) {
-      maxRequestsPerWindow = 30; // Higher limit for read-only politics API
-    } else {
-      maxRequestsPerWindow = 10;
-    }
+          ? 10 // Increased from 3 to 10
+          : 20; // Increased from 5 to 20
 
-    const rateLimitEntry = rateLimitStore.get(rateLimitKey);
+      const rateLimitEntry = rateLimitStore.get(rateLimitKey);
 
-    if (rateLimitEntry) {
-      if (now < rateLimitEntry.resetTime) {
-        if (rateLimitEntry.count >= maxRequestsPerWindow) {
-          return NextResponse.json(
-            {
-              error: "Rate limit exceeded",
-              retryAfter: Math.ceil((rateLimitEntry.resetTime - now) / 1000),
-            },
-            { status: 429 }
-          );
+      if (rateLimitEntry) {
+        if (now < rateLimitEntry.resetTime) {
+          if (rateLimitEntry.count >= maxRequestsPerWindow) {
+            return NextResponse.json(
+              {
+                error: "Rate limit exceeded",
+                retryAfter: Math.ceil((rateLimitEntry.resetTime - now) / 1000),
+              },
+              { status: 429 }
+            );
+          }
+          rateLimitEntry.count++;
+        } else {
+          // Reset window
+          rateLimitEntry.count = 1;
+          rateLimitEntry.resetTime = now + rateLimitWindowMs;
         }
-        rateLimitEntry.count++;
       } else {
-        // Reset window
-        rateLimitEntry.count = 1;
-        rateLimitEntry.resetTime = now + rateLimitWindowMs;
+        rateLimitStore.set(rateLimitKey, {
+          count: 1,
+          resetTime: now + rateLimitWindowMs,
+        });
       }
-    } else {
-      rateLimitStore.set(rateLimitKey, {
-        count: 1,
-        resetTime: now + rateLimitWindowMs,
-      });
     }
 
     // Authentication check - different API keys for different routes

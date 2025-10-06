@@ -32,8 +32,10 @@ export default function PartyChart({ data, selectedShow }: PartyChartProps) {
         return "Partei-Auftritte bei Caren Miosga";
       case "Maischberger":
         return "Partei-Auftritte bei Maischberger";
+      case "Hart aber fair":
+        return "Partei-Auftritte bei Hart aber fair";
       default:
-        return "Partei-Auftritte";
+        return "Partei-Auftritte alle Shows";
     }
   };
 

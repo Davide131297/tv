@@ -91,6 +91,7 @@ export const SHOW_OPTIONS: ShowOption[] = [
   { value: "Maybrit Illner", label: "Maybrit Illner" },
   { value: "Caren Miosga", label: "Caren Miosga" },
   { value: "Maischberger", label: "Maischberger" },
+  { value: "Hart aber fair", label: "Hart aber fair" },
 ];
 
 export const SHOW_OPTIONS_WITHOUT_ALL: ShowOption[] = [
@@ -98,6 +99,7 @@ export const SHOW_OPTIONS_WITHOUT_ALL: ShowOption[] = [
   { value: "Maybrit Illner", label: "Maybrit Illner" },
   { value: "Caren Miosga", label: "Caren Miosga" },
   { value: "Maischberger", label: "Maischberger" },
+  { value: "Hart aber fair", label: "Hart aber fair" },
 ];
 
 // =============================================================================
@@ -127,8 +129,8 @@ export type ShowValue =
   | "Markus Lanz"
   | "Maybrit Illner"
   | "Caren Miosga"
-  | "Maischberger";
-
+  | "Maischberger"
+  | "Hart aber fair";
 
 // =============================================================================
 // Abgeordnetenwatch TYPES
@@ -169,7 +171,7 @@ export type AbgeordnetenwatchPolitician = {
 export type GuestWithRole = {
   name: string;
   role?: string;
-}
+};
 
 export type GuestDetails = {
   name: string;
@@ -178,4 +180,4 @@ export type GuestDetails = {
   politicianName?: string; // NEU: Vollständiger Name des Politikers
   party?: number;
   partyName?: string; // NEU: Name der Partei
-}
+};
