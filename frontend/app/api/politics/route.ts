@@ -541,6 +541,99 @@ export async function GET(request: NextRequest) {
         });
       }
 
+      case "politician-rankings": {
+        // Politiker-Rankings nach Anzahl Auftritte
+        const showName = searchParams.get("show");
+        const limit = parseInt(searchParams.get("limit") || "100");
+
+        let query = supabase
+          .from("tv_show_politicians")
+          .select("politician_name, party_name, show_name, episode_date");
+
+        if (
+          showName &&
+          (showName === "Markus Lanz" ||
+            showName === "Maybrit Illner" ||
+            showName === "Caren Miosga" ||
+            showName === "Maischberger" ||
+            showName === "Hart aber fair")
+        ) {
+          query = query.eq("show_name", showName);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+          throw error;
+        }
+
+        // Gruppiere nach Politiker und zähle Auftritte
+        const politicianStats = data.reduce(
+          (
+            acc: Record<
+              string,
+              {
+                politician_name: string;
+                party_name: string | null;
+                total_appearances: number;
+                shows: Set<string>;
+                latest_appearance: string;
+                first_appearance: string;
+              }
+            >,
+            row
+          ) => {
+            const politician = row.politician_name;
+            if (!acc[politician]) {
+              acc[politician] = {
+                politician_name: politician,
+                party_name: row.party_name,
+                total_appearances: 0,
+                shows: new Set(),
+                latest_appearance: row.episode_date,
+                first_appearance: row.episode_date,
+              };
+            }
+
+            acc[politician].total_appearances++;
+            acc[politician].shows.add(row.show_name);
+
+            if (row.episode_date > acc[politician].latest_appearance) {
+              acc[politician].latest_appearance = row.episode_date;
+            }
+            if (row.episode_date < acc[politician].first_appearance) {
+              acc[politician].first_appearance = row.episode_date;
+            }
+
+            return acc;
+          },
+          {}
+        );
+
+        const results = Object.values(politicianStats)
+          .map((politician) => ({
+            politician_name: politician.politician_name,
+            party_name: politician.party_name || "Unbekannt",
+            total_appearances: politician.total_appearances,
+            shows_appeared_on: politician.shows.size,
+            show_names: Array.from(politician.shows),
+            latest_appearance: politician.latest_appearance,
+            first_appearance: politician.first_appearance,
+          }))
+          .sort((a, b) => b.total_appearances - a.total_appearances)
+          .slice(0, limit);
+
+        return NextResponse.json({
+          success: true,
+          data: results,
+          metadata: {
+            total_politicians: Object.keys(politicianStats).length,
+            show_filter: showName || "Alle Shows",
+            limit: limit,
+          },
+        });
+      }
+
       default:
         return NextResponse.json(
           { success: false, error: "Unknown type parameter" },

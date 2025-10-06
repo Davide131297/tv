@@ -1,0 +1,353 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { FETCH_HEADERS } from "@/lib/utils";
+import { BADGE_PARTY_COLORS } from "@/types";
+
+interface PoliticianRanking {
+  politician_name: string;
+  party_name: string;
+  total_appearances: number;
+  shows_appeared_on: number;
+  show_names: string[];
+  latest_appearance: string;
+  first_appearance: string;
+}
+
+interface PoliticianRankingsResponse {
+  success: boolean;
+  data: PoliticianRanking[];
+  metadata: {
+    total_politicians: number;
+    show_filter: string;
+    limit: number;
+  };
+}
+
+const SHOW_OPTIONS = [
+  { value: "all", label: "Alle Shows" },
+  { value: "Markus Lanz", label: "Markus Lanz" },
+  { value: "Maybrit Illner", label: "Maybrit Illner" },
+  { value: "Caren Miosga", label: "Caren Miosga" },
+  { value: "Maischberger", label: "Maischberger" },
+  { value: "Hart aber fair", label: "Hart aber fair" },
+];
+
+// Badge Komponente
+const Badge = ({
+  children,
+  className = "",
+  variant = "default",
+}: {
+  children: React.ReactNode;
+  className?: string;
+  variant?: "default" | "outline" | "secondary";
+}) => {
+  const baseClasses =
+    "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border";
+  const variantClasses = {
+    default: "bg-blue-100 text-blue-800 border-blue-200",
+    outline: "bg-white text-gray-700 border-gray-300",
+    secondary: "bg-gray-100 text-gray-800 border-gray-200",
+  };
+
+  return (
+    <span className={`${baseClasses} ${variantClasses[variant]} ${className}`}>
+      {children}
+    </span>
+  );
+};
+
+// Skeleton Komponente
+const Skeleton = ({ className = "" }: { className?: string }) => {
+  return (
+    <div className={`animate-pulse bg-gray-200 rounded ${className}`}></div>
+  );
+};
+
+export default function PoliticianRankings() {
+  const [rankings, setRankings] = useState<PoliticianRanking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedShow, setSelectedShow] = useState<string>("all");
+  const [metadata, setMetadata] = useState<
+    PoliticianRankingsResponse["metadata"] | null
+  >(null);
+
+  const fetchRankings = async (showFilter: string = "") => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const params = new URLSearchParams({
+        type: "politician-rankings",
+        limit: "100",
+      });
+
+      if (showFilter && showFilter !== "all") {
+        params.set("show", showFilter);
+      }
+
+      const response = await fetch(`/api/politics?${params}`, {
+        method: "GET",
+        headers: FETCH_HEADERS,
+      });
+      const result: PoliticianRankingsResponse = await response.json();
+
+      if (result.success) {
+        setRankings(result.data);
+        setMetadata(result.metadata);
+      } else {
+        setError("Fehler beim Laden der Daten");
+      }
+    } catch (err) {
+      setError("Netzwerkfehler beim Laden der Daten");
+      console.error("Error fetching politician rankings:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRankings(selectedShow);
+  }, [selectedShow]);
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("de-DE", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
+  const getPartyColorClass = (partyName: string) => {
+    return BADGE_PARTY_COLORS[partyName] || BADGE_PARTY_COLORS["Unbekannt"];
+  };
+
+  const getRankBadgeColor = (rank: number) => {
+    if (rank === 1) return "bg-yellow-500 text-white border-yellow-500";
+    if (rank === 2) return "bg-gray-400 text-white border-gray-400";
+    if (rank === 3) return "bg-orange-700 text-white border-orange-700";
+    if (rank <= 10) return "bg-blue-100 text-blue-800 border-blue-200";
+    return "bg-gray-100 text-gray-600 border-gray-200";
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:gap-4 items-start sm:items-center justify-between">
+          <Skeleton className="h-6 sm:h-8 w-48 sm:w-64" />
+          <Skeleton className="h-8 sm:h-10 w-full sm:w-48" />
+        </div>
+        <div className="grid gap-3">
+          {[...Array(10)].map((_, i) => (
+            <Skeleton key={i} className="h-16 sm:h-20 w-full" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <p className="text-red-600">{error}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4 sm:space-y-6">
+      {/* Header und Filter */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:gap-4 items-start sm:items-center justify-between">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">
+            Politiker-Rankings
+          </h1>
+          <p className="text-sm sm:text-base text-gray-600">
+            {metadata && (
+              <>
+                {metadata.total_politicians} Politiker gefunden
+                {metadata.show_filter !== "Alle Shows" &&
+                  ` in ${metadata.show_filter}`}
+              </>
+            )}
+          </p>
+        </div>
+
+        <Select value={selectedShow} onValueChange={setSelectedShow}>
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="Show auswählen" />
+          </SelectTrigger>
+          <SelectContent>
+            {SHOW_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Rankings Liste */}
+      <div className="space-y-2 sm:space-y-3">
+        {rankings.length === 0 ? (
+          <Card>
+            <CardContent className="pt-4 sm:pt-6">
+              <p className="text-center text-gray-500 text-sm sm:text-base">
+                Keine Daten gefunden für die ausgewählte Show.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          rankings.map((politician, index) => {
+            const rank = index + 1;
+            return (
+              <Card
+                key={politician.politician_name}
+                className="hover:shadow-md transition-shadow"
+              >
+                <CardContent className="pt-3 sm:pt-4 pb-3 sm:pb-6">
+                  <div className="flex gap-3 sm:gap-4 items-start">
+                    {/* Rang */}
+                    <Badge
+                      className={`${getRankBadgeColor(
+                        rank
+                      )} min-w-[32px] sm:min-w-[40px] justify-center flex-shrink-0`}
+                    >
+                      #{rank}
+                    </Badge>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      {/* Mobile Layout */}
+                      <div className="sm:hidden">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex-1 min-w-0 pr-2">
+                            <h3 className="font-semibold text-base truncate">
+                              {politician.politician_name}
+                            </h3>
+                            <Badge
+                              className={`${getPartyColorClass(
+                                politician.party_name
+                              )} text-xs mt-1`}
+                            >
+                              {politician.party_name}
+                            </Badge>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <div className="text-xl font-bold text-blue-600">
+                              {politician.total_appearances}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              Auftritte
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-between items-center text-xs text-gray-500">
+                          <div className="flex gap-1">
+                            {politician.shows_appeared_on > 1 && (
+                              <Badge variant="outline" className="text-xs">
+                                {politician.shows_appeared_on} Shows
+                              </Badge>
+                            )}
+                          </div>
+                          <div>{formatDate(politician.latest_appearance)}</div>
+                        </div>
+                      </div>
+
+                      {/* Desktop Layout */}
+                      <div className="hidden sm:flex gap-4 items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-lg truncate">
+                            {politician.politician_name}
+                          </h3>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            <Badge
+                              className={getPartyColorClass(
+                                politician.party_name
+                              )}
+                            >
+                              {politician.party_name}
+                            </Badge>
+                            {politician.shows_appeared_on > 1 && (
+                              <Badge variant="outline">
+                                {politician.shows_appeared_on} Shows
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex gap-4 items-center">
+                          <div className="text-right">
+                            <div className="text-2xl font-bold text-blue-600">
+                              {politician.total_appearances}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              Auftritte
+                            </div>
+                          </div>
+
+                          <div className="text-right text-sm text-gray-500">
+                            <div>Letzter Auftritt:</div>
+                            <div className="font-medium">
+                              {formatDate(politician.latest_appearance)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Show Namen (wenn mehrere) */}
+                      {politician.show_names.length > 1 && (
+                        <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-gray-100">
+                          <div className="text-xs sm:text-sm text-gray-600 mb-1">
+                            Auftritte in:
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {politician.show_names.map((showName) => (
+                              <Badge
+                                key={showName}
+                                variant="secondary"
+                                className="text-xs"
+                              >
+                                {showName}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
+      </div>
+
+      {/* Footer Info */}
+      {rankings.length > 0 && (
+        <Card>
+          <CardContent className="pt-3 sm:pt-4">
+            <div className="text-xs sm:text-sm text-gray-600 text-center">
+              Top {rankings.length} von {metadata?.total_politicians} Politikern
+              {metadata?.show_filter !== "Alle Shows" &&
+                ` in ${metadata?.show_filter}`}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}

@@ -38,6 +38,11 @@ const navigationItems = [
     description: "Detaillierte Politiker-Tabelle",
   },
   {
+    title: "Politiker-Rankings",
+    href: "/politiker-rankings",
+    description: "Ranking der häufigsten Talkshow-Gäste",
+  },
+  {
     title: "Sendungen",
     href: "/sendungen",
     description: "Übersicht der letzten Sendungen",
