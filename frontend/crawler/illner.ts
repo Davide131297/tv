@@ -8,6 +8,8 @@ import {
   initTvShowPoliticiansTable,
   checkPoliticianOverride,
 } from "@/lib/supabase-server-utils";
+import { supabase } from "@/lib/supabase";
+import { getPoliticalArea } from "@/lib/utils";
 
 type GuestDetails = {
   name: string;
@@ -24,6 +26,94 @@ interface GuestWithRole {
 }
 
 const LIST_URL = "https://www.zdf.de/talk/maybrit-illner-128";
+
+// Extrahiere Episodenbeschreibung und bestimme politische Themenbereiche
+async function extractEpisodeDescription(
+  page: Page,
+  episodeUrl: string
+): Promise<number[] | [] | null> {
+  try {
+    // Suche nach der Episodenbeschreibung in den <p> Elementen nach der Gästeliste
+    const description = await page.evaluate(() => {
+      // Finde die Section mit der Gästeliste
+      const guestSection =
+        document.querySelector('section[tabindex="0"]') ||
+        document.querySelector("section.tdeoflm");
+
+      if (!guestSection) return null;
+
+      // Sammle alle <p> Elemente in dieser Section
+      const paragraphs = Array.from(
+        guestSection.querySelectorAll("p.p4fzw5k.tyrgmig.m1iv7h85")
+      );
+
+      // Die ersten 3 Paragraphen nach der Gästeliste enthalten meist die Beschreibung
+      // Überspringe den ersten <p> der die Gästeliste enthält
+      const descriptionParagraphs = paragraphs.slice(1, 4);
+
+      if (descriptionParagraphs.length === 0) return null;
+
+      // Kombiniere die Texte der Beschreibungsparagraphen
+      const descriptionText = descriptionParagraphs
+        .map((p) => (p.textContent || "").trim())
+        .filter((text) => text.length > 20) // Filtere sehr kurze Texte
+        .join(" ");
+
+      return descriptionText.length > 50 ? descriptionText : null;
+    });
+
+    if (description) {
+      const politicalAreaIds = await getPoliticalArea(description);
+      return politicalAreaIds;
+    } else {
+      console.log(`Keine Episode-Beschreibung gefunden für: ${episodeUrl}`);
+      return null;
+    }
+  } catch (error) {
+    console.warn(`Fehler beim Extrahieren der Episode-Beschreibung:`, error);
+    return null;
+  }
+}
+
+// Hilfsfunktion zum Speichern der politischen Themenbereiche
+async function insertEpisodePoliticalAreas(
+  showName: string,
+  episodeDate: string,
+  politicalAreaIds: number[]
+): Promise<number> {
+  if (!politicalAreaIds.length) return 0;
+
+  try {
+    const insertData = politicalAreaIds.map((areaId) => ({
+      show_name: showName,
+      episode_date: episodeDate,
+      political_area_id: areaId,
+    }));
+
+    const { error } = await supabase
+      .from("tv_show_episode_political_areas")
+      .upsert(insertData, {
+        onConflict: "show_name,episode_date,political_area_id",
+        ignoreDuplicates: true,
+      });
+
+    if (error) {
+      console.error(
+        "Fehler beim Speichern der politischen Themenbereiche:",
+        error
+      );
+      return 0;
+    }
+
+    return insertData.length;
+  } catch (error) {
+    console.error(
+      "Fehler beim Speichern der politischen Themenbereiche:",
+      error
+    );
+    return 0;
+  }
+}
 
 // Hilfsfunktion: Name in Vor- und Nachname aufteilen
 function splitFirstLast(name: string) {
@@ -401,7 +491,7 @@ function isModeratorOrHost(name: string): boolean {
 async function extractGuestsFromEpisode(
   page: Page,
   episodeUrl: string
-): Promise<GuestWithRole[]> {
+): Promise<{ guests: GuestWithRole[]; politicalAreaIds?: number[] }> {
   console.log(`🎬 Crawle Maybrit Illner Episode: ${episodeUrl}`);
 
   await page.goto(episodeUrl, { waitUntil: "networkidle2", timeout: 60000 });
@@ -603,7 +693,14 @@ async function extractGuestsFromEpisode(
   console.log(
     `👥 Gäste gefunden: ${uniqueGuests.map((g) => g.name).join(", ")}`
   );
-  return uniqueGuests;
+
+  // Extrahiere politische Themenbereiche aus der Episodenbeschreibung
+  const politicalAreaIds = await extractEpisodeDescription(page, episodeUrl);
+
+  return {
+    guests: uniqueGuests,
+    politicalAreaIds: politicalAreaIds || undefined,
+  };
 }
 
 // Hauptfunktion: Crawle nur neue Episoden
@@ -650,7 +747,9 @@ export async function crawlNewMaybritIllnerEpisodes(): Promise<void> {
       try {
         console.log(`\n🎬 Verarbeite Episode vom ${episode.date}`);
 
-        const guests = await extractGuestsFromEpisode(page, episode.url);
+        const result = await extractGuestsFromEpisode(page, episode.url);
+        const guests = result.guests;
+        const politicalAreaIds = result.politicalAreaIds;
 
         if (guests.length === 0) {
           console.log("   ❌ Keine Gäste gefunden");
@@ -704,6 +803,18 @@ export async function crawlNewMaybritIllnerEpisodes(): Promise<void> {
           );
         } else {
           console.log(`   📝 Keine Politiker in dieser Episode`);
+        }
+
+        // Speichere politische Themenbereiche
+        if (politicalAreaIds && politicalAreaIds.length > 0) {
+          const insertedAreas = await insertEpisodePoliticalAreas(
+            "Maybrit Illner",
+            episode.date,
+            politicalAreaIds
+          );
+          console.log(
+            `   🏛️  ${insertedAreas}/${politicalAreaIds.length} Themenbereiche gespeichert`
+          );
         }
 
         episodesProcessed++;
@@ -780,7 +891,9 @@ export async function crawlAllMaybritIllnerEpisodes(): Promise<void> {
           }`
         );
 
-        const guests = await extractGuestsFromEpisode(page, episode.url);
+        const result = await extractGuestsFromEpisode(page, episode.url);
+        const guests = result.guests;
+        const politicalAreaIds = result.politicalAreaIds;
 
         if (guests.length === 0) {
           console.log("   ❌ Keine Gäste gefunden");
@@ -834,6 +947,18 @@ export async function crawlAllMaybritIllnerEpisodes(): Promise<void> {
           );
         } else {
           console.log(`   📝 Keine Politiker in dieser Episode`);
+        }
+
+        // Speichere politische Themenbereiche
+        if (politicalAreaIds && politicalAreaIds.length > 0) {
+          const insertedAreas = await insertEpisodePoliticalAreas(
+            "Maybrit Illner",
+            episode.date,
+            politicalAreaIds
+          );
+          console.log(
+            `   🏛️  ${insertedAreas}/${politicalAreaIds.length} Themenbereiche gespeichert`
+          );
         }
 
         episodesProcessed++;
