@@ -13,6 +13,8 @@ import {
 import axios from "axios";
 import { Page } from "puppeteer";
 import { InferenceClient } from "@huggingface/inference";
+import { getPoliticalArea } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
 
 const LIST_URL =
   "https://www.ardaudiothek.de/sendung/caren-miosga/urn:ard:show:d6e5ba24e1508004/";
@@ -455,6 +457,102 @@ async function checkPolitician(
   }
 }
 
+// Hilfsfunktion: Hole detaillierte Beschreibung von der Episodenseite
+async function getEpisodeDetailedDescription(
+  page: Page,
+  episodeUrl: string
+): Promise<string> {
+  try {
+    await page.goto(episodeUrl, { waitUntil: "networkidle2", timeout: 30000 });
+
+    // Extrahiere die detaillierte Beschreibung
+    const description = await page.evaluate(() => {
+      // Suche nach der Episodenbeschreibung im spezifischen Container
+      const descriptionElement = document.querySelector(
+        "p.b1ja19fa.b11cvmny.b1np0qjg"
+      );
+
+      if (descriptionElement) {
+        return descriptionElement.textContent?.trim() || "";
+      }
+
+      // Fallback: Suche nach anderen möglichen Beschreibungs-Containern
+      const fallbackSelectors = [
+        "section.b1ets0rx p.b1ja19fa.b11cvmny",
+        ".episode-description",
+        'p[class*="description"]',
+        'div[class*="episode"] p',
+      ];
+
+      for (const selector of fallbackSelectors) {
+        const element = document.querySelector(selector);
+        if (
+          element &&
+          element.textContent &&
+          element.textContent.trim().length > 50
+        ) {
+          return element.textContent.trim();
+        }
+      }
+
+      return "";
+    });
+
+    if (description && description.length > 20) {
+      return description;
+    } else {
+      console.log(`   ⚠️ Keine aussagekräftige Beschreibung gefunden`);
+      return "";
+    }
+  } catch (error) {
+    console.error(
+      `❌ Fehler beim Laden der Miosga Episodenseite ${episodeUrl}:`,
+      error
+    );
+    return "";
+  }
+}
+
+// Hilfsfunktion zum Speichern der politischen Themenbereiche
+async function insertEpisodePoliticalAreas(
+  showName: string,
+  episodeDate: string,
+  politicalAreaIds: number[]
+): Promise<number> {
+  if (!politicalAreaIds.length) return 0;
+
+  try {
+    const insertData = politicalAreaIds.map((areaId) => ({
+      show_name: showName,
+      episode_date: episodeDate,
+      political_area_id: areaId,
+    }));
+
+    const { error } = await supabase
+      .from("tv_show_episode_political_areas")
+      .upsert(insertData, {
+        onConflict: "show_name,episode_date,political_area_id",
+        ignoreDuplicates: true,
+      });
+
+    if (error) {
+      console.error(
+        "Fehler beim Speichern der politischen Themenbereiche:",
+        error
+      );
+      return 0;
+    }
+
+    return insertData.length;
+  } catch (error) {
+    console.error(
+      "Fehler beim Speichern der politischen Themenbereiche:",
+      error
+    );
+    return 0;
+  }
+}
+
 // Extrahiere Datum aus ARD Audiothek HTML (DD.MM.YYYY Format)
 function parseISODateFromArdHtml(dateText: string): string | null {
   // Format: "21.09.2025" -> "2025-09-21"
@@ -466,14 +564,15 @@ function parseISODateFromArdHtml(dateText: string): string | null {
   return `${year}-${month}-${day}`;
 }
 
-// Extrahiere die neuesten Episode-Links von der ARD Audiothek mit verbesserter Gäste-Erkennung
-async function getLatestEpisodeLinks(
+// Extrahiere nur NEUE Episode-Links (crawlt nur bis zum letzten bekannten Datum)
+async function getNewEpisodeLinks(
   page: Page,
-  limit = 10
+  latestDbDate: string | null
 ): Promise<
   Array<{ url: string; date: string; title: string; guests: GuestWithRole[] }>
 > {
-  console.log("🔍 Lade die neuesten Caren Miosga Episode-Links...");
+  console.log("🔍 Lade nur neue Caren Miosga Episode-Links...");
+  console.log(`🗓️  Suche nach Episoden seit: ${latestDbDate || "Beginn"}`);
 
   await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 60000 });
 
@@ -494,59 +593,148 @@ async function getLatestEpisodeLinks(
     timeout: 15000,
   });
 
-  // Extrahiere Episode-Informationen mit Beschreibung
-  const episodes = await page.evaluate((limitParam) => {
-    const episodes: Array<{
-      url: string;
-      date: string;
-      title: string;
-      description: string;
-    }> = [];
+  const newEpisodes: Array<{
+    url: string;
+    date: string;
+    title: string;
+    description: string;
+  }> = [];
 
-    // Finde alle Episode-Container
-    const episodeElements = document.querySelectorAll(
-      '[itemprop="itemListElement"]'
+  let foundKnownEpisode = false;
+  let pageNumber = 1;
+  const maxPages = 20; // Sicherheitslimit
+
+  while (!foundKnownEpisode && pageNumber <= maxPages) {
+    console.log(`📄 Crawle Seite ${pageNumber} nach neuen Episoden...`);
+
+    // Extrahiere Episode-Informationen von der aktuellen Seite
+    const currentPageEpisodes = await page.evaluate(() => {
+      const episodes: Array<{
+        url: string;
+        date: string;
+        title: string;
+        description: string;
+      }> = [];
+
+      // Finde alle Episode-Container
+      const episodeElements = document.querySelectorAll(
+        '[itemprop="itemListElement"]'
+      );
+
+      for (const episode of episodeElements) {
+        // Suche nach Link
+        const linkElement = episode.querySelector(
+          'a[itemprop="url"]'
+        ) as HTMLAnchorElement;
+        if (!linkElement) continue;
+
+        const url = linkElement.href;
+
+        // Suche nach Datum (Format DD.MM.YYYY)
+        const dateElement = episode.querySelector(".i1cdaksz");
+        const dateText = dateElement?.textContent?.trim() || "";
+
+        // Suche nach Titel
+        const titleElement = episode.querySelector("h3");
+        const title = titleElement?.textContent?.trim() || "";
+
+        // Extrahiere Beschreibung
+        const descriptionElement = episode.querySelector(
+          "p.b1ja19fa.b11cvmny.bicmnlc._suw2zx"
+        );
+        const description = descriptionElement?.textContent?.trim() || "";
+
+        if (url && dateText && title) {
+          episodes.push({ url, date: dateText, title, description });
+        }
+      }
+
+      return episodes;
+    });
+
+    console.log(
+      `   📊 ${currentPageEpisodes.length} Episoden auf Seite ${pageNumber}`
     );
 
-    for (let i = 0; i < Math.min(episodeElements.length, limitParam); i++) {
-      const episode = episodeElements[i];
+    // Prüfe jede Episode auf dieser Seite
+    for (const ep of currentPageEpisodes) {
+      const isoDate = parseISODateFromArdHtml(ep.date);
+      if (!isoDate) continue;
 
-      // Suche nach Link
-      const linkElement = episode.querySelector(
-        'a[itemprop="url"]'
-      ) as HTMLAnchorElement;
-      if (!linkElement) continue;
+      // Vergleiche mit letztem DB-Datum
+      if (latestDbDate) {
+        const latestDbDateFormatted = latestDbDate.includes(".")
+          ? formatDateForDB(latestDbDate)
+          : latestDbDate;
 
-      const url = linkElement.href;
-
-      // Suche nach Datum (Format DD.MM.YYYY)
-      const dateElement = episode.querySelector(".i1cdaksz");
-      const dateText = dateElement?.textContent?.trim() || "";
-
-      // Suche nach Titel
-      const titleElement = episode.querySelector("h3");
-      const title = titleElement?.textContent?.trim() || "";
-
-      // Extrahiere Beschreibung - das ist der wichtige Teil!
-      const descriptionElement = episode.querySelector(
-        "p.b1ja19fa.b11cvmny.bicmnlc._suw2zx"
-      );
-      const description = descriptionElement?.textContent?.trim() || "";
-
-      if (url && dateText && title) {
-        episodes.push({ url, date: dateText, title, description });
+        if (isoDate <= latestDbDateFormatted) {
+          console.log(`🛑 Erreicht bekannte Episode: ${ep.date} (${ep.title})`);
+          foundKnownEpisode = true;
+          break;
+        }
       }
+
+      // Episode ist neu - füge hinzu
+      newEpisodes.push({
+        url: ep.url,
+        date: ep.date,
+        title: ep.title,
+        description: ep.description,
+      });
+
+      console.log(`   ✅ Neue Episode: ${ep.date} - ${ep.title}`);
     }
 
-    return episodes;
-  }, limit);
+    // Wenn keine bekannte Episode gefunden und noch Seiten verfügbar
+    if (!foundKnownEpisode && pageNumber < maxPages) {
+      // Versuche zur nächsten Seite zu navigieren (scrollen für Infinite Scroll)
+      const previousEpisodeCount = await page.evaluate(
+        () => document.querySelectorAll('[itemprop="itemListElement"]').length
+      );
 
-  console.log(`📺 Gefunden: ${episodes.length} Episode-Links`);
+      // Scrolle nach unten um mehr Episoden zu laden
+      await page.evaluate(() => {
+        window.scrollTo(0, document.body.scrollHeight);
+      });
 
-  // Verarbeite jede Episode und extrahiere Gäste mit AI
+      await new Promise((resolve) => setTimeout(resolve, 3000)); // Warte auf Laden
+
+      const newEpisodeCount = await page.evaluate(
+        () => document.querySelectorAll('[itemprop="itemListElement"]').length
+      );
+
+      if (newEpisodeCount === previousEpisodeCount) {
+        console.log(`📄 Keine weiteren Episoden verfügbar`);
+        break;
+      }
+
+      pageNumber++;
+    }
+  }
+
+  if (!latestDbDate) {
+    console.log(
+      `🆕 Keine DB-Episoden vorhanden - alle ${newEpisodes.length} Episoden sind neu`
+    );
+  } else if (foundKnownEpisode) {
+    console.log(
+      `✅ Crawling gestoppt bei bekannter Episode - ${newEpisodes.length} neue Episoden gefunden`
+    );
+  } else {
+    console.log(
+      `⚠️  Limit erreicht - ${newEpisodes.length} Episoden gecrawlt, aber keine bekannte Episode gefunden`
+    );
+  }
+
+  // Verarbeite alle neuen Episoden und extrahiere Gäste mit AI
   const episodesWithGuests = [];
-  for (const ep of episodes) {
-    console.log(`📝 Episode "${ep.title}": Beschreibung = "${ep.description}"`);
+  for (let i = 0; i < newEpisodes.length; i++) {
+    const ep = newEpisodes[i];
+    console.log(
+      `📝 [${i + 1}/${newEpisodes.length}] Episode "${
+        ep.title
+      }": Beschreibung = "${ep.description}"`
+    );
 
     let guests: string[] = [];
     if (ep.description && ep.description.includes("Caren Miosga")) {
@@ -569,7 +757,8 @@ async function getLatestEpisodeLinks(
     }
   }
 
-  return episodesWithGuests;
+  // Sortiere nach Datum (neueste zuerst)
+  return episodesWithGuests.sort((a, b) => b.date.localeCompare(a.date));
 }
 
 // Extrahiere ALLE verfügbaren Episode-Links durch verbessertes Scrollen mit Gäste-Informationen
@@ -814,62 +1003,6 @@ async function getAllEpisodeLinks(
   return sortedEpisodes;
 }
 
-// Filtere nur neue Episoden (neuere als das letzte Datum in der DB)
-function filterNewEpisodes(
-  episodes: Array<{
-    url: string;
-    date: string;
-    title: string;
-    guests: GuestWithRole[];
-  }>,
-  latestDbDate: string | null
-): Array<{
-  url: string;
-  date: string;
-  title: string;
-  guests: GuestWithRole[];
-}> {
-  console.log(
-    `🗓️  Letzte Caren Miosga Episode in DB: ${latestDbDate || "Keine"}`
-  );
-
-  if (!latestDbDate) {
-    console.log("📋 Keine Episoden in DB - alle sind neu");
-    return episodes;
-  }
-
-  // Hilfsfunktion: Konvertiere verschiedene Datumsformate zu yyyy-mm-dd für Vergleich
-  function dateToSortable(dateStr: string): string {
-    if (dateStr.includes(".")) {
-      // Format: dd.mm.yyyy (aus DB)
-      const [day, month, year] = dateStr.split(".");
-      return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-    } else if (dateStr.includes("-")) {
-      // Format: yyyy-mm-dd (von Website)
-      return dateStr;
-    }
-    console.error(`ERROR: Unknown date format: "${dateStr}"`);
-    return dateStr;
-  }
-
-  const latestDbDateSortable = dateToSortable(latestDbDate);
-
-  const newEpisodes = episodes.filter((ep) => {
-    const episodeDateSortable = dateToSortable(ep.date);
-    return episodeDateSortable > latestDbDateSortable;
-  });
-
-  console.log(
-    `🆕 ${newEpisodes.length} neue Episoden gefunden (nach ${latestDbDate})`
-  );
-
-  return newEpisodes.sort((a, b) => {
-    const aSort = dateToSortable(a.date);
-    const bSort = dateToSortable(b.date);
-    return bSort.localeCompare(aSort); // Neueste zuerst
-  });
-}
-
 // Hilfsfunktion: Konvertiere dd.mm.yyyy zu yyyy-mm-dd für DB-Konsistenz
 function formatDateForDB(dateStr: string): string {
   if (dateStr.includes(".")) {
@@ -898,23 +1031,15 @@ export async function crawlIncrementalCarenMiosgaEpisodes(): Promise<void> {
   try {
     const page = await setupSimplePage(browser);
 
-    // Hole die neuesten Episode-Links
-    const latestEpisodes = await getLatestEpisodeLinks(page);
-
-    if (latestEpisodes.length === 0) {
-      console.log("❌ Keine Episode-Links gefunden");
-      return;
-    }
-
-    // Filtere nur neue Episoden
-    const newEpisodes = filterNewEpisodes(latestEpisodes, latestDbDate);
+    // Hole nur neue Episode-Links (optimiert für inkrementelles Crawling)
+    const newEpisodes = await getNewEpisodeLinks(page, latestDbDate);
 
     if (newEpisodes.length === 0) {
       console.log("✅ Keine neuen Episoden gefunden - alles aktuell!");
       return;
     }
 
-    console.log(`🆕 Crawle ${newEpisodes.length} neue Episoden:`);
+    console.log(`🆕 Verarbeite ${newEpisodes.length} neue Episoden:`);
     newEpisodes.forEach((ep) => console.log(`   📺 ${ep.date}: ${ep.title}`));
 
     let totalPoliticiansInserted = 0;
@@ -936,6 +1061,15 @@ export async function crawlIncrementalCarenMiosgaEpisodes(): Promise<void> {
           console.log("   ❌ Keine Gäste gefunden");
           continue;
         }
+
+        // Hole detaillierte Beschreibung von der Episodenseite
+        const detailedDescription = await getEpisodeDetailedDescription(
+          page,
+          episode.url
+        );
+
+        // Analysiere politische Themen mit getPoliticalArea (nur wenn detaillierte Beschreibung vorhanden)
+        const politicalAreaIds = await getPoliticalArea(detailedDescription);
 
         // Prüfe jeden Gast auf Politiker-Status
         const politicians = [];
@@ -982,6 +1116,18 @@ export async function crawlIncrementalCarenMiosgaEpisodes(): Promise<void> {
           );
         } else {
           console.log(`   📝 Keine Politiker in dieser Episode`);
+        }
+
+        // Speichere politische Themenbereiche
+        if (politicalAreaIds && politicalAreaIds.length > 0) {
+          const insertedAreas = await insertEpisodePoliticalAreas(
+            "Caren Miosga",
+            episode.date,
+            politicalAreaIds
+          );
+          console.log(
+            `   🏛️  ${insertedAreas}/${politicalAreaIds.length} Themenbereiche gespeichert`
+          );
         }
 
         episodesProcessed++;
@@ -1059,11 +1205,6 @@ export async function crawlAllCarenMiosgaEpisodes(): Promise<void> {
 
       try {
         console.log(
-          `\n🎬 [${i + 1}/${sortedEpisodes.length}] Verarbeite Episode vom ${
-            episode.date
-          }: ${episode.title}`
-        );
-        console.log(
           `👥 Gefundene Gäste: ${
             episode.guests.map((g) => g.name).join(", ") || "Keine"
           }`
@@ -1073,6 +1214,15 @@ export async function crawlAllCarenMiosgaEpisodes(): Promise<void> {
           console.log("   ❌ Keine Gäste gefunden");
           continue;
         }
+
+        // Hole detaillierte Beschreibung von der Episodenseite
+        const detailedDescription = await getEpisodeDetailedDescription(
+          page,
+          episode.url
+        );
+
+        // Analysiere politische Themen mit getPoliticalArea wenn Beschreibung vorhanden
+        const politicalAreaIds = await getPoliticalArea(detailedDescription);
 
         // Prüfe jeden Gast auf Politiker-Status
         const politicians = [];
@@ -1119,6 +1269,18 @@ export async function crawlAllCarenMiosgaEpisodes(): Promise<void> {
           );
         } else {
           console.log(`   📝 Keine Politiker in dieser Episode`);
+        }
+
+        // Speichere politische Themenbereiche
+        if (politicalAreaIds && politicalAreaIds.length > 0) {
+          const insertedAreas = await insertEpisodePoliticalAreas(
+            "Caren Miosga",
+            episode.date,
+            politicalAreaIds
+          );
+          console.log(
+            `   🏛️  ${insertedAreas}/${politicalAreaIds.length} Themenbereiche gespeichert`
+          );
         }
 
         episodesProcessed++;

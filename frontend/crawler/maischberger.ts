@@ -820,7 +820,7 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
         // Speichere politische Themenbereiche
         if (politicalAreaIds && politicalAreaIds.length > 0) {
           const insertedAreas = await insertEpisodePoliticalAreas(
-            "Maybrit Illner",
+            "Maischberger",
             episode.date,
             politicalAreaIds
           );
