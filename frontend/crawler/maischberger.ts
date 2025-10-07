@@ -9,12 +9,15 @@ import {
   checkPoliticianOverride,
 } from "@/lib/supabase-server-utils";
 import { createBrowser, setupSimplePage } from "@/lib/browser-config";
+import { getPoliticalArea } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
 
 interface MaischbergerEpisode {
   url: string;
   date: string;
   title: string;
   teaserText: string;
+  detailedDescription?: string;
 }
 
 interface GuestDetails {
@@ -31,6 +34,52 @@ const LIST_URL =
   "https://www.daserste.de/information/talk/maischberger/sendung/index.html";
 
 const MODEL = "swiss-ai/Apertus-8B-Instruct-2509";
+
+// Hilfsfunktion: Hole detaillierte Beschreibung von der Episodenseite
+async function getEpisodeDetailedDescription(
+  page: Page,
+  episodeUrl: string
+): Promise<number[] | [] | null> {
+  try {
+    await page.goto(episodeUrl, { waitUntil: "networkidle2", timeout: 30000 });
+
+    // Extrahiere alle Beschreibungstexte
+    const descriptions = await page.evaluate(() => {
+      const texts: string[] = [];
+
+      // Finde alle <p class="text small"> Elemente, die Beschreibungen enthalten
+      const paragraphs = document.querySelectorAll("p.text.small");
+
+      for (const p of paragraphs) {
+        const text = p.textContent?.trim() || "";
+
+        // Filtere relevante Beschreibungen (nicht die Produktionsinfo)
+        if (
+          text &&
+          text.length > 20 &&
+          !text.includes("Gemeinschaftsproduktion") &&
+          !text.includes("hergestellt vom") &&
+          !text.includes("Vincent productions")
+        ) {
+          texts.push(text);
+        }
+      }
+
+      return texts;
+    });
+
+    const combinedDescription = descriptions.join(" ");
+
+    const res = await getPoliticalArea(combinedDescription);
+    return res;
+  } catch (error) {
+    console.error(
+      `❌ Fehler beim Laden der Episodenseite ${episodeUrl}:`,
+      error
+    );
+    return null;
+  }
+}
 
 // Hilfsfunktion: AI-Extraktion der Gäste aus dem Teasertext
 async function extractGuestsWithAI(teaserText: string): Promise<string[]> {
@@ -88,6 +137,46 @@ Gib mir die Namen der Gäste im Text ausschließlich als JSON Array mit Strings 
   } catch {
     console.error("❌ AI-Extraktion fehlgeschlagen, verwende Fallback");
     return extractGuestsFallback(teaserText);
+  }
+}
+
+// Hilfsfunktion zum Speichern der politischen Themenbereiche
+async function insertEpisodePoliticalAreas(
+  showName: string,
+  episodeDate: string,
+  politicalAreaIds: number[]
+): Promise<number> {
+  if (!politicalAreaIds.length) return 0;
+
+  try {
+    const insertData = politicalAreaIds.map((areaId) => ({
+      show_name: showName,
+      episode_date: episodeDate,
+      political_area_id: areaId,
+    }));
+
+    const { error } = await supabase
+      .from("tv_show_episode_political_areas")
+      .upsert(insertData, {
+        onConflict: "show_name,episode_date,political_area_id",
+        ignoreDuplicates: true,
+      });
+
+    if (error) {
+      console.error(
+        "Fehler beim Speichern der politischen Themenbereiche:",
+        error
+      );
+      return 0;
+    }
+
+    return insertData.length;
+  } catch (error) {
+    console.error(
+      "Fehler beim Speichern der politischen Themenbereiche:",
+      error
+    );
+    return 0;
   }
 }
 
@@ -658,7 +747,13 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
           continue;
         }
 
-        // Extrahiere Gäste mit AI
+        // Hole detaillierte Beschreibung von der Episodenseite
+        const politicalAreaIds = await getEpisodeDetailedDescription(
+          page,
+          episode.url
+        );
+
+        // Extrahiere Gäste mit AI aus dem kombinierten Text
         const guestNames = await extractGuestsWithAI(episode.teaserText);
 
         if (guestNames.length === 0) {
@@ -720,6 +815,18 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
           });
         } else {
           console.log(`   📝 Keine Politiker in dieser Episode`);
+        }
+
+        // Speichere politische Themenbereiche
+        if (politicalAreaIds && politicalAreaIds.length > 0) {
+          const insertedAreas = await insertEpisodePoliticalAreas(
+            "Maybrit Illner",
+            episode.date,
+            politicalAreaIds
+          );
+          console.log(
+            `   🏛️  ${insertedAreas}/${politicalAreaIds.length} Themenbereiche gespeichert`
+          );
         }
 
         episodesProcessed++;
@@ -812,6 +919,12 @@ export async function crawlMaischberger2025(): Promise<void> {
           continue;
         }
 
+        // Hole detaillierte Beschreibung von der Episodenseite
+        const politicalAreaIds = await getEpisodeDetailedDescription(
+          page,
+          episode.url
+        );
+
         console.log(
           `📝 Teasertext: ${episode.teaserText.substring(0, 100)}...`
         );
@@ -878,6 +991,18 @@ export async function crawlMaischberger2025(): Promise<void> {
           });
         } else {
           console.log(`   📝 Keine Politiker in dieser Episode`);
+        }
+
+        // Speichere politische Themenbereiche
+        if (politicalAreaIds && politicalAreaIds.length > 0) {
+          const insertedAreas = await insertEpisodePoliticalAreas(
+            "Maybrit Illner",
+            episode.date,
+            politicalAreaIds
+          );
+          console.log(
+            `   🏛️  ${insertedAreas}/${politicalAreaIds.length} Themenbereiche gespeichert`
+          );
         }
 
         episodesProcessed++;
