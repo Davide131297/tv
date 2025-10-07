@@ -64,7 +64,6 @@ export async function getPoliticalArea(
         Array.isArray(parsed) &&
         parsed.every((item) => typeof item === "number")
       ) {
-        console.log("🤖 Erkannte Themen:", parsed);
         return parsed;
       }
     } catch {

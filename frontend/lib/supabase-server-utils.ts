@@ -44,6 +44,22 @@ export const POLITICIAN_OVERRIDES: Record<string, GuestDetails> = {
     party: 1, // SPD
     partyName: "SPD",
   },
+  "Jan van": {
+    name: "Jan van Aken",
+    isPolitician: true,
+    politicianId: 78952,
+    politicianName: "Jan van Aken",
+    party: 8, // Die Linke
+    partyName: "Die Linke",
+  },
+  "Wolfram Weimer": {
+    name: "Wolfram Weimer",
+    isPolitician: true,
+    politicianId: 9998,
+    politicianName: "Wolfram Weimer",
+    party: 2,
+    partyName: "CDU",
+  },
 };
 
 // Füge einen Politiker zu einer TV-Sendung hinzu (Supabase Version)

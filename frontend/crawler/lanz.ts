@@ -588,8 +588,7 @@ async function extractGuestsFromEpisode(
 // ---------------- Episode Text Extraktion ----------------
 
 async function extractPoliticalAreaIds(
-  page: Page,
-  episodeUrl: string
+  page: Page
 ): Promise<number[] | [] | null> {
   try {
     // Mehrere Selektoren versuchen für die Episode-Beschreibung
@@ -619,12 +618,6 @@ async function extractPoliticalAreaIds(
         .catch(() => null);
 
       if (description) {
-        console.log(
-          `Episode-Beschreibung gefunden (${selector}): ${description.substring(
-            0,
-            100
-          )}...`
-        );
         break; // Beende die Schleife sofort
       }
     }
@@ -633,7 +626,6 @@ async function extractPoliticalAreaIds(
       const politicalAreaIds = await getPoliticalArea(description);
       return politicalAreaIds;
     } else {
-      console.log(`Keine Episode-Beschreibung gefunden für: ${episodeUrl}`);
       return null;
     }
   } catch (error) {
@@ -777,7 +769,7 @@ export default async function CrawlLanz() {
             const [guests, date, politicalAreaIds] = await Promise.all([
               extractGuestsFromEpisode(p, url),
               extractDateISO(p, url),
-              extractPoliticalAreaIds(p, url),
+              extractPoliticalAreaIds(p),
             ]);
 
             // Politiker-Check je Gast (sequentiell um API-Limits zu respektieren)

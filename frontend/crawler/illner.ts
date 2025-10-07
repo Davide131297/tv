@@ -29,8 +29,7 @@ const LIST_URL = "https://www.zdf.de/talk/maybrit-illner-128";
 
 // Extrahiere Episodenbeschreibung und bestimme politische Themenbereiche
 async function extractEpisodeDescription(
-  page: Page,
-  episodeUrl: string
+  page: Page
 ): Promise<number[] | [] | null> {
   try {
     // Suche nach der Episodenbeschreibung in den <p> Elementen nach der Gästeliste
@@ -66,7 +65,6 @@ async function extractEpisodeDescription(
       const politicalAreaIds = await getPoliticalArea(description);
       return politicalAreaIds;
     } else {
-      console.log(`Keine Episode-Beschreibung gefunden für: ${episodeUrl}`);
       return null;
     }
   } catch (error) {
@@ -695,7 +693,7 @@ async function extractGuestsFromEpisode(
   );
 
   // Extrahiere politische Themenbereiche aus der Episodenbeschreibung
-  const politicalAreaIds = await extractEpisodeDescription(page, episodeUrl);
+  const politicalAreaIds = await extractEpisodeDescription(page);
 
   return {
     guests: uniqueGuests,

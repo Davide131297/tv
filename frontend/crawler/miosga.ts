@@ -730,17 +730,12 @@ async function getNewEpisodeLinks(
   const episodesWithGuests = [];
   for (let i = 0; i < newEpisodes.length; i++) {
     const ep = newEpisodes[i];
-    console.log(
-      `📝 [${i + 1}/${newEpisodes.length}] Episode "${
-        ep.title
-      }": Beschreibung = "${ep.description}"`
-    );
 
-    let guests: string[] = [];
-    if (ep.description && ep.description.includes("Caren Miosga")) {
-      // Verwende AI-Extraktion
-      guests = await extractGuestsWithAI(ep.description);
-    }
+    console.log(`🧑‍💼 Verarbeite Gäste für Episode: ${ep.date} - ${ep.title}`);
+    console.log("Description ist: ", ep.description);
+
+    // Verwende AI-Extraktion
+    const guests = await extractGuestsWithAI(ep.description);
 
     // Konvertiere zu GuestWithRole Format
     const guestsWithRole: GuestWithRole[] = guests.map((name) => ({ name }));
@@ -759,248 +754,6 @@ async function getNewEpisodeLinks(
 
   // Sortiere nach Datum (neueste zuerst)
   return episodesWithGuests.sort((a, b) => b.date.localeCompare(a.date));
-}
-
-// Extrahiere ALLE verfügbaren Episode-Links durch verbessertes Scrollen mit Gäste-Informationen
-async function getAllEpisodeLinks(
-  page: Page
-): Promise<
-  Array<{ url: string; date: string; title: string; guests: GuestWithRole[] }>
-> {
-  console.log("🔍 Lade ALLE verfügbaren Caren Miosga Episode-Links...");
-
-  await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 60000 });
-
-  // Cookie-Banner akzeptieren falls vorhanden
-  try {
-    await page.waitForSelector('button:contains("Akzeptieren")', {
-      timeout: 5000,
-    });
-    await page.click('button:contains("Akzeptieren")');
-    console.log("Cookie-Banner akzeptiert");
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-  } catch {
-    console.log("Kein Cookie-Banner gefunden oder bereits akzeptiert");
-  }
-
-  const allEpisodes = new Map<
-    string,
-    { url: string; date: string; title: string; description: string }
-  >();
-  let previousCount = 0;
-  let scrollAttempts = 0;
-  let noChangeRounds = 0; // Separat zählen wie oft keine Änderung
-  const maxScrollAttempts = 300; // Noch weiter erhöht für Infinite Scroll
-  const maxNoChangeRounds = 10; // Mehr Geduld für Infinite Scroll (10 statt 5)
-
-  console.log("📜 Scrolle für alle verfügbaren Episoden...");
-
-  while (
-    scrollAttempts < maxScrollAttempts &&
-    noChangeRounds < maxNoChangeRounds
-  ) {
-    // Sammle alle aktuell sichtbaren Episode-Informationen
-    const currentEpisodes = await page.evaluate(() => {
-      const episodes: Array<{
-        url: string;
-        date: string;
-        title: string;
-        description: string;
-      }> = [];
-
-      // Finde alle Episode-Container
-      const episodeElements = document.querySelectorAll(
-        '[itemprop="itemListElement"]'
-      );
-
-      for (const episode of episodeElements) {
-        // Suche nach Link
-        const linkElement = episode.querySelector(
-          'a[itemprop="url"]'
-        ) as HTMLAnchorElement;
-        if (!linkElement) continue;
-
-        const url = linkElement.href;
-
-        // Suche nach Datum
-        const dateElement = episode.querySelector(".i1cdaksz");
-        const dateText = dateElement?.textContent?.trim() || "";
-
-        // Suche nach Titel
-        const titleElement = episode.querySelector("h3");
-        const title = titleElement?.textContent?.trim() || "";
-
-        // Extrahiere Beschreibung
-        const descriptionElement = episode.querySelector(
-          "p.b1ja19fa.b11cvmny.bicmnlc._suw2zx"
-        );
-        const description = descriptionElement?.textContent?.trim() || "";
-
-        if (url && dateText && title) {
-          episodes.push({ url, date: dateText, title, description });
-        }
-      }
-
-      return episodes;
-    });
-
-    // Füge neue Episodes hinzu (verwende URL als Key für Duplikatsvermeidung)
-    currentEpisodes.forEach((ep) => {
-      const isoDate = parseISODateFromArdHtml(ep.date);
-      if (isoDate) {
-        allEpisodes.set(ep.url, ep);
-      }
-    });
-
-    console.log(
-      `   📊 Gefunden: ${allEpisodes.size} Episoden (Runde ${
-        scrollAttempts + 1
-      })`
-    );
-
-    // Prüfe ob neue Episoden gefunden wurden
-    if (allEpisodes.size === previousCount) {
-      noChangeRounds++;
-      console.log(
-        `   ⏳ Keine neuen Episoden (${noChangeRounds}/${maxNoChangeRounds})`
-      );
-
-      // Bei vielen Runden ohne Änderung, versuche andere Scroll-Methode
-      if (noChangeRounds >= 3) {
-        console.log(`   🔄 Versuche alternative Scroll-Methode...`);
-        await page.evaluate(() => {
-          // Alternative: Simuliere mehrere kleine Scroll-Events
-          for (let i = 0; i < 5; i++) {
-            setTimeout(() => window.scrollBy(0, 500), i * 200);
-          }
-        });
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-      }
-    } else {
-      noChangeRounds = 0; // Reset wenn neue Episoden gefunden
-      console.log(
-        `   ✅ ${allEpisodes.size - previousCount} neue Episoden gefunden!`
-      );
-    }
-
-    previousCount = allEpisodes.size;
-    scrollAttempts++;
-
-    // Viel aggressiveres Scrolling für Infinite Scroll
-    await page.evaluate(() => {
-      // Strategie 1: Großer Scroll-Sprung
-      window.scrollBy(0, window.innerHeight * 5);
-    });
-
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
-    // Strategie 2: Direkt zum aktuellen Ende der Seite
-    await page.evaluate(() => {
-      window.scrollTo(0, document.body.scrollHeight);
-    });
-
-    await new Promise((resolve) => setTimeout(resolve, 1200));
-
-    // Strategie 3: Scroll zum letzten Episode-Element + extra Offset
-    await page.evaluate(() => {
-      const lastEpisode = document.querySelector(
-        '[itemprop="itemListElement"]:last-child'
-      );
-      if (lastEpisode) {
-        const rect = lastEpisode.getBoundingClientRect();
-        const scrollTarget = window.pageYOffset + rect.bottom + 1000; // Extra 1000px
-        window.scrollTo(0, scrollTarget);
-      }
-    });
-
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // Strategie 4: Mehrere kleine Scrolls zum "Triggern" des Infinite Scroll
-    await page.evaluate(() => {
-      for (let i = 0; i < 10; i++) {
-        setTimeout(() => {
-          window.scrollBy(0, 300);
-        }, i * 100);
-      }
-    });
-
-    // Längere Wartezeit für Infinite Scroll Loading
-    await new Promise((resolve) => setTimeout(resolve, 4000));
-
-    // Prüfe auf Loading-Indikatoren für Infinite Scroll
-    try {
-      const loadingIndicators = await page.$$(
-        ".loading, .spinner, [data-loading], .load-spinner, .lds-ring"
-      );
-      if (loadingIndicators.length > 0) {
-        console.log(
-          `   ⏳ Loading-Indikator gefunden, warte extra auf neue Inhalte...`
-        );
-        await new Promise((resolve) => setTimeout(resolve, 5000));
-      }
-    } catch {
-      // Kein Loading-Indikator gefunden
-    }
-
-    // Zeige Fortschritt alle 5 Runden (häufiger)
-    if (scrollAttempts % 5 === 0) {
-      console.log(
-        `   📈 Zwischenstand: ${allEpisodes.size} Episoden nach ${scrollAttempts} Scroll-Runden`
-      );
-    }
-  }
-
-  console.log(
-    `📺 Gesamt gefunden: ${allEpisodes.size} Episode-Links nach ${scrollAttempts} Scroll-Runden`
-  );
-
-  // Verarbeite alle Episoden und extrahiere Gäste mit AI
-  const episodesWithGuests = [];
-  const allEpisodesArray = Array.from(allEpisodes.values());
-
-  for (let i = 0; i < allEpisodesArray.length; i++) {
-    const ep = allEpisodesArray[i];
-    console.log(
-      `📝 [${i + 1}/${allEpisodesArray.length}] Episode "${
-        ep.title
-      }": Beschreibung = "${ep.description}"`
-    );
-
-    let guests: string[] = [];
-    if (ep.description && ep.description.includes("Caren Miosga")) {
-      // Verwende AI-Extraktion
-      guests = await extractGuestsWithAI(ep.description);
-    }
-
-    // Konvertiere zu GuestWithRole Format
-    const guestsWithRole: GuestWithRole[] = guests.map((name) => ({ name }));
-
-    // Konvertiere Datumsformat
-    const isoDate = parseISODateFromArdHtml(ep.date);
-    if (isoDate) {
-      episodesWithGuests.push({
-        url: ep.url,
-        date: isoDate,
-        title: ep.title,
-        guests: guestsWithRole,
-      });
-    }
-  }
-
-  // Sortiere nach Datum (neuste zuerst)
-  const sortedEpisodes = episodesWithGuests.sort((a, b) =>
-    b.date.localeCompare(a.date)
-  );
-
-  if (sortedEpisodes.length > 0) {
-    console.log(
-      `📅 Zeitraum: ${sortedEpisodes[sortedEpisodes.length - 1]?.date} bis ${
-        sortedEpisodes[0]?.date
-      }`
-    );
-  }
-
-  return sortedEpisodes;
 }
 
 // Hilfsfunktion: Konvertiere dd.mm.yyyy zu yyyy-mm-dd für DB-Konsistenz
@@ -1161,7 +914,7 @@ export async function crawlAllCarenMiosgaEpisodes(): Promise<void> {
     const page = await setupSimplePage(browser);
 
     // Hole ALLE verfügbaren Episode-Links
-    const allEpisodes = await getAllEpisodeLinks(page);
+    const allEpisodes = await getNewEpisodeLinks(page, null);
 
     if (allEpisodes.length === 0) {
       console.log("❌ Keine Episode-Links gefunden");
@@ -1202,6 +955,11 @@ export async function crawlAllCarenMiosgaEpisodes(): Promise<void> {
     // Verarbeite jede Episode
     for (let i = 0; i < sortedEpisodes.length; i++) {
       const episode = sortedEpisodes[i];
+      console.log(
+        `\n🎬 [${i + 1}/${sortedEpisodes.length}] Verarbeite Episode vom ${
+          episode.date
+        }: ${episode.title}`
+      );
 
       try {
         console.log(
