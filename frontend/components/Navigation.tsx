@@ -33,6 +33,11 @@ const navigationItems = [
     description: "Partei-Chart und Verteilung",
   },
   {
+    title: "Politische Themen",
+    href: "/politische-themen",
+    description: "Verteilung der politischen Themenbereiche",
+  },
+  {
     title: "Politiker",
     href: "/politiker",
     description: "Detaillierte Politiker-Tabelle",

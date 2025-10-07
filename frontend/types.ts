@@ -36,6 +36,21 @@ export interface PartyChartProps {
 }
 
 // =============================================================================
+// POLITICAL AREAS TYPES
+// =============================================================================
+
+export interface PoliticalAreaStats {
+  area_id: number;
+  area_label: string;
+  count: number;
+}
+
+export interface PoliticalAreasChartProps {
+  data: PoliticalAreaStats[];
+  selectedShow?: string;
+}
+
+// =============================================================================
 // POLITICIAN TYPES
 // =============================================================================
 
