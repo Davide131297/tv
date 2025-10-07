@@ -8,6 +8,8 @@ import { getLatestEpisodeDate } from "@/lib/supabase-server-utils";
 import { Page } from "puppeteer";
 import axios from "axios";
 import type { AbgeordnetenwatchPolitician } from "@/types";
+import { InferenceClient } from "@huggingface/inference";
+import { supabase } from "@/lib/supabase";
 
 // ---------------- Types ----------------
 
@@ -30,6 +32,7 @@ interface EpisodeResult {
   date: string | null;
   guests: string[];
   guestsDetailed: GuestDetails[];
+  politicalAreaIds?: number[];
 }
 
 const LIST_URL = "https://www.zdf.de/talk/markus-lanz-114";
@@ -49,6 +52,64 @@ const DE_MONTHS: Record<string, string> = {
   november: "11",
   dezember: "12",
 };
+
+// ---------------- Themenzusammenfassung einer Episode ----------------
+
+const MODEL = "aisingapore/Gemma-SEA-LION-v4-27B-IT";
+
+// Hilfsfunktion: AI-Extraktion der Gäste aus dem Teasertext
+async function getPoliticalArea(description: string): Promise<number[] | []> {
+  const token = process.env.NEXT_PUBLIC_HF_ACCESS_TOKEN;
+  if (!token) {
+    console.error("❌ HF_ACCESS_TOKEN fehlt in .env");
+    return [];
+  }
+
+  const hf = new InferenceClient(token);
+
+  // Prompt ähnlich wie in test-ai-connection.ts
+  const prompt = `Text: ${description}
+  Gib die Themengebiete wieder die in der Talkshow besprochen wurden. Die Vorhandenen Themenfelder sind vorgegeben. Gib die Antowrt als Array [id] zurück. Mögliche Themenfelder: 1. Energie, Klima und Versorgungssicherheit 2. Wirtschaft, Innovation und Wettbewerbsfähigkeit 3. Sicherheit, Verteidigung und Außenpolitik 4. Migration, Integration und gesellschaftlicher Zusammenhalt 5. Haushalt, öffentliche Finanzen und Sozialpolitik 6. Digitalisierung, Medien und Demokratie 7. Kultur, Identität und Erinnerungspolitik`;
+
+  try {
+    console.log("🤖 Erkenne Themen der Episode");
+
+    const chat = await hf.chatCompletion({
+      model: MODEL,
+      messages: [
+        {
+          role: "system",
+          content:
+            "Du antwortest nur mit einem gültigen JSON Array von numbers (z.B. [1,2,...]). Keine zusätzlichen Zeichen.",
+        },
+        { role: "user", content: prompt },
+      ],
+      max_tokens: 150,
+      temperature: 0.0,
+      provider: "publicai",
+    });
+
+    const content = chat.choices?.[0]?.message?.content?.trim() ?? "";
+
+    try {
+      const parsed = JSON.parse(content);
+      if (
+        Array.isArray(parsed) &&
+        parsed.every((item) => typeof item === "number")
+      ) {
+        return parsed;
+      }
+    } catch {
+      console.error("❌ AI-Antwort kein gültiges JSON-Array:", content);
+      return [];
+    }
+
+    return [];
+  } catch {
+    console.error("❌ AI-Extraktion fehlgeschlagen");
+    return [];
+  }
+}
 
 // ---------------- Lade mehr / Episoden-Links ----------------
 
@@ -582,6 +643,103 @@ async function extractGuestsFromEpisode(
   return uniqueGuests;
 }
 
+// ---------------- Episode Text Extraktion ----------------
+
+async function extractPoliticalAreaIds(
+  page: Page,
+  episodeUrl: string
+): Promise<number[] | [] | null> {
+  try {
+    // Mehrere Selektoren versuchen für die Episode-Beschreibung
+    const selectors = [
+      'p[data-testid="short-description"]',
+      "p.daltwma",
+      "p.dfv1fla", // Fallback aus dem HTML
+      "section p:not(:empty)", // Allgemeiner Fallback
+    ];
+
+    let description: string | null = null;
+
+    for (const selector of selectors) {
+      description = await page
+        .$eval(selector, (el) => {
+          const text = (el.textContent || "").trim();
+          // Filtere sehr kurze oder generische Texte aus
+          if (
+            text.length < 20 ||
+            text.includes("Abspielen") ||
+            text.includes("Merken")
+          ) {
+            return null;
+          }
+          return text;
+        })
+        .catch(() => null);
+
+      if (description) {
+        console.log(
+          `Episode-Beschreibung gefunden (${selector}): ${description.substring(
+            0,
+            100
+          )}...`
+        );
+        break; // Beende die Schleife sofort
+      }
+    }
+
+    if (description) {
+      const politicalAreaIds = await getPoliticalArea(description);
+      return politicalAreaIds;
+    } else {
+      console.log(`Keine Episode-Beschreibung gefunden für: ${episodeUrl}`);
+      return null;
+    }
+  } catch (error) {
+    console.warn(`Fehler beim Extrahieren der Episode-Beschreibung:`, error);
+    return null;
+  }
+}
+
+// Hilfsfunktion zum Speichern der politischen Themenbereiche
+async function insertEpisodePoliticalAreas(
+  showName: string,
+  episodeDate: string,
+  politicalAreaIds: number[]
+): Promise<number> {
+  if (!politicalAreaIds.length) return 0;
+
+  try {
+    const insertData = politicalAreaIds.map((areaId) => ({
+      show_name: showName,
+      episode_date: episodeDate,
+      political_area_id: areaId,
+    }));
+
+    const { error } = await supabase
+      .from("tv_show_episode_political_areas")
+      .upsert(insertData, {
+        onConflict: "show_name,episode_date,political_area_id",
+        ignoreDuplicates: true,
+      });
+
+    if (error) {
+      console.error(
+        "Fehler beim Speichern der politischen Themenbereiche:",
+        error
+      );
+      return 0;
+    }
+
+    return insertData.length;
+  } catch (error) {
+    console.error(
+      "Fehler beim Speichern der politischen Themenbereiche:",
+      error
+    );
+    return 0;
+  }
+}
+
 export default async function CrawlLanz() {
   initTvShowPoliticiansTable();
 
@@ -674,9 +832,10 @@ export default async function CrawlLanz() {
         batch.map(async (url) => {
           const p = await setupSimplePage(browser);
           try {
-            const [guests, date] = await Promise.all([
+            const [guests, date, politicalAreaIds] = await Promise.all([
               extractGuestsFromEpisode(p, url),
               extractDateISO(p, url),
+              extractPoliticalAreaIds(p, url),
             ]);
 
             // Politiker-Check je Gast (sequentiell um API-Limits zu respektieren)
@@ -696,6 +855,7 @@ export default async function CrawlLanz() {
               date,
               guests: guestNames,
               guestsDetailed,
+              politicalAreaIds: politicalAreaIds || [],
             };
 
             // Dedup: pro Datum nur ein Eintrag, ggf. den mit mehr Gästen behalten
@@ -776,6 +936,7 @@ export default async function CrawlLanz() {
     // Speichere politische Gäste in der Datenbank
     console.log(`\n=== Speichere Daten in Datenbank ===`);
     let totalPoliticiansInserted = 0;
+    let totalPoliticalAreasInserted = 0;
     let episodesWithPoliticians = 0;
 
     for (const episode of finalResults) {
@@ -794,6 +955,7 @@ export default async function CrawlLanz() {
           partyName: guest.partyName,
         }));
 
+      // Speichere Politiker
       if (politicians.length > 0) {
         const inserted = await insertMultipleTvShowPoliticians(
           "Markus Lanz",
@@ -808,11 +970,29 @@ export default async function CrawlLanz() {
           `${episode.date}: ${inserted}/${politicians.length} Politiker eingefügt`
         );
       }
+
+      // Speichere politische Themenbereiche
+      if (episode.politicalAreaIds && episode.politicalAreaIds.length > 0) {
+        const insertedAreas = await insertEpisodePoliticalAreas(
+          "Markus Lanz",
+          episode.date,
+          episode.politicalAreaIds
+        );
+
+        totalPoliticalAreasInserted += insertedAreas;
+
+        console.log(
+          `${episode.date}: ${insertedAreas}/${episode.politicalAreaIds.length} Themenbereiche eingefügt`
+        );
+      }
     }
 
     console.log(`\n=== Datenbank-Speicherung Zusammenfassung ===`);
     console.log(`Episoden mit Politikern: ${episodesWithPoliticians}`);
     console.log(`Politiker gesamt eingefügt: ${totalPoliticiansInserted}`);
+    console.log(
+      `Politische Themenbereiche gesamt eingefügt: ${totalPoliticalAreasInserted}`
+    );
 
     return {
       message: "Lanz Crawling erfolgreich",
