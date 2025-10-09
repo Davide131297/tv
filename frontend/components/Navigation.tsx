@@ -54,7 +54,7 @@ const navigationItems = [
   },
   {
     title: "Datenbank",
-    href: "/database",
+    href: "/datenbank",
     description: "Alle Datenbank-Einträge mit Feedback-Option",
   },
 ];

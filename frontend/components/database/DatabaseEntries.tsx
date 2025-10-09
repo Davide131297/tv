@@ -14,6 +14,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/lib/supabase";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface TvShowEntry {
   id: number;
@@ -35,12 +44,23 @@ interface DatabaseEntriesResponse {
 }
 
 const FEEDBACK_OPTIONS = [
-  { value: "missing_politician", label: "Fehlender Politiker" },
   {
     value: "politician_not_present",
     label: "Politiker war nicht in der Sendung",
   },
   { value: "politician_incorrect", label: "Politiker fehlerhaft angegeben" },
+  { value: "other", label: "Sonstiges" },
+];
+
+const GENERAL_FEEDBACK_OPTIONS = [
+  { value: "missing_show", label: "Sendung fehlt in der Datenbank" },
+  { value: "missing_politician", label: "Politiker fehlt in der Datenbank" },
+  {
+    value: "functionality_issue",
+    label: "Problem mit der Website-Funktionalität",
+  },
+  { value: "data_quality", label: "Allgemeine Datenqualität" },
+  { value: "feature_request", label: "Feature-Wunsch" },
   { value: "other", label: "Sonstiges" },
 ];
 
@@ -58,6 +78,13 @@ export default function DatabaseEntries() {
   const [feedbackIssueType, setFeedbackIssueType] = useState("");
   const [feedbackDescription, setFeedbackDescription] = useState("");
   const [feedbackLoading, setFeedbackLoading] = useState(false);
+
+  // General feedback dialog states
+  const [isGeneralFeedbackOpen, setIsGeneralFeedbackOpen] = useState(false);
+  const [generalFeedbackType, setGeneralFeedbackType] = useState("");
+  const [generalFeedbackDescription, setGeneralFeedbackDescription] =
+    useState("");
+  const [generalFeedbackLoading, setGeneralFeedbackLoading] = useState(false);
 
   const fetchEntries = async (currentPage: number = 1) => {
     setLoading(true);
@@ -140,6 +167,39 @@ export default function DatabaseEntries() {
     }
   };
 
+  const handleGeneralFeedbackSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setGeneralFeedbackLoading(true);
+
+    try {
+      const { error } = await supabase.from("feedback").insert([
+        {
+          entry_id: null, // No specific entry ID for general feedback
+          issue_type: generalFeedbackType,
+          description: generalFeedbackDescription,
+          status: "open",
+          created_at: new Date().toISOString(),
+        },
+      ]);
+
+      if (error) {
+        throw error;
+      }
+
+      // Reset form and close dialog
+      setGeneralFeedbackType("");
+      setGeneralFeedbackDescription("");
+      setIsGeneralFeedbackOpen(false);
+
+      alert("Allgemeines Feedback erfolgreich gesendet!");
+    } catch (error) {
+      console.error("Fehler beim Senden des allgemeinen Feedbacks:", error);
+      alert("Fehler beim Senden des Feedbacks. Bitte versuche es erneut.");
+    } finally {
+      setGeneralFeedbackLoading(false);
+    }
+  };
+
   const closeFeedbackForm = () => {
     setSelectedEntry(null);
     setFeedbackIssueType("");
@@ -170,7 +230,7 @@ export default function DatabaseEntries() {
 
   return (
     <div className="space-y-6">
-      {/* Search */}
+      {/* Search and General Feedback Button */}
       <Card className="p-4">
         <div className="flex flex-col sm:flex-row gap-4 items-center">
           <div className="flex-1">
@@ -181,8 +241,87 @@ export default function DatabaseEntries() {
               className="w-full"
             />
           </div>
-          <div className="text-sm text-gray-600">
-            {totalCount} Einträge gesamt
+          <div className="flex items-center gap-4">
+            <Dialog
+              open={isGeneralFeedbackOpen}
+              onOpenChange={setIsGeneralFeedbackOpen}
+            >
+              <DialogTrigger asChild>
+                <Button variant="outline" className="whitespace-nowrap">
+                  Allgemeines Feedback
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Allgemeines Feedback</DialogTitle>
+                  <DialogDescription>
+                    Teile uns dein Feedback zu unserer Plattform mit.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <form
+                  onSubmit={handleGeneralFeedbackSubmit}
+                  className="space-y-4"
+                >
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Art des Feedbacks
+                    </label>
+                    <Select
+                      onValueChange={(value) => setGeneralFeedbackType(value)}
+                      value={generalFeedbackType}
+                      required
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Wähle eine Kategorie..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {GENERAL_FEEDBACK_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Beschreibung
+                    </label>
+                    <Textarea
+                      value={generalFeedbackDescription}
+                      onChange={(e) =>
+                        setGeneralFeedbackDescription(e.target.value)
+                      }
+                      placeholder="Beschreibe dein Feedback detailliert..."
+                      rows={4}
+                      required
+                    />
+                  </div>
+
+                  <DialogFooter>
+                    <Button
+                      type="submit"
+                      disabled={
+                        !generalFeedbackType ||
+                        !generalFeedbackDescription ||
+                        generalFeedbackLoading
+                      }
+                    >
+                      {generalFeedbackLoading
+                        ? "Wird gesendet..."
+                        : "Feedback senden"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+            <div className="text-sm text-gray-600 whitespace-nowrap">
+              {totalCount} Einträge gesamt
+            </div>
           </div>
         </div>
       </Card>
