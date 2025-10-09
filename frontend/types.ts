@@ -36,6 +36,21 @@ export interface PartyChartProps {
 }
 
 // =============================================================================
+// POLITICAL AREAS TYPES
+// =============================================================================
+
+export interface PoliticalAreaStats {
+  area_id: number;
+  area_label: string;
+  count: number;
+}
+
+export interface PoliticalAreasChartProps {
+  data: PoliticalAreaStats[];
+  selectedShow?: string;
+}
+
+// =============================================================================
 // POLITICIAN TYPES
 // =============================================================================
 
@@ -91,6 +106,7 @@ export const SHOW_OPTIONS: ShowOption[] = [
   { value: "Maybrit Illner", label: "Maybrit Illner" },
   { value: "Caren Miosga", label: "Caren Miosga" },
   { value: "Maischberger", label: "Maischberger" },
+  { value: "Hart aber fair", label: "Hart aber fair" },
 ];
 
 export const SHOW_OPTIONS_WITHOUT_ALL: ShowOption[] = [
@@ -98,6 +114,7 @@ export const SHOW_OPTIONS_WITHOUT_ALL: ShowOption[] = [
   { value: "Maybrit Illner", label: "Maybrit Illner" },
   { value: "Caren Miosga", label: "Caren Miosga" },
   { value: "Maischberger", label: "Maischberger" },
+  { value: "Hart aber fair", label: "Hart aber fair" },
 ];
 
 // =============================================================================
@@ -118,6 +135,17 @@ export const PARTY_COLORS: Record<string, string> = {
   parteilos: "#6b7280",
 };
 
+export const BADGE_PARTY_COLORS: Record<string, string> = {
+  SPD: "bg-red-100 text-red-800 border-red-200",
+  CDU: "bg-gray-800 text-white border-gray-800",
+  CSU: "bg-blue-100 text-blue-800 border-blue-200",
+  FDP: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  "Die Linke": "bg-purple-100 text-purple-800 border-purple-200",
+  "BÜNDNIS 90/DIE GRÜNEN": "bg-green-400 text-green-900 border-green-400",
+  AfD: "bg-blue-50 text-blue-700 border-blue-200",
+  Unbekannt: "bg-gray-100 text-gray-800 border-gray-200",
+};
+
 // =============================================================================
 // UTILITY TYPES
 // =============================================================================
@@ -127,8 +155,8 @@ export type ShowValue =
   | "Markus Lanz"
   | "Maybrit Illner"
   | "Caren Miosga"
-  | "Maischberger";
-
+  | "Maischberger"
+  | "Hart aber fair";
 
 // =============================================================================
 // Abgeordnetenwatch TYPES
@@ -169,7 +197,7 @@ export type AbgeordnetenwatchPolitician = {
 export type GuestWithRole = {
   name: string;
   role?: string;
-}
+};
 
 export type GuestDetails = {
   name: string;
@@ -178,4 +206,4 @@ export type GuestDetails = {
   politicianName?: string; // NEU: Vollständiger Name des Politikers
   party?: number;
   partyName?: string; // NEU: Name der Partei
-}
+};

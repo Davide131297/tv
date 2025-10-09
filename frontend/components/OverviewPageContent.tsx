@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import type { SummaryData } from "@/types";
 import { SHOW_OPTIONS } from "@/types";
+import { FETCH_HEADERS } from "@/lib/utils";
+import ShowOptionsButtons from "./ShowOptionsButtons";
 
 function OverviewPageContent() {
   const router = useRouter();
@@ -35,7 +37,10 @@ function OverviewPageContent() {
               selectedShow
             )}`;
 
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        method: "GET",
+        headers: FETCH_HEADERS,
+      });
 
       if (!response.ok) {
         throw new Error("Failed to fetch data");
@@ -111,18 +116,7 @@ function OverviewPageContent() {
               if (!isSelected)
                 return "bg-gray-100 text-gray-700 hover:bg-gray-200";
 
-              switch (showValue) {
-                case "Markus Lanz":
-                  return "bg-blue-100 text-blue-800 hover:bg-blue-200";
-                case "Maybrit Illner":
-                  return "bg-purple-100 text-purple-800 hover:bg-purple-200";
-                case "Caren Miosga":
-                  return "bg-green-100 text-green-800 hover:bg-green-200";
-                case "Maischberger":
-                  return "bg-orange-100 text-orange-800 hover:bg-orange-200";
-                default:
-                  return "bg-black text-white hover:bg-gray-800 hover:text-white";
-              }
+              return ShowOptionsButtons(showValue);
             };
 
             return (

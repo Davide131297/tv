@@ -6,6 +6,7 @@ frontend/node_modules/
 # compiled output
 backend/dist/
 frontend/.next/
+frontend/tsconfig.tsbuildinfo
 
 # database (local development)
 database/database.sqlite

@@ -28,6 +28,30 @@ export const POLITICIAN_OVERRIDES: Record<string, GuestDetails> = {
     party: 2, // CDU
     partyName: "CDU",
   },
+  "Philipp Türmer": {
+    name: "Philipp Türmer",
+    isPolitician: true,
+    politicianId: 999001, // Custom ID for politician not in Abgeordnetenwatch
+    politicianName: "Philipp Türmer",
+    party: 1, // SPD
+    partyName: "SPD",
+  },
+  "Jan van": {
+    name: "Jan van Aken",
+    isPolitician: true,
+    politicianId: 78952,
+    politicianName: "Jan van Aken",
+    party: 8, // Die Linke
+    partyName: "Die Linke",
+  },
+  "Wolfram Weimer": {
+    name: "Wolfram Weimer",
+    isPolitician: true,
+    politicianId: 9998,
+    politicianName: "Wolfram Weimer",
+    party: 2,
+    partyName: "CDU",
+  },
 };
 
 // Hilfsfunktion um Override-Prüfung zu zentralisieren

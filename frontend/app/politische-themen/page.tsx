@@ -2,10 +2,9 @@
 
 import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import PartyChart from "@/components/PartyChart";
+import PoliticalAreasChart from "@/components/PoliticalAreasChart";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import type { PartyStats } from "@/types";
+import type { PoliticalAreaStats } from "@/types";
 import { SHOW_OPTIONS } from "@/types";
 import { FETCH_HEADERS } from "@/lib/utils";
 import ShowOptionsButtons from "@/components/ShowOptionsButtons";
@@ -13,7 +12,9 @@ import ShowOptionsButtons from "@/components/ShowOptionsButtons";
 function Page() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [partyStats, setPartyStats] = useState<PartyStats[]>([]);
+  const [politicalAreaStats, setPoliticalAreaStats] = useState<
+    PoliticalAreaStats[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,12 +30,8 @@ function Page() {
     return "all";
   }, [searchParams]);
 
-  const unionMode = useMemo(() => {
-    return searchParams.get("union") === "true";
-  }, [searchParams]);
-
   const updateUrlParams = useCallback(
-    (updates: { show?: string; union?: boolean }) => {
+    (updates: { show?: string }) => {
       const params = new URLSearchParams(searchParams.toString());
 
       if (updates.show !== undefined) {
@@ -45,15 +42,9 @@ function Page() {
         }
       }
 
-      if (updates.union !== undefined) {
-        if (updates.union) {
-          params.set("union", "true");
-        } else {
-          params.delete("union");
-        }
-      }
-
-      const newUrl = params.toString() ? `?${params.toString()}` : "/parteien";
+      const newUrl = params.toString()
+        ? `?${params.toString()}`
+        : "/politische-themen";
       router.push(newUrl, { scroll: false });
     },
     [searchParams, router]
@@ -63,19 +54,13 @@ function Page() {
     updateUrlParams({ show: showValue });
   };
 
-  const handleUnionModeChange = (unionValue: boolean) => {
-    updateUrlParams({ union: unionValue });
-  };
-
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const url =
         selectedShow === "all"
-          ? "/api/politics?type=party-stats"
-          : `/api/politics?type=party-stats&show=${encodeURIComponent(
-              selectedShow
-            )}`;
+          ? "/api/political-areas"
+          : `/api/political-areas?show=${encodeURIComponent(selectedShow)}`;
 
       const response = await fetch(url, {
         method: "GET",
@@ -88,7 +73,7 @@ function Page() {
 
       const data = await response.json();
       if (data.success) {
-        setPartyStats(data.data);
+        setPoliticalAreaStats(data.data);
       }
     } catch (err) {
       console.error("Error fetching data:", err);
@@ -123,35 +108,21 @@ function Page() {
     );
   }
 
-  // Hilfsfunktion: CDU & CSU zu Union zusammenfassen
-  const getUnionStats = (stats: PartyStats[]) => {
-    if (!unionMode) return stats;
-    let unionCount = 0;
-    const filtered = stats.filter((p) => {
-      if (p.party_name === "CDU" || p.party_name === "CSU") {
-        unionCount += p.count;
-        return false;
-      }
-      return true;
-    });
-    if (unionCount > 0) {
-      filtered.push({ party_name: "Union", count: unionCount });
-    }
-    return filtered;
-  };
-
-  const displayedStats = getUnionStats(partyStats);
-
   return (
     <div className="max-w-7xl mx-auto p-6">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          📊 Partei-Statistiken
+          🏛️ Politische Themenbereiche
         </h1>
         <p className="text-gray-600 mb-4">
-          Verteilung der Politiker-Auftritte nach Parteien in deutschen
-          TV-Talkshows
+          Verteilung der politischen Themen in deutschen TV-Talkshows
         </p>
+
+        <div className="mx-auto bg-red-300 text-red-600 rounded-lg p-4 mb-4">
+          <strong>Achtung:</strong> Diese Seite ist noch experimentell. Die
+          Datenqualität wird in Zukunft verbessert es können einige Sendungen in
+          der Bewertung fehlen.
+        </div>
 
         {/* Show Auswahl */}
         <div className="flex flex-wrap gap-2 items-center mb-4">
@@ -179,26 +150,16 @@ function Page() {
               </Button>
             );
           })}
-          <div className="flex items-center gap-2 ml-6">
-            <Switch
-              id="union-switch"
-              checked={unionMode}
-              onCheckedChange={handleUnionModeChange}
-            />
-            <label
-              htmlFor="union-switch"
-              className="text-sm select-none cursor-pointer"
-            >
-              CDU & CSU als Union zusammenfassen
-            </label>
-          </div>
         </div>
       </div>
 
-      <PartyChart data={displayedStats} selectedShow={selectedShow} />
+      <PoliticalAreasChart
+        data={politicalAreaStats}
+        selectedShow={selectedShow}
+      />
 
-      {/* Partei-Details Tabelle */}
-      {displayedStats.length > 0 && (
+      {/* Themen-Details Tabelle */}
+      {politicalAreaStats.length > 0 && (
         <div className="mt-8 bg-white rounded-lg shadow-md overflow-hidden">
           <div className="p-4 sm:p-6 border-b border-gray-200">
             <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
@@ -209,26 +170,26 @@ function Page() {
           {/* Mobile Card Layout */}
           <div className="block sm:hidden">
             <div className="divide-y divide-gray-200">
-              {displayedStats
+              {politicalAreaStats
                 .sort((a, b) => b.count - a.count)
-                .map((party) => {
-                  const totalAppearances = displayedStats.reduce(
-                    (sum, p) => sum + p.count,
+                .map((area) => {
+                  const totalEpisodes = politicalAreaStats.reduce(
+                    (sum, a) => sum + a.count,
                     0
                   );
                   const percentage = (
-                    (party.count / totalAppearances) *
+                    (area.count / totalEpisodes) *
                     100
                   ).toFixed(1);
 
                   return (
-                    <div key={party.party_name} className="p-4 space-y-2">
+                    <div key={area.area_id} className="p-4 space-y-2">
                       <div className="flex justify-between items-start">
                         <span className="text-sm font-medium text-gray-900">
-                          {party.party_name}
+                          {area.area_label}
                         </span>
                         <span className="text-sm text-gray-900 font-semibold">
-                          {party.count}
+                          {area.count}
                         </span>
                       </div>
                       <div className="text-xs text-gray-500">
@@ -246,10 +207,10 @@ function Page() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Partei
+                    Themenbereich
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Auftritte
+                    Episoden
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Anteil
@@ -257,28 +218,28 @@ function Page() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {displayedStats
+                {politicalAreaStats
                   .sort((a, b) => b.count - a.count)
-                  .map((party, index) => {
-                    const totalAppearances = displayedStats.reduce(
-                      (sum, p) => sum + p.count,
+                  .map((area, index) => {
+                    const totalEpisodes = politicalAreaStats.reduce(
+                      (sum, a) => sum + a.count,
                       0
                     );
                     const percentage = (
-                      (party.count / totalAppearances) *
+                      (area.count / totalEpisodes) *
                       100
                     ).toFixed(1);
 
                     return (
                       <tr
-                        key={party.party_name}
+                        key={area.area_id}
                         className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
                       >
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {party.party_name}
+                          {area.area_label}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {party.count}
+                          {area.count}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {percentage}%
@@ -295,7 +256,7 @@ function Page() {
   );
 }
 
-export default function PartiesPage() {
+export default function PoliticalAreasPage() {
   return (
     <Suspense fallback={<div>Loading...</div>}>
       <Page />

@@ -32,8 +32,10 @@ export default function PartyChart({ data, selectedShow }: PartyChartProps) {
         return "Partei-Auftritte bei Caren Miosga";
       case "Maischberger":
         return "Partei-Auftritte bei Maischberger";
+      case "Hart aber fair":
+        return "Partei-Auftritte bei Hart aber fair";
       default:
-        return "Partei-Auftritte";
+        return "Partei-Auftritte alle Shows";
     }
   };
 
@@ -69,6 +71,7 @@ export default function PartyChart({ data, selectedShow }: PartyChartProps) {
             data={chartData}
             margin={{
               top: 20,
+              bottom: 60,
             }}
           >
             <CartesianGrid vertical={false} />
@@ -77,17 +80,19 @@ export default function PartyChart({ data, selectedShow }: PartyChartProps) {
               tickLine={false}
               tickMargin={10}
               axisLine={false}
-              angle={-30}
+              angle={-45}
               textAnchor="end"
-              height={110}
-              fontSize={11}
+              height={120}
+              fontSize={10}
+              className="text-xs sm:text-sm"
+              interval={0}
             />
             <Bar dataKey="auftritte" radius={8}>
               <LabelList
                 position="top"
-                offset={12}
-                className="fill-foreground"
-                fontSize={12}
+                offset={8}
+                className="fill-foreground text-xs sm:text-sm"
+                fontSize={10}
               />
             </Bar>
           </BarChart>

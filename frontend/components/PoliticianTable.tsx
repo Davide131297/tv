@@ -12,9 +12,17 @@ import {
   createColumnHelper,
   SortingState,
 } from "@tanstack/react-table";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { Button } from "./ui/button";
 import type { PoliticianAppearance } from "@/types";
 import { SHOW_OPTIONS } from "@/types";
+import { FETCH_HEADERS } from "@/lib/utils";
+import ShowOptionsButtons from "./ShowOptionsButtons";
 
 const columnHelper = createColumnHelper<PoliticianAppearance>();
 
@@ -87,16 +95,18 @@ export default function PoliticianTable() {
       setLoading(true);
       const url =
         selectedShow === "all"
-          ? "/api/politics?type=detailed-appearances&limit=200"
-          : `/api/politics?type=detailed-appearances&limit=200&show=${encodeURIComponent(
+          ? "/api/politics?type=detailed-appearances&limit=500"
+          : `/api/politics?type=detailed-appearances&limit=500&show=${encodeURIComponent(
               selectedShow
             )}`;
 
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        method: "GET",
+        headers: FETCH_HEADERS,
+      });
       const result = await response.json();
 
       if (result.success) {
-        console.log("Daten geladen:", result.data);
         setData(result.data);
       }
     } catch (error) {
@@ -110,6 +120,9 @@ export default function PoliticianTable() {
     fetchData();
   }, [fetchData]);
 
+  const paginationStyle =
+    "px-2 sm:px-3 py-1 text-xs sm:text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700";
+
   // Definiere Spalten
   const columns = useMemo(
     () => [
@@ -121,13 +134,15 @@ export default function PoliticianTable() {
             <span
               className={`px-2 py-1 rounded-full text-xs font-semibold ${
                 show === "Markus Lanz"
-                  ? "bg-blue-100 text-blue-800"
+                  ? "bg-orange-100 text-orange-800"
                   : show === "Maybrit Illner"
                   ? "bg-purple-100 text-purple-800"
                   : show === "Caren Miosga"
                   ? "bg-green-100 text-green-800"
                   : show === "Maischberger"
-                  ? "bg-orange-100 text-orange-800"
+                  ? "bg-teal-100 text-teal-800"
+                  : show === "Hart aber fair"
+                  ? "bg-blue-100 text-blue-800"
                   : "bg-gray-100 text-gray-800"
               }`}
             >
@@ -167,6 +182,7 @@ export default function PoliticianTable() {
               FDP: "bg-yellow-400 text-black",
               "Die Linke": "bg-purple-600 text-white",
               "BÜNDNIS 90/DIE GRÜNEN": "bg-green-600 text-white",
+              "Bündnis 90/Die Grünen": "bg-green-600 text-white",
               Grüne: "bg-green-600 text-white",
               AfD: "bg-blue-600 text-white",
               BSW: "bg-yellow-700 text-white",
@@ -222,19 +238,19 @@ export default function PoliticianTable() {
   return (
     <div className="bg-white rounded-lg shadow-lg overflow-hidden">
       {/* Header mit Suche */}
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="p-4 sm:p-6 border-b border-gray-200">
+        <div className="flex flex-col gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
               Politiker-Auftritte
             </h2>
-            <p className="mt-1 text-gray-600">
+            <p className="mt-1 text-gray-600 text-sm sm:text-base">
               {table.getFilteredRowModel().rows.length} von {data.length}{" "}
               Auftritten
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex flex-col xl:flex-row gap-4 xl:justify-between">
             {/* Show Filter */}
             <div className="flex flex-wrap gap-2">
               {SHOW_OPTIONS.map((option) => {
@@ -245,25 +261,17 @@ export default function PoliticianTable() {
                   if (!isSelected)
                     return "bg-gray-100 text-gray-700 hover:bg-gray-200";
 
-                  switch (showValue) {
-                    case "Markus Lanz":
-                      return "bg-blue-100 text-blue-800 hover:bg-blue-200";
-                    case "Maybrit Illner":
-                      return "bg-purple-100 text-purple-800 hover:bg-purple-200";
-                    case "Caren Miosga":
-                      return "bg-green-100 text-green-800 hover:bg-green-200";
-                    case "Maischberger":
-                      return "bg-orange-100 text-orange-800 hover:bg-orange-200";
-                    default:
-                      return "bg-black text-white hover:bg-gray-800 hover:text-white";
-                  }
+                  return ShowOptionsButtons(showValue);
                 };
 
                 return (
                   <Button
                     key={option.value}
-                    onClick={() => handleShowChange(option.value)}
-                    className={`px-3 py-1 text-sm rounded-lg transition-colors ${getButtonColors(
+                    onClick={() => {
+                      console.log("Button clicked for show:", option.value); // Debug log
+                      handleShowChange(option.value);
+                    }}
+                    className={`px-2 sm:px-3 py-1 text-xs sm:text-sm rounded-lg transition-colors ${getButtonColors(
                       option.value,
                       selectedShow === option.value
                     )}`}
@@ -275,35 +283,100 @@ export default function PoliticianTable() {
             </div>
 
             {/* Globale Suche */}
-            <div className="relative">
-              <input
-                value={globalFilter}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                className="w-80 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Suche nach Name oder Partei..."
-              />
-              <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                <svg
-                  className="h-4 w-4 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
-                </svg>
-              </div>
+            <div className="relative w-80">
+              <InputGroup>
+                <InputGroupInput
+                  placeholder="Suche nach Name oder Partei..."
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                />
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton variant={"secondary"}>
+                    Suchen
+                  </InputGroupButton>
+                </InputGroupAddon>
+              </InputGroup>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Tabelle */}
-      <div className="overflow-x-auto">
+      {/* Mobile Card Layout */}
+      <div className="block sm:hidden">
+        <div className="divide-y divide-gray-200">
+          {table.getRowModel().rows.map((row) => {
+            const data = row.original;
+            const date = new Date(data.episode_date);
+
+            const getPartyColor = (partyName: string) => {
+              const colors: Record<string, string> = {
+                CDU: "bg-black text-white",
+                CSU: "bg-blue-800 text-white",
+                SPD: "bg-red-600 text-white",
+                FDP: "bg-yellow-400 text-black",
+                "Die Linke": "bg-purple-600 text-white",
+                "BÜNDNIS 90/DIE GRÜNEN": "bg-green-600 text-white",
+                Grüne: "bg-green-600 text-white",
+                AfD: "bg-blue-600 text-white",
+                BSW: "bg-yellow-700 text-white",
+                parteilos: "bg-gray-500 text-white",
+              };
+              return colors[partyName] || "bg-gray-400 text-white";
+            };
+
+            const getShowColor = (show: string) => {
+              switch (show) {
+                case "Markus Lanz":
+                  return "bg-orange-100 text-orange-800";
+                case "Maybrit Illner":
+                  return "bg-purple-100 text-purple-800";
+                case "Caren Miosga":
+                  return "bg-green-100 text-green-800";
+                case "Maischberger":
+                  return "bg-teal-100 text-teal-800";
+                case "Hart aber fair":
+                  return "bg-blue-100 text-blue-800";
+                default:
+                  return "bg-gray-100 text-gray-800";
+              }
+            };
+
+            return (
+              <div key={row.id} className="p-4 space-y-3">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="font-semibold text-gray-900 text-sm">
+                      {data.politician_name}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {date.toLocaleDateString("de-DE")}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-semibold ${getShowColor(
+                      data.show_name
+                    )}`}
+                  >
+                    {data.show_name}
+                  </span>
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-semibold ${getPartyColor(
+                      data.party_name
+                    )}`}
+                  >
+                    {data.party_name}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Desktop Table Layout */}
+      <div className="hidden sm:block overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             {table.getHeaderGroups().map((headerGroup) => (
@@ -354,40 +427,40 @@ export default function PoliticianTable() {
       </div>
 
       {/* Pagination */}
-      <div className="bg-white px-6 py-3 border-t border-gray-200 flex items-center justify-between">
+      <div className="bg-white px-4 sm:px-6 py-3 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-700">
+          <span className="text-xs sm:text-sm text-gray-700">
             Seite {table.getState().pagination.pageIndex + 1} von{" "}
             {table.getPageCount()}
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           <Button
             onClick={() => table.setPageIndex(0)}
             disabled={!table.getCanPreviousPage()}
-            className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+            className={paginationStyle}
           >
             {"<<"}
           </Button>
           <Button
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
-            className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+            className={paginationStyle}
           >
             {"<"}
           </Button>
           <Button
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
-            className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+            className={paginationStyle}
           >
             {">"}
           </Button>
           <Button
             onClick={() => table.setPageIndex(table.getPageCount() - 1)}
             disabled={!table.getCanNextPage()}
-            className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+            className={paginationStyle}
           >
             {">>"}
           </Button>
