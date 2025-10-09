@@ -1,15 +1,17 @@
 import CrawlLanz from "@/crawler/lanz";
 import { NextResponse } from "next/server";
-import { crawlAllMaybritIllnerEpisodes } from "@/crawler/illner";
-import { crawlMaischberger2025 } from "@/crawler/maischberger";
-import { crawlAllCarenMiosgaEpisodes } from "@/crawler/miosga";
+import { crawlNewMaybritIllnerEpisodes } from "@/crawler/illner";
+import { crawlNewMaischbergerEpisodes } from "@/crawler/maischberger";
+import { crawlIncrementalCarenMiosgaEpisodes } from "@/crawler/miosga";
+import crawlHartAberFair from "@/crawler/haf";
 
 export async function POST() {
   await Promise.all([
     CrawlLanz(),
-    crawlAllMaybritIllnerEpisodes(),
-    crawlMaischberger2025(),
-    crawlAllCarenMiosgaEpisodes(),
+    crawlNewMaybritIllnerEpisodes(),
+    crawlNewMaischbergerEpisodes(),
+    crawlIncrementalCarenMiosgaEpisodes(),
+    crawlHartAberFair(),
   ]);
   return NextResponse.json("Finished all crawlers");
 }
