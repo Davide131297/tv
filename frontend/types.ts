@@ -128,7 +128,7 @@ export const PARTY_COLORS: Record<string, string> = {
   Union: "#1e293b", // Union: dunkles Blau-Grau
   SPD: "#dc2626",
   FDP: "#facc15",
-  "Die Linke": "#9333ea",
+  "Die Linke": "#DF007D",
   "BÜNDNIS 90/DIE GRÜNEN": "#22c55e",
   Grüne: "#22c55e",
   AfD: "#2563eb",
@@ -142,7 +142,7 @@ export const BADGE_PARTY_COLORS: Record<string, string> = {
   CSU: "bg-blue-100 text-blue-800 border-blue-200",
   FDP: "bg-yellow-100 text-yellow-800 border-yellow-200",
   "Die Linke": "bg-purple-100 text-purple-800 border-purple-200",
-  "BÜNDNIS 90/DIE GRÜNEN": "bg-green-400 text-green-900 border-green-400",
+  "BÜNDNIS 90/DIE GRÜNEN": "bg-green-100 text-green-900 border-green-200",
   AfD: "bg-blue-50 text-blue-700 border-blue-200",
   Unbekannt: "bg-gray-100 text-gray-800 border-gray-200",
 };
