@@ -1,5 +1,6 @@
 import { EpisodeData } from "@/types";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 type LastShowTableProps = {
   episodes: EpisodeData[];
@@ -52,21 +53,7 @@ export default function LastShowTable({ episodes }: LastShowTableProps) {
             return (
               <div
                 key={episode.episode_date}
-                className={`p-4 space-y-3 ${
-                  episode.episode_url
-                    ? "hover:bg-blue-50 cursor-pointer transition-colors"
-                    : ""
-                }`}
-                onClick={() => {
-                  if (episode.episode_url) {
-                    window.open(episode.episode_url, "_blank");
-                  }
-                }}
-                title={
-                  episode.episode_url
-                    ? "Tippen um Episode zu öffnen"
-                    : "Keine Episode-URL verfügbar"
-                }
+                className="p-4 space-y-3 hover:bg-blue-50 cursor-pointer transition-colors"
               >
                 <div className="flex justify-between items-start">
                   <div>
@@ -216,9 +203,13 @@ export default function LastShowTable({ episodes }: LastShowTableProps) {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {episode.episode_url ? (
-                      <span className="inline-flex items-center text-blue-600 hover:text-blue-800">
+                      <Link
+                        href={episode.episode_url}
+                        target="_blank"
+                        className="inline-flex items-center text-blue-600 hover:text-blue-800"
+                      >
                         🔗 Episode öffnen
-                      </span>
+                      </Link>
                     ) : (
                       <span className="text-gray-400">Nicht verfügbar</span>
                     )}
