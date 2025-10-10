@@ -489,6 +489,7 @@ export default async function crawlHartAberFair() {
   const browser = await createBrowser();
   let processedCount = 0;
   let totalEpisodeLinksInserted = 0;
+  let totalPoliticiansInserted = 0;
 
   try {
     const page = await setupSimplePage(browser);
@@ -513,27 +514,9 @@ export default async function crawlHartAberFair() {
       `📺 ${currentYearEpisodes.length} neue Episoden aus ${currentYear} zu verarbeiten`
     );
 
-    // Sammle Episode-URLs für Batch-Insert (convert to full URLs)
-    const episodeLinksToInsert = currentYearEpisodes.map((episode) => {
-      const fullUrl = episode.url.startsWith("http")
-        ? episode.url
-        : `${BASE_URL}${episode.url}`;
-      return {
-        episodeUrl: fullUrl,
-        episodeDate: episode.date,
-      };
-    });
-
-    // Speichere Episode-URLs
-    if (episodeLinksToInsert.length > 0) {
-      totalEpisodeLinksInserted = await insertMultipleShowLinks(
-        "Hart aber fair",
-        episodeLinksToInsert
-      );
-      console.log(
-        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`
-      );
-    }
+    // Sammle Episode-URLs nur von Episoden mit politischen Gästen für Batch-Insert
+    const episodeLinksToInsert: { episodeUrl: string; episodeDate: string }[] =
+      [];
 
     // Process each episode
     for (const episodeLink of currentYearEpisodes) {
@@ -612,6 +595,19 @@ export default async function crawlHartAberFair() {
         }
 
         processedCount++;
+        totalPoliticiansInserted += politiciansInserted;
+
+        // Add episode URL if it had politicians
+        if (politiciansInserted > 0) {
+          const fullUrl = episodeLink.url.startsWith("http")
+            ? episodeLink.url
+            : `${BASE_URL}${episodeLink.url}`;
+          episodeLinksToInsert.push({
+            episodeUrl: fullUrl,
+            episodeDate: episodeLink.date,
+          });
+        }
+
         console.log(
           `\n✅ Episode erfolgreich verarbeitet: ${episodeDetails.title}`
         );
@@ -630,6 +626,17 @@ export default async function crawlHartAberFair() {
         continue;
       }
     }
+
+    // Speichere Episode-URLs am Ende
+    if (episodeLinksToInsert.length > 0) {
+      totalEpisodeLinksInserted = await insertMultipleShowLinks(
+        "Hart aber fair",
+        episodeLinksToInsert
+      );
+      console.log(
+        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`
+      );
+    }
   } catch (error) {
     console.error("Fehler beim Crawlen:", error);
   } finally {
@@ -638,5 +645,7 @@ export default async function crawlHartAberFair() {
 
   console.log(`\n=== Crawling abgeschlossen ===`);
   console.log(`${processedCount} neue Episoden verarbeitet`);
+  console.log(`${totalPoliticiansInserted} Politiker gesamt eingefügt`);
+  console.log(`${totalEpisodeLinksInserted} Episode-URLs eingefügt`);
   console.log(`📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
 }

@@ -210,24 +210,17 @@ export async function insertShowLink(
   data: InsertShowLinkData
 ): Promise<boolean> {
   try {
-    // Prüfe ob der Eintrag bereits existiert
-    const { data: existing } = await supabase
-      .from("show_links")
-      .select("id")
-      .eq("show_name", data.show_name)
-      .eq("episode_date", data.episode_date)
-      .single();
-
-    // Falls bereits vorhanden, überspringe
-    if (existing) {
-      return true;
-    }
-
-    const { error } = await supabase.from("show_links").insert({
-      show_name: data.show_name,
-      episode_url: data.episode_url,
-      episode_date: data.episode_date,
-    });
+    const { error } = await supabase.from("show_links").upsert(
+      {
+        show_name: data.show_name,
+        episode_url: data.episode_url,
+        episode_date: data.episode_date,
+      },
+      {
+        onConflict: "show_name,episode_date",
+        ignoreDuplicates: true,
+      }
+    );
 
     if (error) {
       console.error("Fehler beim Einfügen der Episode-URL:", error);
@@ -253,51 +246,24 @@ export async function insertMultipleShowLinks(
 
   let insertedCount = 0;
 
-  // Prüfe welche Episoden bereits existieren
-  const existingEpisodes = new Set<string>();
-
-  try {
-    const { data: existing } = await supabase
-      .from("show_links")
-      .select("episode_date")
-      .eq("show_name", showName)
-      .in(
-        "episode_date",
-        episodes.map((e) => e.episodeDate)
-      );
-
-    if (existing) {
-      existing.forEach((row) => existingEpisodes.add(row.episode_date));
-    }
-  } catch (error) {
-    console.error("Fehler beim Prüfen bestehender Episode-URLs:", error);
-  }
-
-  // Filtere neue Episoden heraus
-  const newEpisodes = episodes.filter(
-    (episode) => !existingEpisodes.has(episode.episodeDate)
-  );
-
-  if (newEpisodes.length === 0) {
-    console.log("Alle Episode-URLs bereits vorhanden");
-    return episodes.length; // Zähle als "eingefügt" da bereits vorhanden
-  }
-
-  // Batch insert für neue Episoden
-  const dataToInsert = newEpisodes.map((episode) => ({
+  // Batch insert für bessere Performance
+  const dataToInsert = episodes.map((episode) => ({
     show_name: showName,
     episode_url: episode.episodeUrl,
     episode_date: episode.episodeDate,
   }));
 
   try {
-    const { error } = await supabase.from("show_links").insert(dataToInsert);
+    const { error } = await supabase.from("show_links").upsert(dataToInsert, {
+      onConflict: "show_name,episode_date",
+      ignoreDuplicates: true,
+    });
 
     if (error) {
       console.error("Fehler beim Batch-Insert der Episode-URLs:", error);
 
       // Fallback: Einzeln einfügen
-      for (const episode of newEpisodes) {
+      for (const episode of episodes) {
         const success = await insertShowLink({
           show_name: showName,
           episode_url: episode.episodeUrl,
@@ -309,13 +275,13 @@ export async function insertMultipleShowLinks(
         }
       }
     } else {
-      insertedCount = newEpisodes.length;
+      insertedCount = episodes.length;
     }
   } catch (error) {
     console.error("Fehler beim Batch-Insert der Episode-URLs:", error);
 
     // Fallback: Einzeln einfügen
-    for (const episode of newEpisodes) {
+    for (const episode of episodes) {
       const success = await insertShowLink({
         show_name: showName,
         episode_url: episode.episodeUrl,
@@ -328,6 +294,5 @@ export async function insertMultipleShowLinks(
     }
   }
 
-  // Zähle bereits existierende als "eingefügt"
-  return insertedCount + existingEpisodes.size;
+  return insertedCount;
 }

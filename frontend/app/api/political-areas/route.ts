@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     // Base query to join political areas with episode data
     let query = supabase.from("tv_show_episode_political_areas").select(`
         political_area_id,
-        politican_area(
+        political_area(
           id,
           label
         )
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
       //eslint-disable-next-line @typescript-eslint/no-explicit-any
       (acc: Record<number, { label: string; count: number }>, row: any) => {
         const areaId = row.political_area_id;
-        const areaLabel = row.politican_area?.label || "Unbekannt";
+        const areaLabel = row.political_area?.label || "Unbekannt";
 
         if (!acc[areaId]) {
           acc[areaId] = {

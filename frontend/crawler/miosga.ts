@@ -800,22 +800,9 @@ export async function crawlIncrementalCarenMiosgaEpisodes(): Promise<void> {
     let totalEpisodeLinksInserted = 0;
     let episodesProcessed = 0;
 
-    // Sammle Episode-URLs für Batch-Insert
-    const episodeLinksToInsert = newEpisodes.map((episode) => ({
-      episodeUrl: episode.url,
-      episodeDate: episode.date,
-    }));
-
-    // Speichere Episode-URLs
-    if (episodeLinksToInsert.length > 0) {
-      totalEpisodeLinksInserted = await insertMultipleShowLinks(
-        "Caren Miosga",
-        episodeLinksToInsert
-      );
-      console.log(
-        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`
-      );
-    }
+    // Sammle Episode-URLs nur von Episoden mit politischen Gästen für Batch-Insert
+    const episodeLinksToInsert: { episodeUrl: string; episodeDate: string }[] =
+      [];
 
     // Verarbeite jede neue Episode
     for (const episode of newEpisodes) {
@@ -884,8 +871,14 @@ export async function crawlIncrementalCarenMiosgaEpisodes(): Promise<void> {
 
           totalPoliticiansInserted += inserted;
           console.log(
-            `   💾 ${inserted}/${politicians.length} Politiker gespeichert`
+            `   �� ${inserted}/${politicians.length} Politiker gespeichert`
           );
+
+          // Füge Episode-URL zur Liste hinzu (nur für Episoden mit Politikern)
+          episodeLinksToInsert.push({
+            episodeUrl: episode.url,
+            episodeDate: formatDateForDB(episode.date),
+          });
         } else {
           console.log(`   📝 Keine Politiker in dieser Episode`);
         }
@@ -909,6 +902,17 @@ export async function crawlIncrementalCarenMiosgaEpisodes(): Promise<void> {
           error
         );
       }
+    }
+
+    // Speichere Episode-URLs am Ende
+    if (episodeLinksToInsert.length > 0) {
+      totalEpisodeLinksInserted = await insertMultipleShowLinks(
+        "Caren Miosga",
+        episodeLinksToInsert
+      );
+      console.log(
+        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`
+      );
     }
 
     console.log(`\n🎉 Inkrementeller Caren Miosga Crawl abgeschlossen!`);
@@ -1061,8 +1065,14 @@ export async function crawlAllCarenMiosgaEpisodes(): Promise<void> {
 
           totalPoliticiansInserted += inserted;
           console.log(
-            `   💾 ${inserted}/${politicians.length} Politiker gespeichert`
+            `   �� ${inserted}/${politicians.length} Politiker gespeichert`
           );
+
+          // Füge Episode-URL zur Liste hinzu (nur für Episoden mit Politikern)
+          episodeLinksToInsert.push({
+            episodeUrl: episode.url,
+            episodeDate: formatDateForDB(episode.date),
+          });
         } else {
           console.log(`   📝 Keine Politiker in dieser Episode`);
         }

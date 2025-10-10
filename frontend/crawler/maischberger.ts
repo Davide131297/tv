@@ -584,6 +584,17 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
       }
     }
 
+    // Speichere Episode-URLs am Ende (erste Funktion)
+    if (episodeLinksToInsert.length > 0) {
+      totalEpisodeLinksInserted = await insertMultipleShowLinks(
+        "Maischberger",
+        episodeLinksToInsert
+      );
+      console.log(
+        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`
+      );
+    }
+
     console.log(`\n🎉 Inkrementeller Maischberger 2025 Crawl abgeschlossen!`);
     console.log(
       `📊 2025 Episoden verarbeitet: ${episodesProcessed}/${sortedEpisodes.length}`
@@ -638,22 +649,9 @@ export async function crawlMaischberger2025(): Promise<void> {
     let episodesProcessed = 0;
     let episodesWithErrors = 0;
 
-    // Sammle Episode-URLs für Batch-Insert
-    const episodeLinksToInsert = all2025Episodes.map((episode) => ({
-      episodeUrl: episode.url,
-      episodeDate: episode.date,
-    }));
-
-    // Speichere Episode-URLs
-    if (episodeLinksToInsert.length > 0) {
-      totalEpisodeLinksInserted = await insertMultipleShowLinks(
-        "Maischberger",
-        episodeLinksToInsert
-      );
-      console.log(
-        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`
-      );
-    }
+    // Sammle Episode-URLs nur von Episoden mit politischen Gästen für Batch-Insert
+    const episodeLinksToInsert: { episodeUrl: string; episodeDate: string }[] =
+      [];
 
     // Verarbeite jede Episode (älteste zuerst für chronologische Reihenfolge)
     const sortedEpisodes = all2025Episodes.sort(
@@ -740,6 +738,12 @@ export async function crawlMaischberger2025(): Promise<void> {
             `   💾 ${inserted}/${politicians.length} Politiker in DB gespeichert`
           );
 
+          // Nur wenn Episode Politiker hat, füge URL zur Liste hinzu
+          episodeLinksToInsert.push({
+            episodeUrl: episode.url,
+            episodeDate: episode.date,
+          });
+
           console.log("   🏛️  Politiker in dieser Episode:");
           politicians.forEach((pol) => {
             console.log(
@@ -777,6 +781,17 @@ export async function crawlMaischberger2025(): Promise<void> {
         );
         episodesWithErrors++;
       }
+    }
+
+    // Speichere Episode-URLs am Ende
+    if (episodeLinksToInsert.length > 0) {
+      totalEpisodeLinksInserted = await insertMultipleShowLinks(
+        "Maischberger",
+        episodeLinksToInsert
+      );
+      console.log(
+        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`
+      );
     }
 
     console.log(`\n🎉 VOLLSTÄNDIGER Maischberger 2025 Crawl abgeschlossen!`);

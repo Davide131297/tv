@@ -875,9 +875,16 @@ export default async function CrawlLanz() {
     let totalEpisodeLinksInserted = 0;
     let episodesWithPoliticians = 0;
 
-    // Sammle alle Episode-URLs für Batch-Insert
+    // Sammle Episode-URLs nur von Episoden mit politischen Gästen für Batch-Insert
     const episodeLinksToInsert = finalResults
-      .filter((episode) => episode.date) // Nur Episoden mit gültigem Datum
+      .filter((episode) => {
+        if (!episode.date) return false;
+        // Prüfe ob Episode politische Gäste hat
+        const hasPoliticians = episode.guestsDetailed.some(
+          (guest) => guest.isPolitician && guest.politicianId
+        );
+        return hasPoliticians;
+      })
       .map((episode) => ({
         episodeUrl: episode.episodeUrl,
         episodeDate: episode.date!,
