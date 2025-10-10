@@ -18,6 +18,12 @@ interface InsertTvShowPoliticianData {
   party_name?: string;
 }
 
+interface InsertShowLinkData {
+  show_name: string;
+  episode_url: string;
+  episode_date: string;
+}
+
 // Spezielle Override-Cases für bestimmte Politiker
 export const POLITICIAN_OVERRIDES: Record<string, GuestDetails> = {
   "Manfred Weber": {
@@ -197,4 +203,131 @@ export async function getLatestEpisodeDate(
     console.error("Fehler beim Abrufen des neuesten Datums:", error);
     return null;
   }
+}
+
+// Füge Episode-URL zur show_links Tabelle hinzu (Supabase Version)
+export async function insertShowLink(
+  data: InsertShowLinkData
+): Promise<boolean> {
+  try {
+    // Prüfe ob der Eintrag bereits existiert
+    const { data: existing } = await supabase
+      .from("show_links")
+      .select("id")
+      .eq("show_name", data.show_name)
+      .eq("episode_date", data.episode_date)
+      .single();
+
+    // Falls bereits vorhanden, überspringe
+    if (existing) {
+      return true;
+    }
+
+    const { error } = await supabase.from("show_links").insert({
+      show_name: data.show_name,
+      episode_url: data.episode_url,
+      episode_date: data.episode_date,
+    });
+
+    if (error) {
+      console.error("Fehler beim Einfügen der Episode-URL:", error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Fehler beim Einfügen der Episode-URL:", error);
+    return false;
+  }
+}
+
+// Füge mehrere Episode-URLs zur show_links Tabelle hinzu (Batch Insert)
+export async function insertMultipleShowLinks(
+  showName: string,
+  episodes: Array<{
+    episodeUrl: string;
+    episodeDate: string;
+  }>
+): Promise<number> {
+  if (episodes.length === 0) return 0;
+
+  let insertedCount = 0;
+
+  // Prüfe welche Episoden bereits existieren
+  const existingEpisodes = new Set<string>();
+
+  try {
+    const { data: existing } = await supabase
+      .from("show_links")
+      .select("episode_date")
+      .eq("show_name", showName)
+      .in(
+        "episode_date",
+        episodes.map((e) => e.episodeDate)
+      );
+
+    if (existing) {
+      existing.forEach((row) => existingEpisodes.add(row.episode_date));
+    }
+  } catch (error) {
+    console.error("Fehler beim Prüfen bestehender Episode-URLs:", error);
+  }
+
+  // Filtere neue Episoden heraus
+  const newEpisodes = episodes.filter(
+    (episode) => !existingEpisodes.has(episode.episodeDate)
+  );
+
+  if (newEpisodes.length === 0) {
+    console.log("Alle Episode-URLs bereits vorhanden");
+    return episodes.length; // Zähle als "eingefügt" da bereits vorhanden
+  }
+
+  // Batch insert für neue Episoden
+  const dataToInsert = newEpisodes.map((episode) => ({
+    show_name: showName,
+    episode_url: episode.episodeUrl,
+    episode_date: episode.episodeDate,
+  }));
+
+  try {
+    const { error } = await supabase.from("show_links").insert(dataToInsert);
+
+    if (error) {
+      console.error("Fehler beim Batch-Insert der Episode-URLs:", error);
+
+      // Fallback: Einzeln einfügen
+      for (const episode of newEpisodes) {
+        const success = await insertShowLink({
+          show_name: showName,
+          episode_url: episode.episodeUrl,
+          episode_date: episode.episodeDate,
+        });
+
+        if (success) {
+          insertedCount++;
+        }
+      }
+    } else {
+      insertedCount = newEpisodes.length;
+    }
+  } catch (error) {
+    console.error("Fehler beim Batch-Insert der Episode-URLs:", error);
+
+    // Fallback: Einzeln einfügen
+    for (const episode of newEpisodes) {
+      const success = await insertShowLink({
+        show_name: showName,
+        episode_url: episode.episodeUrl,
+        episode_date: episode.episodeDate,
+      });
+
+      if (success) {
+        insertedCount++;
+      }
+    }
+  }
+
+  // Zähle bereits existierende als "eingefügt"
+  return insertedCount + existingEpisodes.size;
 }

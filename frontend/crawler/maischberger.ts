@@ -7,6 +7,7 @@ import {
   insertMultipleTvShowPoliticians,
   getLatestEpisodeDate,
   checkPoliticianOverride,
+  insertMultipleShowLinks,
 } from "@/lib/supabase-server-utils";
 import { createBrowser, setupSimplePage } from "@/lib/browser-config";
 import { getPoliticalArea } from "@/lib/utils";
@@ -442,8 +443,26 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
     }
 
     let totalPoliticiansInserted = 0;
+    let totalEpisodeLinksInserted = 0;
     let episodesProcessed = 0;
     let episodesWithErrors = 0;
+
+    // Sammle Episode-URLs für Batch-Insert
+    const episodeLinksToInsert = episodes2025.map((episode) => ({
+      episodeUrl: episode.url,
+      episodeDate: episode.date,
+    }));
+
+    // Speichere Episode-URLs
+    if (episodeLinksToInsert.length > 0) {
+      totalEpisodeLinksInserted = await insertMultipleShowLinks(
+        "Maischberger",
+        episodeLinksToInsert
+      );
+      console.log(
+        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`
+      );
+    }
 
     // Verarbeite jede Episode (älteste zuerst für chronologische Reihenfolge)
     const sortedEpisodes = episodes2025.sort(
@@ -570,6 +589,7 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
       `📊 2025 Episoden verarbeitet: ${episodesProcessed}/${sortedEpisodes.length}`
     );
     console.log(`👥 Politiker in DB gespeichert: ${totalPoliticiansInserted}`);
+    console.log(`📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
     console.log(`❌ Episoden mit Fehlern: ${episodesWithErrors}`);
 
     if (episodesWithErrors > 0) {
@@ -614,8 +634,26 @@ export async function crawlMaischberger2025(): Promise<void> {
     }
 
     let totalPoliticiansInserted = 0;
+    let totalEpisodeLinksInserted = 0;
     let episodesProcessed = 0;
     let episodesWithErrors = 0;
+
+    // Sammle Episode-URLs für Batch-Insert
+    const episodeLinksToInsert = all2025Episodes.map((episode) => ({
+      episodeUrl: episode.url,
+      episodeDate: episode.date,
+    }));
+
+    // Speichere Episode-URLs
+    if (episodeLinksToInsert.length > 0) {
+      totalEpisodeLinksInserted = await insertMultipleShowLinks(
+        "Maischberger",
+        episodeLinksToInsert
+      );
+      console.log(
+        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`
+      );
+    }
 
     // Verarbeite jede Episode (älteste zuerst für chronologische Reihenfolge)
     const sortedEpisodes = all2025Episodes.sort(
@@ -746,6 +784,7 @@ export async function crawlMaischberger2025(): Promise<void> {
       `📊 Episoden verarbeitet: ${episodesProcessed}/${sortedEpisodes.length}`
     );
     console.log(`👥 Politiker in DB gespeichert: ${totalPoliticiansInserted}`);
+    console.log(`📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
     console.log(`❌ Episoden mit Fehlern: ${episodesWithErrors}`);
 
     if (episodesWithErrors > 0) {

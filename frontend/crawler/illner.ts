@@ -7,6 +7,7 @@ import {
   getLatestEpisodeDate,
   initTvShowPoliticiansTable,
   checkPoliticianOverride,
+  insertMultipleShowLinks,
 } from "@/lib/supabase-server-utils";
 import { supabase } from "@/lib/supabase";
 import { getPoliticalArea } from "@/lib/utils";
@@ -738,7 +739,25 @@ export async function crawlNewMaybritIllnerEpisodes(): Promise<void> {
     newEpisodes.forEach((ep) => console.log(`   📺 ${ep.date}: ${ep.url}`));
 
     let totalPoliticiansInserted = 0;
+    let totalEpisodeLinksInserted = 0;
     let episodesProcessed = 0;
+
+    // Sammle Episode-URLs für Batch-Insert
+    const episodeLinksToInsert = newEpisodes.map((episode) => ({
+      episodeUrl: episode.url,
+      episodeDate: episode.date,
+    }));
+
+    // Speichere Episode-URLs
+    if (episodeLinksToInsert.length > 0) {
+      totalEpisodeLinksInserted = await insertMultipleShowLinks(
+        "Maybrit Illner",
+        episodeLinksToInsert
+      );
+      console.log(
+        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`
+      );
+    }
 
     // Verarbeite jede neue Episode
     for (const episode of newEpisodes) {
@@ -827,6 +846,7 @@ export async function crawlNewMaybritIllnerEpisodes(): Promise<void> {
     console.log(`\n🎉 Inkrementeller Maybrit Illner Crawl abgeschlossen!`);
     console.log(`📊 Episoden verarbeitet: ${episodesProcessed}`);
     console.log(`👥 Politiker eingefügt: ${totalPoliticiansInserted}`);
+    console.log(`📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
   } finally {
     await browser.close().catch(() => {});
   }
@@ -875,8 +895,26 @@ export async function crawlAllMaybritIllnerEpisodes(): Promise<void> {
     }
 
     let totalPoliticiansInserted = 0;
+    let totalEpisodeLinksInserted = 0;
     let episodesProcessed = 0;
     let episodesWithErrors = 0;
+
+    // Sammle Episode-URLs für Batch-Insert
+    const episodeLinksToInsert = allEpisodes.map((episode) => ({
+      episodeUrl: episode.url,
+      episodeDate: episode.date,
+    }));
+
+    // Speichere Episode-URLs
+    if (episodeLinksToInsert.length > 0) {
+      totalEpisodeLinksInserted = await insertMultipleShowLinks(
+        "Maybrit Illner",
+        episodeLinksToInsert
+      );
+      console.log(
+        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`
+      );
+    }
 
     // Verarbeite jede Episode
     for (let i = 0; i < allEpisodes.length; i++) {
@@ -981,6 +1019,7 @@ export async function crawlAllMaybritIllnerEpisodes(): Promise<void> {
       `📊 Episoden verarbeitet: ${episodesProcessed}/${allEpisodes.length}`
     );
     console.log(`👥 Politiker eingefügt: ${totalPoliticiansInserted}`);
+    console.log(`📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
     console.log(`❌ Episoden mit Fehlern: ${episodesWithErrors}`);
 
     if (episodesWithErrors > 0) {

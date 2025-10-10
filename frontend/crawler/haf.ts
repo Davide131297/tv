@@ -3,6 +3,7 @@ import {
   initTvShowPoliticiansTable,
   insertTvShowPolitician,
   checkPoliticianOverride,
+  insertMultipleShowLinks,
 } from "@/lib/supabase-server-utils";
 import { Page } from "puppeteer";
 import { createBrowser, setupSimplePage } from "@/lib/browser-config";
@@ -487,6 +488,7 @@ export default async function crawlHartAberFair() {
 
   const browser = await createBrowser();
   let processedCount = 0;
+  let totalEpisodeLinksInserted = 0;
 
   try {
     const page = await setupSimplePage(browser);
@@ -499,28 +501,45 @@ export default async function crawlHartAberFair() {
     const episodeLinks = await extractEpisodeLinks(page);
     console.log(`${episodeLinks.length} Episoden gefunden`);
 
+    // Filter episodes for current year and new episodes only
+    const currentYearEpisodes = episodeLinks.filter((ep) => {
+      const episodeYear = parseInt(ep.date.split("-")[0]);
+      if (episodeYear < currentYear) return false;
+      if (latestEpisodeDate && ep.date <= latestEpisodeDate) return false;
+      return true;
+    });
+
+    console.log(
+      `📺 ${currentYearEpisodes.length} neue Episoden aus ${currentYear} zu verarbeiten`
+    );
+
+    // Sammle Episode-URLs für Batch-Insert (convert to full URLs)
+    const episodeLinksToInsert = currentYearEpisodes.map((episode) => {
+      const fullUrl = episode.url.startsWith("http")
+        ? episode.url
+        : `${BASE_URL}${episode.url}`;
+      return {
+        episodeUrl: fullUrl,
+        episodeDate: episode.date,
+      };
+    });
+
+    // Speichere Episode-URLs
+    if (episodeLinksToInsert.length > 0) {
+      totalEpisodeLinksInserted = await insertMultipleShowLinks(
+        "Hart aber fair",
+        episodeLinksToInsert
+      );
+      console.log(
+        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`
+      );
+    }
+
     // Process each episode
-    for (const episodeLink of episodeLinks) {
+    for (const episodeLink of currentYearEpisodes) {
       try {
         console.log(`\n🎬 Verarbeite Episode: ${episodeLink.title}`);
         console.log(`📅 Datum: ${episodeLink.date}`);
-
-        // Check if episode is from current year
-        const episodeYear = parseInt(episodeLink.date.split("-")[0]);
-        if (episodeYear < currentYear) {
-          console.log(
-            `🛑 Episode aus ${episodeYear} erreicht - beende Crawling (nur ${currentYear} Episoden)`
-          );
-          break;
-        }
-
-        // Check if we already have this episode
-        if (latestEpisodeDate && episodeLink.date <= latestEpisodeDate) {
-          console.log(
-            `⏭️ Episode vom ${episodeLink.date} bereits vorhanden, überspringe...`
-          );
-          continue;
-        }
 
         // Extract detailed episode information
         const episodeDetails = await extractEpisodeDetails(page, episodeLink);
@@ -619,4 +638,5 @@ export default async function crawlHartAberFair() {
 
   console.log(`\n=== Crawling abgeschlossen ===`);
   console.log(`${processedCount} neue Episoden verarbeitet`);
+  console.log(`📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
 }
