@@ -18,6 +18,12 @@ interface InsertTvShowPoliticianData {
   party_name?: string;
 }
 
+interface InsertShowLinkData {
+  show_name: string;
+  episode_url: string;
+  episode_date: string;
+}
+
 // Spezielle Override-Cases für bestimmte Politiker
 export const POLITICIAN_OVERRIDES: Record<string, GuestDetails> = {
   "Manfred Weber": {
@@ -197,4 +203,96 @@ export async function getLatestEpisodeDate(
     console.error("Fehler beim Abrufen des neuesten Datums:", error);
     return null;
   }
+}
+
+// Füge Episode-URL zur show_links Tabelle hinzu (Supabase Version)
+export async function insertShowLink(
+  data: InsertShowLinkData
+): Promise<boolean> {
+  try {
+    const { error } = await supabase.from("show_links").upsert(
+      {
+        show_name: data.show_name,
+        episode_url: data.episode_url,
+        episode_date: data.episode_date,
+      },
+      {
+        onConflict: "show_name,episode_date",
+        ignoreDuplicates: true,
+      }
+    );
+
+    if (error) {
+      console.error("Fehler beim Einfügen der Episode-URL:", error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Fehler beim Einfügen der Episode-URL:", error);
+    return false;
+  }
+}
+
+// Füge mehrere Episode-URLs zur show_links Tabelle hinzu (Batch Insert)
+export async function insertMultipleShowLinks(
+  showName: string,
+  episodes: Array<{
+    episodeUrl: string;
+    episodeDate: string;
+  }>
+): Promise<number> {
+  if (episodes.length === 0) return 0;
+
+  let insertedCount = 0;
+
+  // Batch insert für bessere Performance
+  const dataToInsert = episodes.map((episode) => ({
+    show_name: showName,
+    episode_url: episode.episodeUrl,
+    episode_date: episode.episodeDate,
+  }));
+
+  try {
+    const { error } = await supabase.from("show_links").upsert(dataToInsert, {
+      onConflict: "show_name,episode_date",
+      ignoreDuplicates: true,
+    });
+
+    if (error) {
+      console.error("Fehler beim Batch-Insert der Episode-URLs:", error);
+
+      // Fallback: Einzeln einfügen
+      for (const episode of episodes) {
+        const success = await insertShowLink({
+          show_name: showName,
+          episode_url: episode.episodeUrl,
+          episode_date: episode.episodeDate,
+        });
+
+        if (success) {
+          insertedCount++;
+        }
+      }
+    } else {
+      insertedCount = episodes.length;
+    }
+  } catch (error) {
+    console.error("Fehler beim Batch-Insert der Episode-URLs:", error);
+
+    // Fallback: Einzeln einfügen
+    for (const episode of episodes) {
+      const success = await insertShowLink({
+        show_name: showName,
+        episode_url: episode.episodeUrl,
+        episode_date: episode.episodeDate,
+      });
+
+      if (success) {
+        insertedCount++;
+      }
+    }
+  }
+
+  return insertedCount;
 }

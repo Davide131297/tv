@@ -9,6 +9,7 @@ import {
   insertMultipleTvShowPoliticians,
   getLatestEpisodeDate,
   checkPoliticianOverride,
+  insertMultipleShowLinks,
 } from "@/lib/supabase-server-utils";
 import axios from "axios";
 import { Page } from "puppeteer";
@@ -796,7 +797,12 @@ export async function crawlIncrementalCarenMiosgaEpisodes(): Promise<void> {
     newEpisodes.forEach((ep) => console.log(`   📺 ${ep.date}: ${ep.title}`));
 
     let totalPoliticiansInserted = 0;
+    let totalEpisodeLinksInserted = 0;
     let episodesProcessed = 0;
+
+    // Sammle Episode-URLs nur von Episoden mit politischen Gästen für Batch-Insert
+    const episodeLinksToInsert: { episodeUrl: string; episodeDate: string }[] =
+      [];
 
     // Verarbeite jede neue Episode
     for (const episode of newEpisodes) {
@@ -865,8 +871,14 @@ export async function crawlIncrementalCarenMiosgaEpisodes(): Promise<void> {
 
           totalPoliticiansInserted += inserted;
           console.log(
-            `   💾 ${inserted}/${politicians.length} Politiker gespeichert`
+            `   �� ${inserted}/${politicians.length} Politiker gespeichert`
           );
+
+          // Füge Episode-URL zur Liste hinzu (nur für Episoden mit Politikern)
+          episodeLinksToInsert.push({
+            episodeUrl: episode.url,
+            episodeDate: formatDateForDB(episode.date),
+          });
         } else {
           console.log(`   📝 Keine Politiker in dieser Episode`);
         }
@@ -892,9 +904,21 @@ export async function crawlIncrementalCarenMiosgaEpisodes(): Promise<void> {
       }
     }
 
+    // Speichere Episode-URLs am Ende
+    if (episodeLinksToInsert.length > 0) {
+      totalEpisodeLinksInserted = await insertMultipleShowLinks(
+        "Caren Miosga",
+        episodeLinksToInsert
+      );
+      console.log(
+        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`
+      );
+    }
+
     console.log(`\n🎉 Inkrementeller Caren Miosga Crawl abgeschlossen!`);
     console.log(`📊 Episoden verarbeitet: ${episodesProcessed}`);
     console.log(`👥 Politiker eingefügt: ${totalPoliticiansInserted}`);
+    console.log(`📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
   } finally {
     await browser.close().catch(() => {});
   }
@@ -949,8 +973,26 @@ export async function crawlAllCarenMiosgaEpisodes(): Promise<void> {
     }
 
     let totalPoliticiansInserted = 0;
+    let totalEpisodeLinksInserted = 0;
     let episodesProcessed = 0;
     let episodesWithErrors = 0;
+
+    // Sammle Episode-URLs für Batch-Insert
+    const episodeLinksToInsert = sortedEpisodes.map((episode) => ({
+      episodeUrl: episode.url,
+      episodeDate: episode.date,
+    }));
+
+    // Speichere Episode-URLs
+    if (episodeLinksToInsert.length > 0) {
+      totalEpisodeLinksInserted = await insertMultipleShowLinks(
+        "Caren Miosga",
+        episodeLinksToInsert
+      );
+      console.log(
+        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`
+      );
+    }
 
     // Verarbeite jede Episode
     for (let i = 0; i < sortedEpisodes.length; i++) {
@@ -1023,8 +1065,14 @@ export async function crawlAllCarenMiosgaEpisodes(): Promise<void> {
 
           totalPoliticiansInserted += inserted;
           console.log(
-            `   💾 ${inserted}/${politicians.length} Politiker gespeichert`
+            `   �� ${inserted}/${politicians.length} Politiker gespeichert`
           );
+
+          // Füge Episode-URL zur Liste hinzu (nur für Episoden mit Politikern)
+          episodeLinksToInsert.push({
+            episodeUrl: episode.url,
+            episodeDate: formatDateForDB(episode.date),
+          });
         } else {
           console.log(`   📝 Keine Politiker in dieser Episode`);
         }
@@ -1065,6 +1113,7 @@ export async function crawlAllCarenMiosgaEpisodes(): Promise<void> {
       `📊 Episoden verarbeitet: ${episodesProcessed}/${sortedEpisodes.length} (nur 2025)`
     );
     console.log(`👥 Politiker eingefügt: ${totalPoliticiansInserted}`);
+    console.log(`📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
     console.log(`❌ Episoden mit Fehlern: ${episodesWithErrors}`);
 
     if (episodesWithErrors > 0) {

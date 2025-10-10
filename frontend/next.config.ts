@@ -22,45 +22,45 @@ const nextConfig: NextConfig = {
 
     return config;
   },
-  async redirects() {
-    return [
-      {
-        source: "/datenbank",
-        destination: "/",
-        permanent: true,
-      },
-      {
-        source: "/parteien",
-        destination: "/",
-        permanent: true,
-      },
-      {
-        source: "/politiker",
-        destination: "/",
-        permanent: true,
-      },
-      {
-        source: "/politiker-rankings",
-        destination: "/",
-        permanent: true,
-      },
-      {
-        source: "/politische-themen",
-        destination: "/",
-        permanent: true,
-      },
-      {
-        source: "/sendungen",
-        destination: "/",
-        permanent: true,
-      },
-      {
-        source: "/uebersicht",
-        destination: "/",
-        permanent: true,
-      },
-    ];
-  },
+  // async redirects() {
+  //   return [
+  //     {
+  //       source: "/datenbank",
+  //       destination: "/",
+  //       permanent: true,
+  //     },
+  //     {
+  //       source: "/parteien",
+  //       destination: "/",
+  //       permanent: true,
+  //     },
+  //     {
+  //       source: "/politiker",
+  //       destination: "/",
+  //       permanent: true,
+  //     },
+  //     {
+  //       source: "/politiker-rankings",
+  //       destination: "/",
+  //       permanent: true,
+  //     },
+  //     {
+  //       source: "/politische-themen",
+  //       destination: "/",
+  //       permanent: true,
+  //     },
+  //     {
+  //       source: "/sendungen",
+  //       destination: "/",
+  //       permanent: true,
+  //     },
+  //     {
+  //       source: "/uebersicht",
+  //       destination: "/",
+  //       permanent: true,
+  //     },
+  //   ];
+  // },
 };
 
 export default nextConfig;

@@ -256,7 +256,24 @@ function Page() {
               });
 
               return (
-                <div key={episode.episode_date} className="p-4 space-y-3">
+                <div
+                  key={episode.episode_date}
+                  className={`p-4 space-y-3 ${
+                    episode.episode_url
+                      ? "hover:bg-blue-50 cursor-pointer transition-colors"
+                      : ""
+                  }`}
+                  onClick={() => {
+                    if (episode.episode_url) {
+                      window.open(episode.episode_url, "_blank");
+                    }
+                  }}
+                  title={
+                    episode.episode_url
+                      ? "Tippen um Episode zu öffnen"
+                      : "Keine Episode-URL verfügbar"
+                  }
+                >
                   <div className="flex justify-between items-start">
                     <div>
                       <div className="font-medium text-gray-900 text-sm">
@@ -264,10 +281,15 @@ function Page() {
                       </div>
                       <div className="text-xs text-gray-500">{weekday}</div>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right flex flex-col items-end space-y-1">
                       <div className="text-sm font-semibold text-gray-900">
                         {episode.politician_count} Politiker
                       </div>
+                      {episode.episode_url && (
+                        <div className="text-xs text-blue-600">
+                          🔗 Zur Episode
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -320,6 +342,9 @@ function Page() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Wochentag
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Episode
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -333,7 +358,23 @@ function Page() {
                 return (
                   <tr
                     key={episode.episode_date}
-                    className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                    className={`${
+                      index % 2 === 0 ? "bg-white" : "bg-gray-50"
+                    } ${
+                      episode.episode_url
+                        ? "hover:bg-blue-50 cursor-pointer transition-colors"
+                        : ""
+                    }`}
+                    onClick={() => {
+                      if (episode.episode_url) {
+                        window.open(episode.episode_url, "_blank");
+                      }
+                    }}
+                    title={
+                      episode.episode_url
+                        ? "Klicken um Episode zu öffnen"
+                        : "Keine Episode-URL verfügbar"
+                    }
                   >
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {formattedDate}
@@ -366,6 +407,15 @@ function Page() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {weekday}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {episode.episode_url ? (
+                        <span className="inline-flex items-center text-blue-600 hover:text-blue-800">
+                          🔗 Episode öffnen
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">Nicht verfügbar</span>
+                      )}
                     </td>
                   </tr>
                 );

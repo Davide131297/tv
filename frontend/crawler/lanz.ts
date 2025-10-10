@@ -2,6 +2,7 @@ import {
   initTvShowPoliticiansTable,
   checkPoliticianOverride,
   insertMultipleTvShowPoliticians,
+  insertMultipleShowLinks,
 } from "@/lib/supabase-server-utils";
 import { createBrowser, setupSimplePage } from "@/lib/browser-config";
 import { getLatestEpisodeDate } from "@/lib/supabase-server-utils";
@@ -871,7 +872,34 @@ export default async function CrawlLanz() {
     console.log(`\n=== Speichere Daten in Datenbank ===`);
     let totalPoliticiansInserted = 0;
     let totalPoliticalAreasInserted = 0;
+    let totalEpisodeLinksInserted = 0;
     let episodesWithPoliticians = 0;
+
+    // Sammle Episode-URLs nur von Episoden mit politischen Gästen für Batch-Insert
+    const episodeLinksToInsert = finalResults
+      .filter((episode) => {
+        if (!episode.date) return false;
+        // Prüfe ob Episode politische Gäste hat
+        const hasPoliticians = episode.guestsDetailed.some(
+          (guest) => guest.isPolitician && guest.politicianId
+        );
+        return hasPoliticians;
+      })
+      .map((episode) => ({
+        episodeUrl: episode.episodeUrl,
+        episodeDate: episode.date!,
+      }));
+
+    // Speichere Episode-URLs
+    if (episodeLinksToInsert.length > 0) {
+      totalEpisodeLinksInserted = await insertMultipleShowLinks(
+        "Markus Lanz",
+        episodeLinksToInsert
+      );
+      console.log(
+        `Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`
+      );
+    }
 
     for (const episode of finalResults) {
       if (!episode.date) {
@@ -927,6 +955,7 @@ export default async function CrawlLanz() {
     console.log(
       `Politische Themenbereiche gesamt eingefügt: ${totalPoliticalAreasInserted}`
     );
+    console.log(`Episode-URLs gesamt eingefügt: ${totalEpisodeLinksInserted}`);
 
     return {
       message: "Lanz Crawling erfolgreich",

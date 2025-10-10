@@ -7,6 +7,7 @@ import {
   getLatestEpisodeDate,
   initTvShowPoliticiansTable,
   checkPoliticianOverride,
+  insertMultipleShowLinks,
 } from "@/lib/supabase-server-utils";
 import { supabase } from "@/lib/supabase";
 import { getPoliticalArea } from "@/lib/utils";
@@ -738,7 +739,12 @@ export async function crawlNewMaybritIllnerEpisodes(): Promise<void> {
     newEpisodes.forEach((ep) => console.log(`   📺 ${ep.date}: ${ep.url}`));
 
     let totalPoliticiansInserted = 0;
+    let totalEpisodeLinksInserted = 0;
     let episodesProcessed = 0;
+
+    // Sammle Episode-URLs nur von Episoden mit politischen Gästen für Batch-Insert
+    const episodeLinksToInsert: { episodeUrl: string; episodeDate: string }[] =
+      [];
 
     // Verarbeite jede neue Episode
     for (const episode of newEpisodes) {
@@ -787,6 +793,14 @@ export async function crawlNewMaybritIllnerEpisodes(): Promise<void> {
           await new Promise((resolve) => setTimeout(resolve, 300));
         }
 
+        // Nur wenn Episode Politiker hat, füge URL zur Liste hinzu
+        if (politicians.length > 0) {
+          episodeLinksToInsert.push({
+            episodeUrl: episode.url,
+            episodeDate: episode.date,
+          });
+        }
+
         // Speichere Politiker in die Datenbank
         if (politicians.length > 0) {
           const inserted = await insertMultipleTvShowPoliticians(
@@ -824,9 +838,21 @@ export async function crawlNewMaybritIllnerEpisodes(): Promise<void> {
       }
     }
 
+    // Speichere Episode-URLs am Ende
+    if (episodeLinksToInsert.length > 0) {
+      totalEpisodeLinksInserted = await insertMultipleShowLinks(
+        "Maybrit Illner",
+        episodeLinksToInsert
+      );
+      console.log(
+        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`
+      );
+    }
+
     console.log(`\n🎉 Inkrementeller Maybrit Illner Crawl abgeschlossen!`);
     console.log(`📊 Episoden verarbeitet: ${episodesProcessed}`);
     console.log(`👥 Politiker eingefügt: ${totalPoliticiansInserted}`);
+    console.log(`📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
   } finally {
     await browser.close().catch(() => {});
   }
@@ -875,8 +901,13 @@ export async function crawlAllMaybritIllnerEpisodes(): Promise<void> {
     }
 
     let totalPoliticiansInserted = 0;
+    let totalEpisodeLinksInserted = 0;
     let episodesProcessed = 0;
     let episodesWithErrors = 0;
+
+    // Sammle Episode-URLs nur von Episoden mit politischen Gästen für Batch-Insert
+    const episodeLinksToInsert: { episodeUrl: string; episodeDate: string }[] =
+      [];
 
     // Verarbeite jede Episode
     for (let i = 0; i < allEpisodes.length; i++) {
@@ -931,6 +962,14 @@ export async function crawlAllMaybritIllnerEpisodes(): Promise<void> {
           await new Promise((resolve) => setTimeout(resolve, 300));
         }
 
+        // Nur wenn Episode Politiker hat, füge URL zur Liste hinzu
+        if (politicians.length > 0) {
+          episodeLinksToInsert.push({
+            episodeUrl: episode.url,
+            episodeDate: episode.date,
+          });
+        }
+
         // Speichere Politiker in die Datenbank
         if (politicians.length > 0) {
           const inserted = await insertMultipleTvShowPoliticians(
@@ -976,11 +1015,23 @@ export async function crawlAllMaybritIllnerEpisodes(): Promise<void> {
       }
     }
 
+    // Speichere Episode-URLs am Ende
+    if (episodeLinksToInsert.length > 0) {
+      totalEpisodeLinksInserted = await insertMultipleShowLinks(
+        "Maybrit Illner",
+        episodeLinksToInsert
+      );
+      console.log(
+        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`
+      );
+    }
+
     console.log(`\n🎉 VOLLSTÄNDIGER Maybrit Illner Crawl abgeschlossen!`);
     console.log(
       `📊 Episoden verarbeitet: ${episodesProcessed}/${allEpisodes.length}`
     );
     console.log(`👥 Politiker eingefügt: ${totalPoliticiansInserted}`);
+    console.log(`📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
     console.log(`❌ Episoden mit Fehlern: ${episodesWithErrors}`);
 
     if (episodesWithErrors > 0) {

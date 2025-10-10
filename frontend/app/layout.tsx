@@ -31,12 +31,12 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 min-h-full flex flex-col`}
       >
         <Navigation />
-        <div className="mx-auto bg-red-100 rounded-2xl p-3 mt-2.5">
+        {/* <div className="mx-auto bg-red-100 rounded-2xl p-3 mt-2.5">
           <p>
             ⚠️ Diese Seite befindet sich noch im Aufbau und wird stetig
             erweitert. Gleich sind die Seiten wieder erreichbar. ⚠️
           </p>
-        </div>
+        </div> */}
         <main className="flex-grow">{children}</main>
         <Footer />
         <Analytics />
