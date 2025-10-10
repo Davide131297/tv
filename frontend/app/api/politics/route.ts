@@ -183,30 +183,49 @@ export async function GET(request: NextRequest) {
       }
 
       case "episodes-with-politicians": {
-        // Episoden mit Politiker-Namen
+        // Episoden mit Politiker-Namen und Episode-URLs
         const showName = searchParams.get("show") || "Markus Lanz";
         const limit = parseInt(searchParams.get("limit") || "0"); // 0 = alle
 
-        let query = supabase
+        // Erste Abfrage: Hole alle Politiker-Daten
+        let politiciansQuery = supabase
           .from("tv_show_politicians")
           .select("episode_date, politician_name, party_name")
           .eq("show_name", showName)
           .order("episode_date", { ascending: false });
 
-        // Nur limitieren wenn explizit gesetzt
         if (limit > 0) {
-          query = query.limit(limit);
+          politiciansQuery = politiciansQuery.limit(limit);
         }
 
-        const { data, error } = await query;
+        const { data: politiciansData, error: politiciansError } =
+          await politiciansQuery;
 
-        if (error) {
-          throw error;
+        if (politiciansError) {
+          throw politiciansError;
+        }
+
+        // Zweite Abfrage: Hole Episode-URLs für die Show
+        const { data: showLinksData, error: showLinksError } = await supabase
+          .from("show_links")
+          .select("episode_date, episode_url")
+          .eq("show_name", showName);
+
+        if (showLinksError) {
+          console.warn("Warning: Could not fetch show links:", showLinksError);
+        }
+
+        // Erstelle eine Map für schnelle URL-Lookups
+        const urlMap = new Map<string, string>();
+        if (showLinksData) {
+          showLinksData.forEach((link) => {
+            urlMap.set(link.episode_date, link.episode_url);
+          });
         }
 
         // Gruppiere nach episode_date
         const episodeMap = new Map<string, string[]>();
-        data.forEach((result) => {
+        politiciansData.forEach((result) => {
           if (!episodeMap.has(result.episode_date)) {
             episodeMap.set(result.episode_date, []);
           }
@@ -218,8 +237,9 @@ export async function GET(request: NextRequest) {
           ([date, politicianNames]) => ({
             episode_date: date,
             politician_count: politicianNames.length,
+            episode_url: urlMap.get(date) || null,
             politicians: politicianNames.map((name) => {
-              const result = data.find(
+              const result = politiciansData.find(
                 (r) => r.politician_name === name && r.episode_date === date
               );
               return {
@@ -232,7 +252,7 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json({
           success: true,
-          data: episodesWithPoliticians, // Entferne das slice(0, 50)
+          data: episodesWithPoliticians,
         });
       }
 

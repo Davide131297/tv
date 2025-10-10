@@ -85,6 +85,7 @@ export interface EpisodeData {
   episode_date: string;
   politician_count: number;
   politicians: PoliticianInEpisode[];
+  episode_url?: string; // Optional URL from show_links table
 }
 
 // =============================================================================
