@@ -66,10 +66,16 @@ export default function LastShowTable({ episodes }: LastShowTableProps) {
                     <div className="text-sm font-semibold text-gray-900">
                       {episode.politician_count} Politiker
                     </div>
-                    {episode.episode_url && (
-                      <div className="text-xs text-blue-600">
-                        🔗 Zur Episode
-                      </div>
+                    {episode.episode_url ? (
+                      <Link
+                        href={episode.episode_url}
+                        target="_blank"
+                        className="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm"
+                      >
+                        🔗 Episode öffnen
+                      </Link>
+                    ) : (
+                      <span className="text-gray-400">Nicht verfügbar</span>
                     )}
                   </div>
                 </div>
