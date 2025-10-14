@@ -78,7 +78,7 @@ export default function Navigation() {
           </div>
 
           {/* Navigation Menu */}
-          <NavigationMenu className="hidden md:flex">
+          <NavigationMenu className="hidden xl:flex">
             <NavigationMenuList>
               <NavigationMenuItem>
                 <NavigationMenuTrigger>Ansichten</NavigationMenuTrigger>
@@ -101,7 +101,7 @@ export default function Navigation() {
           </NavigationMenu>
 
           {/* Mobile Navigation */}
-          <div className="md:hidden">
+          <div className="xl:hidden">
             <DropdownMenu onOpenChange={setIsOpen}>
               <DropdownMenuTrigger className="p-2 rounded-md hover:bg-gray-100 transition-colors">
                 <div className="w-6 h-6 flex flex-col justify-center items-center">
