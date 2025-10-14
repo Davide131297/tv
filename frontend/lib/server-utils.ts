@@ -100,66 +100,6 @@ export function checkPoliticianOverride(name: string): GuestDetails | null {
   return null;
 }
 
-// Erstelle die Tabelle falls sie nicht existiert
-export function initTvShowPoliticiansTable() {
-  console.log(
-    "Initialisiere Tabelle 'tv_show_politicians' (falls nicht vorhanden)..."
-  );
-
-  // Erstelle Tabelle nur falls sie nicht existiert (KEINE Löschung!)
-  const createTableSQL = `
-    CREATE TABLE IF NOT EXISTS tv_show_politicians (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      show_name TEXT NOT NULL,
-      episode_date DATE NOT NULL,
-      politician_id INTEGER NOT NULL,
-      politician_name TEXT NOT NULL,
-      party_id INTEGER,
-      party_name TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      
-      -- UNIQUE constraint: Ein Politiker kann nur einmal pro Sendung/Datum erscheinen
-      UNIQUE(show_name, episode_date, politician_id)
-    )
-  `;
-
-  db.exec(createTableSQL);
-
-  // Migration: Füge fehlende Spalten hinzu falls sie nicht existieren
-  try {
-    db.exec("ALTER TABLE tv_show_politicians ADD COLUMN politician_id INTEGER");
-    console.log("✅ Spalte 'politician_id' hinzugefügt");
-  } catch {
-    // Spalte existiert bereits
-  }
-
-  try {
-    db.exec("ALTER TABLE tv_show_politicians ADD COLUMN party_id INTEGER");
-    console.log("✅ Spalte 'party_id' hinzugefügt");
-  } catch {
-    // Spalte existiert bereits
-  }
-
-  // Indices für bessere Performance
-  db.exec(`
-    CREATE INDEX IF NOT EXISTS idx_tv_show_politicians_show_date 
-    ON tv_show_politicians(show_name, episode_date)
-  `);
-
-  db.exec(`
-    CREATE INDEX IF NOT EXISTS idx_tv_show_politicians_politician 
-    ON tv_show_politicians(politician_id)
-  `);
-
-  db.exec(`
-    CREATE INDEX IF NOT EXISTS idx_tv_show_politicians_party 
-    ON tv_show_politicians(party_id)
-  `);
-
-  console.log("Tabelle 'tv_show_politicians' erfolgreich initialisiert!");
-}
-
 // Füge mehrere Politiker zu einer Sendung hinzu
 export function insertMultipleTvShowPoliticians(
   showName: string,

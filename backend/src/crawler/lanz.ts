@@ -1,14 +1,15 @@
-import puppeteer, { Page } from "puppeteer";
-import axios from "axios";
-import { AbgeordnetenwatchPolitician } from "../types/abgeordnetenwatch.js";
 import {
-  initTvShowPoliticiansTable,
-  insertMultipleTvShowPoliticians,
   getLatestEpisodeDate,
-} from "../db-tv-shows.js";
-import { checkPoliticianOverride } from "../politician-overrides.js";
-
-const LIST_URL = "https://www.zdf.de/talk/markus-lanz-114";
+  getPoliticalArea,
+  insertMultipleShowLinks,
+  checkPolitician,
+  insertEpisodePoliticalAreas,
+  insertMultipleTvShowPoliticians,
+} from "../lib/utils";
+import { createBrowser, setupSimplePage } from "../lib/browser-configs";
+import { Page } from "puppeteer";
+import axios from "axios";
+import type { AbgeordnetenwatchPolitician } from "../types/abgeordnetenwatch";
 
 // ---------------- Types ----------------
 
@@ -31,14 +32,33 @@ interface EpisodeResult {
   date: string | null;
   guests: string[];
   guestsDetailed: GuestDetails[];
+  politicalAreaIds?: number[];
 }
+
+const LIST_URL = "https://www.zdf.de/talk/markus-lanz-114";
+
+const DE_MONTHS: Record<string, string> = {
+  januar: "01",
+  februar: "02",
+  märz: "03",
+  maerz: "03",
+  april: "04",
+  mai: "05",
+  juni: "06",
+  juli: "07",
+  august: "08",
+  september: "09",
+  oktober: "10",
+  november: "11",
+  dezember: "12",
+};
 
 // ---------------- Lade mehr / Episoden-Links ----------------
 
 async function clickLoadMoreUntilDone(
   page: Page,
   latestDbDate: string | null,
-  maxClicks = 50
+  maxClicks = 100 // Erhöht von 50 auf 100 für mehr Episoden
 ) {
   console.log("Beginne mit intelligentem Laden der Episoden...");
 
@@ -78,19 +98,18 @@ async function clickLoadMoreUntilDone(
     console.log(`Älteste sichtbare Episode: ${oldestVisibleDate}`);
     console.log(`Neueste DB-Episode: ${latestDbDate}`);
 
-    if (newerEpisodesCount > 0) {
+    // Prüfe ob wir schon bis zum 07.01.2025 oder dem DB-Datum zurück sind
+    if (oldestVisibleDate && oldestVisibleDate <= latestDbDate) {
       console.log(
-        "✅ Neue Episoden bereits sichtbar - überspringe weiteres Laden"
+        "✅ Bereits bis zur neuesten DB-Episode geladen - überspringe weiteres Laden"
       );
       return;
     }
 
-    // Da ZDF die neuesten Episoden zuerst zeigt:
-    // Wenn keine neuen Episoden in den ersten 27 sichtbar sind, gibt es keine neuen
+    // Wenn wir noch nicht weit genug zurück sind, weiterladen
     console.log(
-      "🚫 Keine neuen Episoden in den initialen Episoden - Abbruch ohne weiteres Laden"
+      "� Noch nicht alle relevanten Episoden geladen - lade weitere..."
     );
-    return;
   }
 
   for (let i = 0; i < maxClicks; i++) {
@@ -126,7 +145,7 @@ async function clickLoadMoreUntilDone(
           hasButton.click(),
         ]);
         console.log(`Netzwerk-Response: ${response.status()}`);
-      } catch (e) {
+      } catch {
         console.log("Button-Klick ohne Response - versuche trotzdem");
         await hasButton.click();
       }
@@ -152,7 +171,7 @@ async function clickLoadMoreUntilDone(
     );
     console.log(`Episode-Count: ${currentCount} -> ${newCount}`);
 
-    // Nach dem Laden: Prüfe ob wir jetzt neue Episoden haben
+    // Nach dem Laden: Prüfe ob wir jetzt weit genug zurück sind
     if (latestDbDate && newCount > currentCount) {
       const currentUrls = await page.$$eval(
         'a[href^="/video/talk/markus-lanz-114/"]',
@@ -160,18 +179,33 @@ async function clickLoadMoreUntilDone(
       );
 
       let newerEpisodesCount = 0;
+      let oldestVisibleDate: string | null = null;
+
       for (const url of currentUrls) {
         const urlDate = parseISODateFromUrl(url);
-        if (urlDate && urlDate > latestDbDate) {
-          newerEpisodesCount++;
+        if (urlDate) {
+          if (!oldestVisibleDate || urlDate < oldestVisibleDate) {
+            oldestVisibleDate = urlDate;
+          }
+          if (urlDate > latestDbDate) {
+            newerEpisodesCount++;
+          }
         }
       }
 
-      if (newerEpisodesCount > 0) {
+      console.log(`Aktuell ${newerEpisodesCount} neue Episoden sichtbar`);
+      console.log(`Älteste sichtbare Episode: ${oldestVisibleDate}`);
+
+      // Stoppe nur wenn wir bis zur DB-Episode oder weiter zurück geladen haben
+      if (oldestVisibleDate && oldestVisibleDate <= latestDbDate) {
         console.log(
-          `✅ ${newerEpisodesCount} neue Episoden gefunden - stoppe weitere Suche`
+          `✅ Alle relevanten Episoden geladen (bis ${oldestVisibleDate}) - stoppe weitere Suche`
         );
         break;
+      } else {
+        console.log(
+          `🔄 Noch nicht weit genug zurück (${oldestVisibleDate} > ${latestDbDate}) - lade weitere...`
+        );
       }
     }
 
@@ -224,30 +258,16 @@ function seemsLikePersonName(name: string) {
 function toISOFromDDMMYYYY(d: string) {
   const m = d.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
   if (!m) return null;
+  //eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_, dd, mm, yyyy] = m;
   return `${yyyy}-${mm}-${dd}`;
 }
 
-const DE_MONTHS: Record<string, string> = {
-  januar: "01",
-  februar: "02",
-  märz: "03",
-  maerz: "03",
-  april: "04",
-  mai: "05",
-  juni: "06",
-  juli: "07",
-  august: "08",
-  september: "09",
-  oktober: "10",
-  november: "11",
-  dezember: "12",
-};
-
 function parseISODateFromUrl(url: string): string | null {
   const m = url.match(/vom-(\d{1,2})-([a-zäöü]+)-(\d{4})/i);
   if (!m) return null;
-  let [_, d, mon, y] = m;
+  //eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_, d, mon, y] = m;
   const key = mon
     .normalize("NFD")
     .replace(/\u0308/g, "")
@@ -273,6 +293,7 @@ async function extractDateISO(
         "endDate",
       ];
       const out: string[] = [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       function collect(obj: any) {
         if (!obj || typeof obj !== "object") return;
         for (const k of fields) {
@@ -326,98 +347,6 @@ async function extractDateISO(
 function splitFirstLast(name: string) {
   const parts = name.split(/\s+/).filter(Boolean);
   return { first: parts[0] ?? "", last: parts.slice(1).join(" ").trim() };
-}
-
-export async function checkPolitician(
-  name: string,
-  role?: string
-): Promise<GuestDetails> {
-  // Prüfe zuerst Override-Cases
-  const override = checkPoliticianOverride(name);
-  if (override) {
-    return override;
-  }
-
-  const { first, last } = splitFirstLast(name);
-  if (!first || !last) {
-    return {
-      name,
-      isPolitician: false,
-      politicianId: null,
-    };
-  }
-
-  const url = `https://www.abgeordnetenwatch.de/api/v2/politicians?first_name=${encodeURIComponent(
-    first
-  )}&last_name=${encodeURIComponent(last)}`;
-
-  try {
-    const { data } = await axios.get(url, { timeout: 10000 });
-    const politicians: AbgeordnetenwatchPolitician[] = data?.data || [];
-
-    if (politicians.length === 0) {
-      return {
-        name,
-        isPolitician: false,
-        politicianId: null,
-      };
-    }
-
-    if (politicians.length === 1) {
-      // Nur ein Treffer - verwende ihn direkt
-      const hit = politicians[0];
-      return {
-        name,
-        isPolitician: true,
-        politicianId: hit.id,
-        politicianName: hit.label || name,
-        party: hit.party?.id,
-        partyName: hit.party?.label,
-      };
-    }
-
-    // Mehrere Treffer - versuche Disambiguierung über ZDF-Rolle
-    if (role && politicians.length > 1) {
-      console.log(
-        `🔍 Disambiguierung für ${name}: ${politicians.length} Treffer gefunden, Rolle: "${role}"`
-      );
-
-      const selectedPolitician = disambiguateByRole(politicians, role);
-      if (selectedPolitician) {
-        console.log(
-          `✅ Politiker ausgewählt: ${selectedPolitician.label} (${selectedPolitician.party?.label})`
-        );
-        return {
-          name,
-          isPolitician: true,
-          politicianId: selectedPolitician.id,
-          politicianName: selectedPolitician.label || name,
-          party: selectedPolitician.party?.id,
-          partyName: selectedPolitician.party?.label,
-        };
-      }
-    }
-
-    // Fallback: ersten Treffer verwenden
-    console.log(
-      `⚠️  Keine eindeutige Zuordnung für ${name}, verwende ersten Treffer`
-    );
-    const hit = politicians[0];
-    return {
-      name,
-      isPolitician: true,
-      politicianId: hit.id,
-      politicianName: hit.label || name,
-      party: hit.party?.id,
-      partyName: hit.party?.label,
-    };
-  } catch {
-    return {
-      name,
-      isPolitician: false,
-      politicianId: null,
-    };
-  }
 }
 
 // Hilfsfunktion zur Disambiguierung basierend auf ZDF-Rolle
@@ -564,36 +493,66 @@ async function extractGuestsFromEpisode(
   return uniqueGuests;
 }
 
-// ---------------- Hauptlauf ----------------
+// ---------------- Episode Text Extraktion ----------------
 
-export async function crawlAllMarkusLanzEpisodes(): Promise<EpisodeResult[]> {
-  // Stelle sicher dass die Datenbank-Tabelle existiert
-  initTvShowPoliticiansTable();
+async function extractPoliticalAreaIds(
+  page: Page
+): Promise<number[] | [] | null> {
+  try {
+    // Mehrere Selektoren versuchen für die Episode-Beschreibung
+    const selectors = [
+      'p[data-testid="short-description"]',
+      "p.daltwma",
+      "p.dfv1fla", // Fallback aus dem HTML
+      "section p:not(:empty)", // Allgemeiner Fallback
+    ];
 
+    let description: string | null = null;
+
+    for (const selector of selectors) {
+      description = await page
+        .$eval(selector, (el) => {
+          const text = (el.textContent || "").trim();
+          // Filtere sehr kurze oder generische Texte aus
+          if (
+            text.length < 20 ||
+            text.includes("Abspielen") ||
+            text.includes("Merken")
+          ) {
+            return null;
+          }
+          return text;
+        })
+        .catch(() => null);
+
+      if (description) {
+        break; // Beende die Schleife sofort
+      }
+    }
+
+    if (description) {
+      const politicalAreaIds = await getPoliticalArea(description);
+      return politicalAreaIds;
+    } else {
+      return null;
+    }
+  } catch (error) {
+    console.warn(`Fehler beim Extrahieren der Episode-Beschreibung:`, error);
+    return null;
+  }
+}
+
+export default async function CrawlLanz() {
   // Hole das Datum der neuesten Episode aus der DB
-  const latestEpisodeDate = getLatestEpisodeDate("Markus Lanz");
+  const latestEpisodeDate = await getLatestEpisodeDate("Markus Lanz");
   console.log(
     `Neueste Episode in DB: ${latestEpisodeDate || "Keine vorhanden"}`
   );
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-    ],
-  });
+  const browser = await createBrowser();
 
   try {
-    const page = await browser.newPage();
-    await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
-    );
-    await page.setViewport({ width: 1280, height: 1000 });
-    await page.setExtraHTTPHeaders({
-      "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
-    });
+    const page = await setupSimplePage(browser);
     await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 60000 });
 
     // Cookie-Banner akzeptieren falls vorhanden
@@ -604,7 +563,7 @@ export async function crawlAllMarkusLanzEpisodes(): Promise<EpisodeResult[]> {
       await page.click('[data-testid="cmp-accept-all"]');
       console.log("Cookie-Banner akzeptiert");
       await new Promise((resolve) => setTimeout(resolve, 2000));
-    } catch (e) {
+    } catch {
       console.log("Kein Cookie-Banner gefunden oder bereits akzeptiert");
     }
 
@@ -615,7 +574,10 @@ export async function crawlAllMarkusLanzEpisodes(): Promise<EpisodeResult[]> {
 
     if (!episodeUrls.length) {
       console.warn("Keine Episoden-Links gefunden (clientseitig).");
-      return [];
+      return {
+        message: "Keine Episoden-Links gefunden",
+        status: 404,
+      };
     }
 
     // Filtere URLs nach Datum - nur neuere als die neueste in der DB
@@ -637,7 +599,10 @@ export async function crawlAllMarkusLanzEpisodes(): Promise<EpisodeResult[]> {
 
     if (!filteredUrls.length) {
       console.log("Keine neuen Episoden zu crawlen gefunden");
-      return [];
+      return {
+        message: "Keine neuen Episoden zu crawlen gefunden",
+        status: 200,
+      };
     }
 
     // Debug: zeige die ersten paar URLs und Daten
@@ -665,11 +630,12 @@ export async function crawlAllMarkusLanzEpisodes(): Promise<EpisodeResult[]> {
 
       const batchResults = await Promise.all(
         batch.map(async (url) => {
-          const p = await browser.newPage();
+          const p = await setupSimplePage(browser);
           try {
-            const [guests, date] = await Promise.all([
+            const [guests, date, politicalAreaIds] = await Promise.all([
               extractGuestsFromEpisode(p, url),
               extractDateISO(p, url),
+              extractPoliticalAreaIds(p),
             ]);
 
             // Politiker-Check je Gast (sequentiell um API-Limits zu respektieren)
@@ -689,6 +655,7 @@ export async function crawlAllMarkusLanzEpisodes(): Promise<EpisodeResult[]> {
               date,
               guests: guestNames,
               guestsDetailed,
+              politicalAreaIds: politicalAreaIds || [],
             };
 
             // Dedup: pro Datum nur ein Eintrag, ggf. den mit mehr Gästen behalten
@@ -769,7 +736,35 @@ export async function crawlAllMarkusLanzEpisodes(): Promise<EpisodeResult[]> {
     // Speichere politische Gäste in der Datenbank
     console.log(`\n=== Speichere Daten in Datenbank ===`);
     let totalPoliticiansInserted = 0;
+    let totalPoliticalAreasInserted = 0;
+    let totalEpisodeLinksInserted = 0;
     let episodesWithPoliticians = 0;
+
+    // Sammle Episode-URLs nur von Episoden mit politischen Gästen für Batch-Insert
+    const episodeLinksToInsert = finalResults
+      .filter((episode) => {
+        if (!episode.date) return false;
+        // Prüfe ob Episode politische Gäste hat
+        const hasPoliticians = episode.guestsDetailed.some(
+          (guest) => guest.isPolitician && guest.politicianId
+        );
+        return hasPoliticians;
+      })
+      .map((episode) => ({
+        episodeUrl: episode.episodeUrl,
+        episodeDate: episode.date!,
+      }));
+
+    // Speichere Episode-URLs
+    if (episodeLinksToInsert.length > 0) {
+      totalEpisodeLinksInserted = await insertMultipleShowLinks(
+        "Markus Lanz",
+        episodeLinksToInsert
+      );
+      console.log(
+        `Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`
+      );
+    }
 
     for (const episode of finalResults) {
       if (!episode.date) {
@@ -787,8 +782,9 @@ export async function crawlAllMarkusLanzEpisodes(): Promise<EpisodeResult[]> {
           partyName: guest.partyName,
         }));
 
+      // Speichere Politiker
       if (politicians.length > 0) {
-        const inserted = insertMultipleTvShowPoliticians(
+        const inserted = await insertMultipleTvShowPoliticians(
           "Markus Lanz",
           episode.date,
           politicians
@@ -801,29 +797,31 @@ export async function crawlAllMarkusLanzEpisodes(): Promise<EpisodeResult[]> {
           `${episode.date}: ${inserted}/${politicians.length} Politiker eingefügt`
         );
       }
+
+      // Speichere politische Themenbereiche
+      if (episode.politicalAreaIds && episode.politicalAreaIds.length > 0) {
+        const insertedAreas = await insertEpisodePoliticalAreas(
+          "Markus Lanz",
+          episode.date,
+          episode.politicalAreaIds
+        );
+
+        totalPoliticalAreasInserted += insertedAreas;
+
+        console.log(
+          `${episode.date}: ${insertedAreas}/${episode.politicalAreaIds.length} Themenbereiche eingefügt`
+        );
+      }
     }
 
     console.log(`\n=== Datenbank-Speicherung Zusammenfassung ===`);
     console.log(`Episoden mit Politikern: ${episodesWithPoliticians}`);
     console.log(`Politiker gesamt eingefügt: ${totalPoliticiansInserted}`);
-
-    return finalResults;
-  } finally {
-    await browser.close().catch(() => {});
+    console.log(
+      `Politische Themenbereiche gesamt eingefügt: ${totalPoliticalAreasInserted}`
+    );
+    console.log(`Episode-URLs gesamt eingefügt: ${totalEpisodeLinksInserted}`);
+  } catch {
+    console.error("Schwerer Fehler im Crawl-Prozess");
   }
-}
-
-// Hauptausführung wenn das Skript direkt aufgerufen wird
-if (import.meta.url === `file://${process.argv[1]}`) {
-  crawlAllMarkusLanzEpisodes()
-    .then((results) => {
-      console.log(
-        `✅ Crawling abgeschlossen. ${results.length} Episoden verarbeitet.`
-      );
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error("❌ Fehler beim Crawling:", error);
-      process.exit(1);
-    });
 }

@@ -112,14 +112,6 @@ export function checkPoliticianOverride(name: string): GuestDetails | null {
   return null;
 }
 
-// Diese Funktion ist für Supabase nicht notwendig, da die Tabelle bereits existiert
-// Wird für Kompatibilität beibehalten aber macht nichts
-export function initTvShowPoliticiansTable() {
-  console.log(
-    "Supabase: Tabelle wird remote verwaltet - keine lokale Initialisierung nötig"
-  );
-}
-
 // Füge mehrere Politiker zu einer Sendung hinzu (Supabase Version)
 export async function insertMultipleTvShowPoliticians(
   showName: string,

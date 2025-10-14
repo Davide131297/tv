@@ -5,7 +5,6 @@ import type { AbgeordnetenwatchPolitician } from "@/types";
 import {
   insertMultipleTvShowPoliticians,
   getLatestEpisodeDate,
-  initTvShowPoliticiansTable,
   checkPoliticianOverride,
   insertMultipleShowLinks,
 } from "@/lib/supabase-server-utils";
@@ -707,9 +706,6 @@ export async function crawlNewMaybritIllnerEpisodes(): Promise<void> {
   console.log("🚀 Starte inkrementellen Maybrit Illner Crawler...");
   console.log(`📅 Datum: ${new Date().toISOString()}`);
 
-  // Stelle sicher dass die Tabelle existiert
-  initTvShowPoliticiansTable();
-
   // Hole das letzte Datum aus der DB
   const latestDbDate = await getLatestEpisodeDate("Maybrit Illner");
   console.log(`🗃️  Letzte Episode in DB: ${latestDbDate || "Keine"}`);
@@ -862,9 +858,6 @@ export async function crawlNewMaybritIllnerEpisodes(): Promise<void> {
 export async function crawlAllMaybritIllnerEpisodes(): Promise<void> {
   console.log("🚀 Starte VOLLSTÄNDIGEN Maybrit Illner Crawler...");
   console.log(`📅 Datum: ${new Date().toISOString()}`);
-
-  // Stelle sicher dass die Tabelle existiert
-  initTvShowPoliticiansTable();
 
   const browser = await createBrowser();
 

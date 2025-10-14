@@ -5,7 +5,6 @@ import type {
   GuestWithRole,
 } from "@/types";
 import {
-  initTvShowPoliticiansTable,
   insertMultipleTvShowPoliticians,
   getLatestEpisodeDate,
   checkPoliticianOverride,
@@ -773,9 +772,6 @@ export async function crawlIncrementalCarenMiosgaEpisodes(): Promise<void> {
   console.log("🚀 Starte inkrementellen Caren Miosga Crawler...");
   console.log(`📅 Datum: ${new Date().toISOString()}`);
 
-  // Stelle sicher dass die Tabelle existiert
-  initTvShowPoliticiansTable();
-
   // Hole das letzte Datum aus der DB
   const latestDbDate = await getLatestEpisodeDate("Caren Miosga");
   console.log(`🗃️  Letzte Episode in DB: ${latestDbDate || "Keine"}`);
@@ -928,9 +924,6 @@ export async function crawlIncrementalCarenMiosgaEpisodes(): Promise<void> {
 export async function crawlAllCarenMiosgaEpisodes(): Promise<void> {
   console.log("🚀 Starte VOLLSTÄNDIGEN Caren Miosga Crawler (nur 2025)...");
   console.log(`📅 Datum: ${new Date().toISOString()}`);
-
-  // Stelle sicher dass die Tabelle existiert
-  initTvShowPoliticiansTable();
 
   const browser = await createBrowser();
 

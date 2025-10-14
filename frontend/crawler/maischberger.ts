@@ -3,7 +3,6 @@ import axios from "axios";
 import { InferenceClient } from "@huggingface/inference";
 import type { AbgeordnetenwatchPolitician } from "@/types";
 import {
-  initTvShowPoliticiansTable,
   insertMultipleTvShowPoliticians,
   getLatestEpisodeDate,
   checkPoliticianOverride,
@@ -400,9 +399,6 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
   console.log(`📅 Datum: ${new Date().toISOString()}`);
   console.log(`🎯 Filterung: Nur Episoden aus dem Jahr 2025`);
 
-  // Stelle sicher dass die Tabelle existiert
-  initTvShowPoliticiansTable();
-
   // Hole das letzte Datum aus der DB
   const latestDbDate = await await getLatestEpisodeDate("Maischberger");
   console.log(`🗃️  Letzte Episode in DB: ${latestDbDate || "Keine"}`);
@@ -618,9 +614,6 @@ export async function crawlMaischberger2025(): Promise<void> {
   console.log("🚀 Starte VOLLSTÄNDIGEN Maischberger 2025 Crawler...");
   console.log(`📅 Datum: ${new Date().toISOString()}`);
   console.log(`🎯 Ziel: Alle Episoden ab 21.01.2025 bis heute`);
-
-  // Stelle sicher dass die Tabelle existiert
-  initTvShowPoliticiansTable();
 
   const browser = await createBrowser();
 

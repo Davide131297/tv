@@ -1,5 +1,4 @@
 import {
-  initTvShowPoliticiansTable,
   checkPoliticianOverride,
   insertMultipleTvShowPoliticians,
   insertMultipleShowLinks,
@@ -676,8 +675,6 @@ async function insertEpisodePoliticalAreas(
 }
 
 export default async function CrawlLanz() {
-  initTvShowPoliticiansTable();
-
   // Hole das Datum der neuesten Episode aus der DB
   const latestEpisodeDate = await getLatestEpisodeDate("Markus Lanz");
   console.log(
