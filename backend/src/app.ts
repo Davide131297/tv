@@ -12,7 +12,7 @@ const logger = pino();
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3005;
+const PORT = process.env.PORT || 9000;
 
 // Lanz: Mittwochs, Donnerstags und Freitags um 2 Uhr morgens
 cron.schedule("0 2 * * 3,4,5", async () => {

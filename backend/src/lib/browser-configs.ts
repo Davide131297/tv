@@ -34,9 +34,8 @@ export async function createBrowser() {
         "--disable-web-security",
         "--disable-features=VizDisplayCompositor",
       ],
-      defaultViewport: chromium.default.defaultViewport,
       executablePath: await chromium.default.executablePath(),
-      headless: chromium.default.headless,
+      headless: true,
     };
   } else if (isProduction) {
     // Andere Production Environments

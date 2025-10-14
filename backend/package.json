@@ -7,6 +7,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/app.ts",
+    "start": "node dist/app.js",
     "dev:ts-node": "node --loader ts-node/esm src/app.ts",
     "watch": "tsc --watch"
   },
