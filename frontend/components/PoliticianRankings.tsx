@@ -9,9 +9,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Eye } from "lucide-react";
 import { FETCH_HEADERS } from "@/lib/utils";
 import { BADGE_PARTY_COLORS } from "@/types";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import Link from "next/link";
 
 interface PoliticianRanking {
   politician_name: string;
@@ -439,9 +445,29 @@ export default function PoliticianRankings() {
                               {/* Desktop Layout */}
                               <div className="hidden sm:flex gap-4 items-center justify-between">
                                 <div className="flex-1 min-w-0">
-                                  <h3 className="font-semibold text-lg truncate">
-                                    {politician.politician_name}
-                                  </h3>
+                                  <div className="flex gap-2.5 items-center">
+                                    <h3 className="font-semibold text-lg truncate">
+                                      {politician.politician_name}
+                                    </h3>
+                                    <Tooltip>
+                                      <TooltipTrigger>
+                                        <Link
+                                          href={`politiker?search=${politician.politician_name.replace(
+                                            / /g,
+                                            "+"
+                                          )}`}
+                                        >
+                                          <Eye
+                                            className="cursor-pointer"
+                                            size={16}
+                                          />
+                                        </Link>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Genauer ansehen</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </div>
                                   <div className="flex flex-wrap gap-2 mt-1">
                                     <Badge
                                       className={getPartyColorClass(
