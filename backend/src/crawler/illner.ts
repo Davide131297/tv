@@ -1,4 +1,4 @@
-import { createBrowser, setupSimplePage } from "../lib/browser-configs";
+import { createBrowser, setupSimplePage } from "../lib/browser-configs.js";
 import {
   getLatestEpisodeDate,
   getPoliticalArea,
@@ -7,7 +7,7 @@ import {
   checkPolitician,
   insertEpisodePoliticalAreas,
   insertMultipleTvShowPoliticians,
-} from "../lib/utils";
+} from "../lib/utils.js";
 import { Page } from "puppeteer";
 
 interface GuestWithRole {

@@ -1,7 +1,7 @@
 import { InferenceClient } from "@huggingface/inference";
-import { supabase } from "../supabase";
+import { supabase } from "../supabase.js";
 import dotenv from "dotenv";
-import { AbgeordnetenwatchPolitician } from "../types/abgeordnetenwatch";
+import { AbgeordnetenwatchPolitician } from "../types/abgeordnetenwatch.js";
 import axios from "axios";
 
 dotenv.config();

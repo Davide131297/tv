@@ -1,11 +1,11 @@
 import express from "express";
 import dotenv from "dotenv";
 import cron from "node-cron";
-import CrawlLanz from "./crawler/lanz";
-import { crawlNewMaybritIllnerEpisodes } from "./crawler/illner";
-import { crawlNewMaischbergerEpisodes } from "./crawler/maischberger";
-import { crawlIncrementalCarenMiosgaEpisodes } from "./crawler/miosga";
-import crawlHartAberFair from "./crawler/haf";
+import CrawlLanz from "./crawler/lanz.js";
+import { crawlNewMaybritIllnerEpisodes } from "./crawler/illner.js";
+import { crawlNewMaischbergerEpisodes } from "./crawler/maischberger.js";
+import { crawlIncrementalCarenMiosgaEpisodes } from "./crawler/miosga.js";
+import crawlHartAberFair from "./crawler/haf.js";
 import pino from "pino";
 const logger = pino();
 

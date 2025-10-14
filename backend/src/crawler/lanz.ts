@@ -5,11 +5,11 @@ import {
   checkPolitician,
   insertEpisodePoliticalAreas,
   insertMultipleTvShowPoliticians,
-} from "../lib/utils";
-import { createBrowser, setupSimplePage } from "../lib/browser-configs";
+} from "../lib/utils.js";
+import { createBrowser, setupSimplePage } from "../lib/browser-configs.js";
 import { Page } from "puppeteer";
 import axios from "axios";
-import type { AbgeordnetenwatchPolitician } from "../types/abgeordnetenwatch";
+import type { AbgeordnetenwatchPolitician } from "../types/abgeordnetenwatch.js";
 
 // ---------------- Types ----------------
 

@@ -5,8 +5,8 @@ import {
   checkPolitician,
   insertEpisodePoliticalAreas,
   insertTvShowPolitician,
-} from "../lib/utils";
-import { createBrowser, setupSimplePage } from "../lib/browser-configs";
+} from "../lib/utils.js";
+import { createBrowser, setupSimplePage } from "../lib/browser-configs.js";
 import { Page } from "puppeteer";
 
 interface EpisodeLink {
