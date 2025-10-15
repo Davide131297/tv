@@ -16,8 +16,33 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TV Politik Dashboard",
-  description: "Markus Lanz Politiker-Statistiken mit interaktiven Charts",
+  title: "Polittalk-Watcher",
+  description: "Statistiken mit interaktiven Charts",
+  icons: {
+    icon: [
+      {
+        url: "/32.ico",
+        sizes: "32x32",
+        type: "image/x-icon",
+      },
+      {
+        url: "/128.ico",
+        sizes: "128x128",
+        type: "image/x-icon",
+      },
+      {
+        url: "/256.ico",
+        sizes: "256x256",
+        type: "image/x-icon",
+      },
+    ],
+    shortcut: "/32.ico",
+    apple: {
+      url: "/128.ico",
+      sizes: "128x128",
+      type: "image/x-icon",
+    },
+  },
 };
 
 export default function RootLayout({
@@ -31,12 +56,6 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 min-h-full flex flex-col`}
       >
         <Navigation />
-        {/* <div className="mx-auto bg-red-100 rounded-2xl p-3 mt-2.5">
-          <p>
-            ⚠️ Diese Seite befindet sich noch im Aufbau und wird stetig
-            erweitert. Gleich sind die Seiten wieder erreichbar. ⚠️
-          </p>
-        </div> */}
         <main className="flex-grow">{children}</main>
         <Footer />
         <Analytics />

@@ -22,6 +22,9 @@ const nextConfig: NextConfig = {
 
     return config;
   },
+  images: {
+    domains: ["www.paypal.com"],
+  },
   // async redirects() {
   //   return [
   //     {

@@ -20,6 +20,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
+import TransparentLogo from "@/public/transparent_logo.png";
 
 const navigationItems = [
   {
@@ -71,9 +73,16 @@ export default function Navigation() {
           <div className="flex items-center">
             <Link
               href="/"
-              className="text-2xl font-bold text-gray-900 hover:text-blue-600 transition-colors"
+              className="flex items-center gap-2 text-2xl font-bold text-gray-900 hover:text-blue-600 transition-colors"
             >
-              📺 TV Politik Dashboard
+              <Image
+                src={TransparentLogo}
+                alt="Polittalk Logo"
+                width={30}
+                height={30}
+                className="w-12 h-12"
+              />
+              <span>Polittalk-Watcher</span>
             </Link>
           </div>
 

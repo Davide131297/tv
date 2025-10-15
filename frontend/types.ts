@@ -134,6 +134,7 @@ export const PARTY_COLORS: Record<string, string> = {
   AfD: "#2563eb",
   BSW: "#a16207",
   parteilos: "#6b7280",
+  ÖVP: "#63c3d0",
 };
 
 export const BADGE_PARTY_COLORS: Record<string, string> = {
@@ -145,6 +146,7 @@ export const BADGE_PARTY_COLORS: Record<string, string> = {
   "BÜNDNIS 90/DIE GRÜNEN": "bg-green-100 text-green-900 border-green-200",
   AfD: "bg-blue-50 text-blue-700 border-blue-200",
   Unbekannt: "bg-gray-100 text-gray-800 border-gray-200",
+  ÖVP: "bg-cyan-100 text-cyan-800 border-cyan-200",
 };
 
 // =============================================================================
