@@ -23,7 +23,12 @@ const nextConfig: NextConfig = {
     return config;
   },
   images: {
-    domains: ["www.paypal.com"],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "www.paypal.com",
+      },
+    ],
   },
   // async redirects() {
   //   return [

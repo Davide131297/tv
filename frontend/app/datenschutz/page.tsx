@@ -25,7 +25,15 @@ export default function DatenschutzPage() {
             <p>51103 Köln</p>
             <p>Deutschland</p>
             <br />
-            <p>E-Mail: [IHRE-EMAIL@DOMAIN.DE]</p>
+            <p>
+              Email:{" "}
+              <a
+                href="mailto:kontakt@polittalk-watcher.de"
+                className="text-blue-600 hover:text-blue-800 underline"
+              >
+                kontakt@polittalk-watcher.de
+              </a>
+            </p>
           </div>
           <p className="mb-4">
             Die folgenden Hinweise geben einen einfachen Überblick darüber, was

@@ -17,7 +17,15 @@ export default function Page() {
 
         <section>
           <h2 className="text-xl font-semibold mb-2">Kontakt</h2>
-          <p>E-Mail: [E-Mail-Adresse]</p>
+          <p>
+            Email:{" "}
+            <a
+              href="mailto:kontakt@polittalk-watcher.de"
+              className="text-blue-600 hover:text-blue-800 underline"
+            >
+              kontakt@polittalk-watcher.de
+            </a>
+          </p>
         </section>
       </div>
     </div>
