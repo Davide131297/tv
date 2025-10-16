@@ -53,6 +53,13 @@ app.get("/", (req, res) => {
   res.send("Hello World!");
 });
 
+app.post("/crawl-lanz", async (req, res) => {
+  logger.info("Starte Lanz Crawl...");
+  await CrawlLanz();
+  logger.info("Lanz Crawl abgeschlossen.");
+  res.send("Lanz Crawl gestartet.");
+});
+
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
