@@ -30,13 +30,11 @@ async function getNewMaischbergerEpisodes(
   console.log("🔍 Lade neue Maischberger Episoden...");
   console.log(`📅 Suche nach Episoden seit: ${latestDbDate || "Beginn"}`);
 
-  await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 60000 });
+  await page.goto(LIST_URL, { waitUntil: "networkidle2" });
 
   // Cookie-Banner akzeptieren falls vorhanden
   try {
-    await page.waitForSelector('button:contains("Akzeptieren")', {
-      timeout: 5000,
-    });
+    await page.waitForSelector('button:contains("Akzeptieren")');
     await page.click('button:contains("Akzeptieren")');
     console.log("Cookie-Banner akzeptiert");
     await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -45,7 +43,7 @@ async function getNewMaischbergerEpisodes(
   }
 
   // Warte auf Content
-  await page.waitForSelector(".boxCon", { timeout: 15000 });
+  await page.waitForSelector(".boxCon");
 
   const allEpisodes: MaischbergerEpisode[] = [];
   const newEpisodes: MaischbergerEpisode[] = [];
@@ -204,7 +202,7 @@ async function getEpisodeDetailedDescription(
   episodeUrl: string
 ): Promise<number[] | [] | null> {
   try {
-    await page.goto(episodeUrl, { waitUntil: "networkidle2", timeout: 30000 });
+    await page.goto(episodeUrl, { waitUntil: "networkidle2" });
 
     // Extrahiere alle Beschreibungstexte
     const descriptions = await page.evaluate(() => {

@@ -107,7 +107,7 @@ async function extractEpisodeDetails(
       : `${BASE_URL}${episodeLink.url}`;
     console.log(`Navigiere zu Episode: ${fullUrl}`);
 
-    await page.goto(fullUrl, { waitUntil: "networkidle2", timeout: 30000 });
+    await page.goto(fullUrl, { waitUntil: "networkidle2" });
 
     // Extract episode details
     const details = await page.evaluate(() => {
@@ -294,7 +294,7 @@ export default async function crawlHartAberFair() {
 
     // Navigate to the episodes list page
     console.log("Navigiere zur Episoden-Liste...");
-    await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 30000 });
+    await page.goto(LIST_URL, { waitUntil: "networkidle2" });
 
     // Extract episode links from the page
     const episodeLinks = await extractEpisodeLinks(page);

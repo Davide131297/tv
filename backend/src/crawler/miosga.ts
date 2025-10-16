@@ -39,13 +39,11 @@ async function getNewEpisodeLinks(
   console.log("🔍 Lade nur neue Caren Miosga Episode-Links...");
   console.log(`🗓️  Suche nach Episoden seit: ${latestDbDate || "Beginn"}`);
 
-  await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 60000 });
+  await page.goto(LIST_URL, { waitUntil: "networkidle2" });
 
   // Cookie-Banner akzeptieren falls vorhanden
   try {
-    await page.waitForSelector('button:contains("Akzeptieren")', {
-      timeout: 5000,
-    });
+    await page.waitForSelector('button:contains("Akzeptieren")');
     await page.click('button:contains("Akzeptieren")');
     console.log("Cookie-Banner akzeptiert");
     await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -54,9 +52,7 @@ async function getNewEpisodeLinks(
   }
 
   // Warte auf die Episode-Liste
-  await page.waitForSelector('[itemprop="itemListElement"]', {
-    timeout: 15000,
-  });
+  await page.waitForSelector('[itemprop="itemListElement"]');
 
   const newEpisodes: Array<{
     url: string;
@@ -238,7 +234,7 @@ async function getEpisodeDetailedDescription(
   episodeUrl: string
 ): Promise<string> {
   try {
-    await page.goto(episodeUrl, { waitUntil: "networkidle2", timeout: 30000 });
+    await page.goto(episodeUrl, { waitUntil: "networkidle2" });
 
     // Extrahiere die detaillierte Beschreibung
     const description = await page.evaluate(() => {

@@ -87,13 +87,11 @@ async function getLatestEpisodeLinks(
 ): Promise<string[]> {
   console.log("🔍 Lade die neuesten Maybrit Illner Episode-Links...");
 
-  await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 60000 });
+  await page.goto(LIST_URL, { waitUntil: "networkidle2" });
 
   // Cookie-Banner akzeptieren falls vorhanden
   try {
-    await page.waitForSelector('[data-testid="cmp-accept-all"]', {
-      timeout: 5000,
-    });
+    await page.waitForSelector('[data-testid="cmp-accept-all"]');
     await page.click('[data-testid="cmp-accept-all"]');
     console.log("Cookie-Banner akzeptiert");
     await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -169,11 +167,11 @@ async function extractGuestsFromEpisode(
 ): Promise<{ guests: GuestWithRole[]; politicalAreaIds?: number[] }> {
   console.log(`🎬 Crawle Maybrit Illner Episode: ${episodeUrl}`);
 
-  await page.goto(episodeUrl, { waitUntil: "networkidle2", timeout: 60000 });
+  await page.goto(episodeUrl, { waitUntil: "networkidle2" });
   await page.setExtraHTTPHeaders({
     "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
   });
-  await page.waitForSelector("main", { timeout: 15000 }).catch(() => {});
+  await page.waitForSelector("main").catch(() => {});
 
   // Sanft scrollen für Lazy-Content
   await page

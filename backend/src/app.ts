@@ -53,11 +53,39 @@ app.get("/", (req, res) => {
   res.send("Hello World!");
 });
 
-app.post("/crawl-lanz", async (req, res) => {
+app.post("/api/crawl-lanz", async (req, res) => {
   logger.info("Starte Lanz Crawl...");
   await CrawlLanz();
   logger.info("Lanz Crawl abgeschlossen.");
   res.send("Lanz Crawl gestartet.");
+});
+
+app.post("/api/crawl-haf", async (req, res) => {
+  logger.info("Starte Hart aber Fair Crawl...");
+  await crawlHartAberFair();
+  logger.info("Hart aber Fair Crawl abgeschlossen.");
+  res.send("Hart aber Fair Crawl gestartet.");
+});
+
+app.post("/api/crawl-illner", async (req, res) => {
+  logger.info("Starte Illner Crawl...");
+  await crawlNewMaybritIllnerEpisodes();
+  logger.info("Illner Crawl abgeschlossen.");
+  res.send("Illner Crawl gestartet.");
+});
+
+app.post("/api/crawl-maischberger", async (req, res) => {
+  logger.info("Starte Maischberger Crawl...");
+  await crawlNewMaischbergerEpisodes();
+  logger.info("Maischberger Crawl abgeschlossen.");
+  res.send("Maischberger Crawl gestartet.");
+});
+
+app.post("/api/crawl-miosga", async (req, res) => {
+  logger.info("Starte Caren Miosga Crawl...");
+  await crawlIncrementalCarenMiosgaEpisodes();
+  logger.info("Caren Miosga Crawl abgeschlossen.");
+  res.send("Caren Miosga Crawl gestartet.");
 });
 
 app.listen(PORT, () => {
