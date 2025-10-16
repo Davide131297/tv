@@ -40,4 +40,5 @@ export interface PoliticianAppearance {
   episode_date: string;
   politician_name: string;
   party_name: string | null;
+  abgeordnetenwatch_url: string;
 }

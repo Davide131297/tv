@@ -1,90 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
-// Abgeordnetenwatch API integration
-interface AbgeordnetenwatchPolitician {
-  id: number;
-  entity_type: "politician";
-  label: string;
-  api_url: string;
-  abgeordnetenwatch_url: string;
-  first_name: string;
-  last_name: string;
-  birth_name: string | null;
-  sex: "m" | "w" | "d" | string;
-  year_of_birth: number | null;
-  party: {
-    id: number;
-    entity_type: "party";
-    label: string;
-    api_url: string;
-  } | null;
-  party_past: {
-    id: number;
-    entity_type: "party";
-    label: string;
-    api_url: string;
-  } | null;
-  education: string | null;
-  residence: string | null;
-  occupation: string | null;
-  statistic_questions: number;
-  statistic_questions_answered: number;
-  ext_id_bundestagsverwaltung: string | null;
-  qid_wikidata: string | null;
-  field_title: string | null;
-}
-
-// Cache für API-Calls (in memory cache - könnte später in Redis o.ä. ausgelagert werden)
-const politicianCache = new Map<string, AbgeordnetenwatchPolitician | null>();
-
-async function fetchPoliticianDetails(
-  first_name: string,
-  last_name: string
-): Promise<AbgeordnetenwatchPolitician | null> {
-  const cacheKey = `${first_name}_${last_name}`;
-
-  // Prüfe Cache
-  if (politicianCache.has(cacheKey)) {
-    return politicianCache.get(cacheKey) || null;
-  }
-
-  try {
-    const url = `https://www.abgeordnetenwatch.de/api/v2/politicians?first_name=${encodeURIComponent(
-      first_name
-    )}&last_name=${encodeURIComponent(last_name)}`;
-
-    const response = await fetch(url, {
-      next: { revalidate: 3600 }, // Cache für 1 Stunde
-    });
-
-    if (!response.ok) {
-      politicianCache.set(cacheKey, null);
-      return null;
-    }
-
-    const result = await response.json();
-    const politicians: AbgeordnetenwatchPolitician[] = result?.data || [];
-
-    if (politicians.length === 0) {
-      politicianCache.set(cacheKey, null);
-      return null;
-    }
-
-    // Nehme ersten/besten Treffer
-    const politician = politicians[0];
-    politicianCache.set(cacheKey, politician);
-    return politician;
-  } catch (error) {
-    console.error(
-      `Error fetching politician details for ${first_name} ${last_name}:`,
-      error
-    );
-    politicianCache.set(cacheKey, null);
-    return null;
-  }
-}
-
 // Types
 interface PartyStats {
   party_name: string;
@@ -331,7 +247,9 @@ export async function GET(request: NextRequest) {
 
         let query = supabase
           .from("tv_show_politicians")
-          .select("show_name, episode_date, politician_name, party_name")
+          .select(
+            "show_name, episode_date, politician_name, party_name, abgeordnetenwatch_url"
+          )
           .order("episode_date", { ascending: false })
           .order("id", { ascending: false })
           .range(offset, offset + limit - 1);
@@ -353,66 +271,6 @@ export async function GET(request: NextRequest) {
           throw error;
         }
 
-        // Anreicherung mit Abgeordnetenwatch-Daten
-        const enrichedResults = await Promise.all(
-          (data || []).map(async (appearance) => {
-            const nameParts = appearance.politician_name?.split(" ") || [
-              "Unbekannt",
-            ];
-            const firstName = nameParts[0] || "Unbekannt";
-            const lastName = nameParts.slice(1).join(" ") || "";
-
-            // Versuche Details von Abgeordnetenwatch zu holen
-            let politicianDetails;
-            try {
-              const awPolitician = await fetchPoliticianDetails(
-                firstName,
-                lastName
-              );
-              if (awPolitician) {
-                politicianDetails = {
-                  first_name: awPolitician.first_name,
-                  last_name: awPolitician.last_name,
-                  occupation: awPolitician.occupation || "Politiker",
-                  year_of_birth: awPolitician.year_of_birth,
-                  education: awPolitician.education || "Keine Angabe",
-                  sex: awPolitician.sex,
-                  abgeordnetenwatch_url: awPolitician.abgeordnetenwatch_url,
-                };
-              } else {
-                // Fallback
-                politicianDetails = {
-                  first_name: firstName,
-                  last_name: lastName,
-                  occupation: "Politiker",
-                  year_of_birth: null,
-                  education: "Keine Angabe",
-                  sex: null,
-                  abgeordnetenwatch_url: null,
-                };
-              }
-            } catch {
-              // Bei Fehlern Fallback verwenden
-              politicianDetails = {
-                first_name: firstName,
-                last_name: lastName,
-                occupation: "Politiker",
-                year_of_birth: null,
-                education: "Keine Angabe",
-                sex: null,
-                abgeordnetenwatch_url: null,
-              };
-            }
-
-            return {
-              ...appearance,
-              politician_name: appearance.politician_name || "Unbekannt",
-              party_name: appearance.party_name || "Unbekannt",
-              politician_details: politicianDetails,
-            };
-          })
-        );
-
         // Hole Gesamtanzahl für Pagination
         let countQuery = supabase
           .from("tv_show_politicians")
@@ -433,7 +291,7 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json({
           success: true,
-          data: enrichedResults,
+          data: data,
           pagination: {
             limit,
             offset,

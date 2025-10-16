@@ -75,6 +75,7 @@ export interface PoliticianAppearance {
   politician_name: string;
   party_name: string;
   politician_details: PoliticianDetails;
+  abgeordnetenwatch_url: string;
 }
 
 // =============================================================================
