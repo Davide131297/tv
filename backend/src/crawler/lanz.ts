@@ -63,7 +63,7 @@ async function clickLoadMoreUntilDone(
   console.log("Beginne mit intelligentem Laden der Episoden...");
 
   // Warte erstmal dass die Seite vollständig geladen ist
-  await page.waitForSelector("main", { timeout: 15000 }).catch(() => {});
+  await page.waitForSelector("main").catch(() => {});
 
   // Initial count
   let currentCount = await page.$$eval(
@@ -139,8 +139,7 @@ async function clickLoadMoreUntilDone(
           page.waitForResponse(
             (res) =>
               res.url().includes("graphql") &&
-              res.url().includes("seasonByCanonical"),
-            { timeout: 15000 }
+              res.url().includes("seasonByCanonical")
           ),
           hasButton.click(),
         ]);
@@ -342,58 +341,17 @@ async function extractDateISO(
   return parseISODateFromUrl(episodeUrl);
 }
 
-// ---------------- Politiker-Check ----------------
-
-function splitFirstLast(name: string) {
-  const parts = name.split(/\s+/).filter(Boolean);
-  return { first: parts[0] ?? "", last: parts.slice(1).join(" ").trim() };
-}
-
-// Hilfsfunktion zur Disambiguierung basierend auf ZDF-Rolle
-function disambiguateByRole(
-  politicians: AbgeordnetenwatchPolitician[],
-  role: string
-): AbgeordnetenwatchPolitician | null {
-  const roleUpper = role.toUpperCase();
-
-  // Partei-Mappings für die Disambiguierung
-  const partyMappings: Record<string, string[]> = {
-    CDU: ["CDU", "CHRISTLICH DEMOKRATISCHE UNION"],
-    CSU: ["CSU", "CHRISTLICH-SOZIALE UNION"],
-    SPD: ["SPD", "SOZIALDEMOKRATISCHE PARTEI"],
-    FDP: ["FDP", "FREIE DEMOKRATISCHE PARTEI"],
-    GRÜNE: ["BÜNDNIS 90/DIE GRÜNEN", "DIE GRÜNEN"],
-    LINKE: ["DIE LINKE"],
-    AFD: ["AFD", "ALTERNATIVE FÜR DEUTSCHLAND"],
-    PARTEI: ["DIE PARTEI"],
-  };
-
-  for (const [shortName, fullNames] of Object.entries(partyMappings)) {
-    if (roleUpper.includes(shortName)) {
-      // Suche Politiker mit passender Partei
-      for (const politician of politicians) {
-        const partyLabel = politician.party?.label?.toUpperCase() || "";
-        if (fullNames.some((name) => partyLabel.includes(name))) {
-          return politician;
-        }
-      }
-    }
-  }
-
-  return null;
-}
-
 // ---------------- Gäste aus Episode ----------------
 
 async function extractGuestsFromEpisode(
   page: Page,
   episodeUrl: string
 ): Promise<GuestWithRole[]> {
-  await page.goto(episodeUrl, { waitUntil: "networkidle2", timeout: 60000 });
+  await page.goto(episodeUrl, { waitUntil: "networkidle2" });
   await page.setExtraHTTPHeaders({
     "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
   });
-  await page.waitForSelector("main", { timeout: 15000 }).catch(() => {});
+  await page.waitForSelector("main").catch(() => {});
 
   // sanft scrollen, um Lazy-Content zu triggern
   await page
@@ -553,13 +511,11 @@ export default async function CrawlLanz() {
 
   try {
     const page = await setupSimplePage(browser);
-    await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 60000 });
+    await page.goto(LIST_URL, { waitUntil: "networkidle2" });
 
     // Cookie-Banner akzeptieren falls vorhanden
     try {
-      await page.waitForSelector('[data-testid="cmp-accept-all"]', {
-        timeout: 5000,
-      });
+      await page.waitForSelector('[data-testid="cmp-accept-all"]');
       await page.click('[data-testid="cmp-accept-all"]');
       console.log("Cookie-Banner akzeptiert");
       await new Promise((resolve) => setTimeout(resolve, 2000));
