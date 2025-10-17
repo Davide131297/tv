@@ -136,7 +136,6 @@ export default function PoliticianTable() {
       columnHelper.accessor("show_name", {
         header: "Show",
         cell: (info) => {
-          console.log("info:", info);
           const show = info.getValue();
           return (
             <span
@@ -172,20 +171,22 @@ export default function PoliticianTable() {
         cell: (info) => (
           <div className="flex gap-1">
             <div className="font-semibold">{info.getValue()}</div>
-            <Tooltip>
-              <TooltipTrigger>
-                <Link
-                  href={info.row.original.abgeordnetenwatch_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <ExternalLink className="inline-block w-3 h-3 text-blue-600 mb-3 cursor-pointer" />
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Zur Politiker-Seite</p>
-              </TooltipContent>
-            </Tooltip>
+            {info.row.original.abgeordnetenwatch_url && (
+              <Tooltip>
+                <TooltipTrigger>
+                  <Link
+                    href={info.row.original.abgeordnetenwatch_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink className="inline-block w-3 h-3 text-blue-600 mb-3 cursor-pointer" />
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Zur Politiker-Seite</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
           </div>
         ),
       }),
@@ -287,7 +288,6 @@ export default function PoliticianTable() {
                   <Button
                     key={option.value}
                     onClick={() => {
-                      console.log("Button clicked for show:", option.value); // Debug log
                       handleShowChange(option.value);
                     }}
                     className={`px-2 sm:px-3 py-1 text-xs sm:text-sm rounded-lg transition-colors ${getButtonColors(
@@ -365,13 +365,15 @@ export default function PoliticianTable() {
                   <div className="flex-1">
                     <div className="flex gap-1 font-semibold text-gray-900 text-sm">
                       {data.politician_name}
-                      <Link
-                        href={data.abgeordnetenwatch_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <ExternalLink className="inline-block w-3 h-3 text-blue-600 mb-3 cursor-pointer" />
-                      </Link>
+                      {data.abgeordnetenwatch_url && (
+                        <Link
+                          href={data.abgeordnetenwatch_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <ExternalLink className="inline-block w-3 h-3 text-blue-600 mb-3 cursor-pointer" />
+                        </Link>
+                      )}
                     </div>
                     <div className="text-xs text-gray-500 mt-1">
                       {date.toLocaleDateString("de-DE")}
