@@ -178,7 +178,7 @@ async function getNewMaischbergerEpisodes(
 
       // Klicke auf "weiter" Button
       await nextPageLink.click();
-      await page.waitForSelector(".boxCon", { timeout: 15000 });
+      await page.waitForSelector(".boxCon");
       await new Promise((resolve) => setTimeout(resolve, 2000)); // Kurz warten
 
       currentPage++;

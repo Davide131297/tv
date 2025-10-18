@@ -423,7 +423,7 @@ export async function checkPolitician(
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      const { data } = await axios.get(url, { timeout: 10000 });
+      const { data } = await axios.get(url);
       const politicians: AbgeordnetenwatchPolitician[] = data?.data || [];
 
       if (politicians.length === 0) {
