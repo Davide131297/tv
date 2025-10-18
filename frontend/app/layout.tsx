@@ -16,8 +16,35 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Polittalk-Watcher",
-  description: "Statistiken mit interaktiven Charts",
+  title: {
+    default: "Polittalk-Watcher – Politische Talkshows im Faktencheck",
+    template: "%s | Polittalk-Watcher",
+  },
+  description:
+    "Interaktive Statistiken und detaillierten Analysen von Markus Lanz, Maybrit Illner, Caren Miosga und Maischberger",
+  keywords: [
+    "Politik",
+    "Talkshows",
+    "Statistiken",
+    "Analyse",
+    "ARD",
+    "ZDF",
+    "Polittalk",
+    "Redezeiten",
+    "Charts",
+    "Datenanalyse",
+    "CDU",
+    "CSU",
+    "SPD",
+    "Gruene",
+    "Die Linke",
+    "FDP",
+    "Lanz",
+    "Maischberger",
+    "Illner",
+    "Misoga",
+    "Hart aber fair",
+  ],
   icons: {
     icon: [
       {
@@ -42,6 +69,36 @@ export const metadata: Metadata = {
       sizes: "128x128",
       type: "image/x-icon",
     },
+  },
+  robots: {
+    index: true,
+    follow: true,
+    nocache: false,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-snippet": -1,
+      "max-image-preview": "large",
+      "max-video-preview": -1,
+    },
+  },
+  openGraph: {
+    title:
+      "Polittalk-Watcher – Interaktive Statistiken über Parteien- und Politikerauftritten von Markus Lanz, Maybrit Illner, Caren Miosga und Maischberger",
+    description:
+      "Statistiken, Themenanalysen zu Deutschlands bekanntesten Polit-Talkshows. Datenbasiert, transparent und interaktiv.",
+    url: "https://polittalk-watcher.de",
+    siteName: "Polittalk-Watcher",
+    locale: "de_DE",
+    type: "website",
+    images: [
+      {
+        url: "/transparent_logo.png",
+        width: 1200,
+        height: 630,
+        alt: "Polittalk-Watcher Vorschau",
+      },
+    ],
   },
 };
 

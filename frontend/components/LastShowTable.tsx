@@ -159,16 +159,6 @@ export default function LastShowTable({ episodes }: LastShowTableProps) {
                       ? "hover:bg-blue-50 cursor-pointer transition-colors"
                       : ""
                   }`}
-                  onClick={() => {
-                    if (episode.episode_url) {
-                      window.open(episode.episode_url, "_blank");
-                    }
-                  }}
-                  title={
-                    episode.episode_url
-                      ? "Klicken um Episode zu öffnen"
-                      : "Keine Episode-URL verfügbar"
-                  }
                 >
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {formattedDate}

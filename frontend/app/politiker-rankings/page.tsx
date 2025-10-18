@@ -1,20 +1,8 @@
 import PoliticianRankings from "@/components/PoliticianRankings";
-import { Metadata } from "next";
+import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Politiker-Rankings | TV Talkshow Tracker",
-  description:
-    "Übersicht über die häufigsten Gäste in deutschen Talkshows - sortiert nach Anzahl der Auftritte",
-  keywords: [
-    "Politiker",
-    "Talkshow",
-    "Ranking",
-    "Markus Lanz",
-    "Maybrit Illner",
-    "Caren Miosga",
-    "Maischberger",
-    "Hart aber fair",
-  ],
+  title: "Politiker-Rankings",
 };
 
 export default function PoliticianRankingsPage() {

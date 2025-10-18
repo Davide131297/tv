@@ -1,5 +1,10 @@
 import { Suspense } from "react";
 import OverviewPageContent from "@/components/OverviewPageContent";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Übersicht",
+};
 
 export default function OverviewPage() {
   return (

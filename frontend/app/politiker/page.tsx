@@ -1,7 +1,10 @@
-"use client";
-
 import PoliticianTable from "@/components/PoliticianTable";
 import { Suspense } from "react";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Politiker",
+};
 
 export default function PoliticiansPage() {
   return (

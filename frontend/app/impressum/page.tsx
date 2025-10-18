@@ -1,3 +1,9 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Impressum",
+};
+
 export default function Page() {
   return (
     <div className="max-w-4xl mx-auto p-6">

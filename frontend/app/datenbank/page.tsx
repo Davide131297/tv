@@ -1,6 +1,9 @@
-"use client";
-
 import DatabaseEntries from "@/components/database/DatabaseEntries";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Datenbank",
+};
 
 export default function DatabasePage() {
   return (
