@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     template: "%s | Polittalk-Watcher",
   },
   description:
-    "Interaktive Statistiken und detaillierten Analysen von Markus Lanz, Maybrit Illner, Caren Miosga und Maischberger",
+    "Interaktive Statistiken und detaillierten Analysen von Markus Lanz, Maybrit Illner, Caren Miosga, Maischberger und Phoenix Runde",
   keywords: [
     "Politik",
     "Talkshows",
@@ -44,6 +44,7 @@ export const metadata: Metadata = {
     "Illner",
     "Misoga",
     "Hart aber fair",
+    "Phoenix Runde",
   ],
   icons: {
     icon: [
@@ -84,7 +85,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title:
-      "Polittalk-Watcher – Interaktive Statistiken über Parteien- und Politikerauftritten von Markus Lanz, Maybrit Illner, Caren Miosga und Maischberger",
+      "Polittalk-Watcher – Interaktive Statistiken über Parteien- und Politikerauftritten von Markus Lanz, Maybrit Illner, Caren Miosga, Maischberger und Phoenix Runde",
     description:
       "Statistiken, Themenanalysen zu Deutschlands bekanntesten Polit-Talkshows. Datenbasiert, transparent und interaktiv.",
     url: "https://polittalk-watcher.de",

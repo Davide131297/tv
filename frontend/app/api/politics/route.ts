@@ -12,6 +12,23 @@ interface EpisodeData {
   politician_count: number;
 }
 
+//eslint-disable-next-line @typescript-eslint/no-explicit-any
+function applyShowFilter(query: any, showName: string | null) {
+  if (
+    showName &&
+    (showName === "Markus Lanz" ||
+      showName === "Maybrit Illner" ||
+      showName === "Caren Miosga" ||
+      showName === "Maischberger" ||
+      showName === "Hart aber fair" ||
+      showName === "Phoenix Runde")
+  ) {
+    return query.eq("show_name", showName);
+  } else {
+    return query.neq("show_name", "Pinar Atalay");
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -28,18 +45,7 @@ export async function GET(request: NextRequest) {
           .not("party_name", "is", null)
           .neq("party_name", "");
 
-        if (
-          showName &&
-          (showName === "Markus Lanz" ||
-            showName === "Maybrit Illner" ||
-            showName === "Caren Miosga" ||
-            showName === "Maischberger" ||
-            showName === "Hart aber fair")
-        ) {
-          query = query.eq("show_name", showName);
-        } else {
-          query = query.neq("show_name", "Pinar Atalay");
-        }
+        query = applyShowFilter(query, showName);
 
         const { data, error } = await query;
 
@@ -199,18 +205,7 @@ export async function GET(request: NextRequest) {
 
         let query = supabase.from("tv_show_politicians").select("*");
 
-        if (
-          showName &&
-          (showName === "Markus Lanz" ||
-            showName === "Maybrit Illner" ||
-            showName === "Caren Miosga" ||
-            showName === "Maischberger" ||
-            showName === "Hart aber fair")
-        ) {
-          query = query.eq("show_name", showName);
-        } else {
-          query = query.neq("show_name", "Pinar Atalay");
-        }
+        query = applyShowFilter(query, showName);
 
         const { data: allData, error } = await query;
 
@@ -258,18 +253,7 @@ export async function GET(request: NextRequest) {
           .order("id", { ascending: false })
           .range(offset, offset + limit - 1);
 
-        if (
-          showName &&
-          (showName === "Markus Lanz" ||
-            showName === "Maybrit Illner" ||
-            showName === "Caren Miosga" ||
-            showName === "Maischberger" ||
-            showName === "Hart aber fair")
-        ) {
-          query = query.eq("show_name", showName);
-        } else {
-          query = query.neq("show_name", "Pinar Atalay");
-        }
+        query = applyShowFilter(query, showName);
 
         const { data, error } = await query;
 
@@ -434,18 +418,7 @@ export async function GET(request: NextRequest) {
           .from("tv_show_politicians")
           .select("politician_name, party_name, show_name, episode_date");
 
-        if (
-          showName &&
-          (showName === "Markus Lanz" ||
-            showName === "Maybrit Illner" ||
-            showName === "Caren Miosga" ||
-            showName === "Maischberger" ||
-            showName === "Hart aber fair")
-        ) {
-          query = query.eq("show_name", showName);
-        } else {
-          query = query.neq("show_name", "Pinar Atalay");
-        }
+        query = applyShowFilter(query, showName);
 
         const { data, error } = await query;
 

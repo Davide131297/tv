@@ -7,17 +7,20 @@ export default function Footer() {
       <div className="text-center text-gray-500 text-sm py-4 px-4">
         <p>
           Daten basierend auf Markus Lanz, Maybritt Illner, Caren Miosga,
-          Maischberger & Hart aber fair Sendungen (2025) und der API von
+          Maischberger, Hart aber fair und Phoenix Runde Sendungen (2025)
         </p>
-        <Link
-          href={"https://abgeordnetenwatch.de"}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-black/70 hover:text-black/90 hover:underline"
-        >
-          Abgeordnetenwatch.de
-        </Link>
-        .
+        <p>
+          und der API von{" "}
+          <Link
+            href={"https://abgeordnetenwatch.de"}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-black/70 hover:text-black/90 hover:underline"
+          >
+            Abgeordnetenwatch.de
+          </Link>
+          .
+        </p>
         <div className="flex justify-center gap-4 mt-2">
           <p>Letztes Update: {new Date().toLocaleDateString("de-DE")}</p>
           <Link

@@ -109,6 +109,7 @@ export const SHOW_OPTIONS: ShowOption[] = [
   { value: "Caren Miosga", label: "Caren Miosga" },
   { value: "Maischberger", label: "Maischberger" },
   { value: "Hart aber fair", label: "Hart aber fair" },
+  { value: "Phoenix Runde", label: "Phoenix Runde" },
 ];
 
 export const SHOW_OPTIONS_WITHOUT_ALL: ShowOption[] = [
@@ -117,6 +118,7 @@ export const SHOW_OPTIONS_WITHOUT_ALL: ShowOption[] = [
   { value: "Caren Miosga", label: "Caren Miosga" },
   { value: "Maischberger", label: "Maischberger" },
   { value: "Hart aber fair", label: "Hart aber fair" },
+  { value: "Phoenix Runde", label: "Phoenix Runde" },
 ];
 
 // =============================================================================
@@ -160,7 +162,8 @@ export type ShowValue =
   | "Maybrit Illner"
   | "Caren Miosga"
   | "Maischberger"
-  | "Hart aber fair";
+  | "Hart aber fair"
+  | "Phoenix Runde";
 
 // =============================================================================
 // Abgeordnetenwatch TYPES

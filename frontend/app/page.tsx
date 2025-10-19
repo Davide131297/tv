@@ -11,7 +11,7 @@ export default function Home() {
         <p className="text-xl md:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto">
           Entdecken Sie die Politik-Landschaft deutscher Talkshows mit
           interaktiven Statistiken und detaillierten Analysen von Markus Lanz,
-          Maybrit Illner, Caren Miosga und Maischberger
+          Maybrit Illner, Caren Miosga, Maischberger und Phoenix Runde
         </p>
 
         {/* Navigation Cards */}
@@ -112,10 +112,10 @@ export default function Home() {
         </h2>
         <p className="text-gray-600 max-w-2xl mx-auto">
           Dieses Dashboard analysiert die Auftritte von Politikern in deutschen
-          Talkshows (Markus Lanz, Maybrit Illner und Caren Miosga) und stellt
-          die Daten in verschiedenen interaktiven Formaten dar. Die
-          Informationen werden regelmäßig aktualisiert und basieren auf
-          öffentlich verfügbaren Quellen.
+          Talkshows (Markus Lanz, Maybrit Illner, Caren Miosga, Maischberger und
+          Phoenix Runde) und stellt die Daten in verschiedenen interaktiven
+          Formaten dar. Die Informationen werden regelmäßig aktualisiert und
+          basieren auf öffentlich verfügbaren Quellen.
         </p>
       </div>
     </div>

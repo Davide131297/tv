@@ -122,6 +122,15 @@ Alle bestehenden API-Endpunkte funktionieren weiterhin gleich:
 - Prüfe ob die Tabelle die richtigen Spalten und Constraints hat
 - Prüfe die Supabase-Permissions (RLS Policies)
 
+** Fehlende Politiker URL nachträglich in der Tabelle hinzufügen **
+
+```SQL
+UPDATE public.tv_show_politicians
+SET abgeordnetenwatch_url = 'https://www.abgeordnetenwatch.de/profile/' ||
+                            lower(replace(politician_name, ' ', '-'))
+WHERE politician_name IS NOT NULL;
+```
+
 ---
 
 Die Migration ist abgeschlossen! Das Frontend verwendet jetzt ausschließlich Supabase als Datenbank.

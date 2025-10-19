@@ -327,6 +327,10 @@ export async function insertMultipleTvShowPoliticians(
     abgeordnetenwatch_url: politician.politicianName
       ? `https://www.abgeordnetenwatch.de/profile/${politician.politicianName
           .toLowerCase()
+          .replace(/ä/g, "ae")
+          .replace(/ö/g, "oe")
+          .replace(/ü/g, "ue")
+          .replace(/ß/g, "ss")
           .replace(/\s+/g, "-")}`
       : null,
   }));

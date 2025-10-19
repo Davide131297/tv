@@ -26,6 +26,38 @@ interface InsertShowLinkData {
   episode_date: string;
 }
 
+// Hilfsfunktion zum Validieren der Abgeordnetenwatch-URL
+async function validateAbgeordnetenwatchUrl(
+  url: string,
+  politicianName: string
+): Promise<string> {
+  try {
+    const response = await axios.head(url, {
+      timeout: 10000,
+      validateStatus: (status) => status < 500,
+    });
+
+    // Wenn 404 oder andere Client-Fehler, verwende Google Search
+    if (response.status >= 400 && response.status < 500) {
+      console.log(
+        `⚠️  Abgeordnetenwatch-URL für ${politicianName} nicht gefunden (${response.status}), verwende Google Search`
+      );
+      return `https://www.google.com/search?q=${encodeURIComponent(
+        politicianName
+      )}`;
+    }
+
+    return url;
+  } catch {
+    console.log(
+      `⚠️  Fehler beim Validieren der URL für ${politicianName}, verwende Google Search`
+    );
+    return `https://www.google.com/search?q=${encodeURIComponent(
+      politicianName
+    )}`;
+  }
+}
+
 // Spezielle Override-Cases für bestimmte Politiker
 export const POLITICIAN_OVERRIDES: Record<string, GuestDetails> = {
   "Manfred Weber": {
@@ -128,15 +160,38 @@ export async function insertMultipleTvShowPoliticians(
   let insertedCount = 0;
 
   // Batch insert für bessere Performance
-  const dataToInsert = politicians.map((politician) => ({
-    show_name: showName,
-    episode_date: episodeDate,
-    politician_id: politician.politicianId,
-    politician_name: politician.politicianName,
-    party_id: politician.partyId || null,
-    party_name: politician.partyName || null,
-    updated_at: new Date().toISOString(),
-  }));
+  const dataToInsert = await Promise.all(
+    politicians.map(async (politician) => {
+      const abgeordnetenwatchUrl = politician.politicianName
+        ? `https://www.abgeordnetenwatch.de/profile/${politician.politicianName
+            .toLowerCase()
+            .replace(/ä/g, "ae")
+            .replace(/ö/g, "oe")
+            .replace(/ü/g, "ue")
+            .replace(/ß/g, "ss")
+            .replace(/\s+/g, "-")}`
+        : null;
+
+      // Validiere die URL und verwende Google Search als Fallback
+      const validatedUrl = abgeordnetenwatchUrl
+        ? await validateAbgeordnetenwatchUrl(
+            abgeordnetenwatchUrl,
+            politician.politicianName
+          )
+        : null;
+
+      return {
+        show_name: showName,
+        episode_date: episodeDate,
+        politician_id: politician.politicianId,
+        politician_name: politician.politicianName,
+        party_id: politician.partyId || null,
+        party_name: politician.partyName || null,
+        updated_at: new Date().toISOString(),
+        abgeordnetenwatch_url: validatedUrl,
+      };
+    })
+  );
 
   try {
     const { error } = await supabase
