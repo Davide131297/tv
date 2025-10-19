@@ -1,4 +1,6 @@
 import { supabase } from "./supabase";
+import axios from "axios";
+import type { AbgeordnetenwatchPolitician } from "@/types";
 
 type GuestDetails = {
   name: string;
@@ -287,4 +289,219 @@ export async function insertMultipleShowLinks(
   }
 
   return insertedCount;
+}
+
+// ============================================
+// Gemeinsame Hilfsfunktionen für alle Crawler
+// ============================================
+
+// Name in Vor- und Nachname aufteilen
+export function splitFirstLast(name: string) {
+  const parts = name.split(/\s+/).filter(Boolean);
+  return { first: parts[0] ?? "", last: parts.slice(1).join(" ").trim() };
+}
+
+// Disambiguierung basierend auf Rolle/Beschreibung
+export function disambiguateByRole(
+  politicians: AbgeordnetenwatchPolitician[],
+  role: string
+): AbgeordnetenwatchPolitician | null {
+  const roleUpper = role.toUpperCase();
+
+  const partyMappings: Record<string, string[]> = {
+    CDU: ["CDU", "CHRISTLICH DEMOKRATISCHE UNION"],
+    CSU: ["CSU", "CHRISTLICH-SOZIALE UNION"],
+    SPD: ["SPD", "SOZIALDEMOKRATISCHE PARTEI"],
+    FDP: ["FDP", "FREIE DEMOKRATISCHE PARTEI"],
+    GRÜNE: ["BÜNDNIS 90/DIE GRÜNEN", "DIE GRÜNEN"],
+    LINKE: ["DIE LINKE"],
+    AFD: ["AFD", "ALTERNATIVE FÜR DEUTSCHLAND"],
+  };
+
+  const positionMappings: Record<string, string[]> = {
+    BUNDESKANZLER: ["BUNDESKANZLER", "KANZLER"],
+    MINISTERPRÄSIDENT: [
+      "MINISTERPRÄSIDENT",
+      "REGIERUNGSCHEF",
+      "LANDESVORSITZENDE",
+    ],
+    MINISTER: ["MINISTER", "BUNDESMINISTER", "STAATSSEKRETÄR"],
+    BUNDESTAG: ["BUNDESTAG", "MDB", "ABGEORDNETE"],
+    LANDTAG: ["LANDTAG", "MDL", "LANDESABGEORDNETE"],
+  };
+
+  for (const [party, variants] of Object.entries(partyMappings)) {
+    if (variants.some((variant) => roleUpper.includes(variant))) {
+      const partyMatch = politicians.find(
+        (p) => p.party && p.party.label.toUpperCase().includes(party)
+      );
+      if (partyMatch) {
+        console.log(`✅ Partei-Match gefunden: ${party}`);
+        return partyMatch;
+      }
+    }
+  }
+
+  for (const [position, variants] of Object.entries(positionMappings)) {
+    if (variants.some((variant) => roleUpper.includes(variant))) {
+      if (["BUNDESKANZLER", "MINISTERPRÄSIDENT"].includes(position)) {
+        console.log(`✅ Position-Match gefunden: ${position}`);
+        return politicians[0];
+      }
+    }
+  }
+
+  return null;
+}
+
+// Politiker-Prüfung mit Abgeordnetenwatch API
+export async function checkPolitician(
+  name: string,
+  role?: string
+): Promise<GuestDetails> {
+  const override = checkPoliticianOverride(name);
+  if (override) {
+    return override;
+  }
+
+  const { first, last } = splitFirstLast(name);
+  if (!first || !last) {
+    return {
+      name,
+      isPolitician: false,
+      politicianId: null,
+    };
+  }
+
+  const url = `https://www.abgeordnetenwatch.de/api/v2/politicians?first_name=${encodeURIComponent(
+    first
+  )}&last_name=${encodeURIComponent(last)}`;
+
+  try {
+    const { data } = await axios.get(url, { timeout: 10000 });
+    const politicians: AbgeordnetenwatchPolitician[] = data?.data || [];
+
+    if (politicians.length === 0) {
+      return {
+        name,
+        isPolitician: false,
+        politicianId: null,
+      };
+    }
+
+    if (
+      name.includes("Markus") &&
+      (name.includes("Söder") || name.includes("Soder"))
+    ) {
+      console.log(
+        `🎯 Spezialbehandlung für Markus Söder - wähle CSU-Politiker`
+      );
+      const csuSoeder = politicians.find((p) => p.party?.label === "CSU");
+      if (csuSoeder) {
+        console.log(
+          `✅ CSU-Söder gefunden: ${csuSoeder.label} (ID: ${csuSoeder.id})`
+        );
+        return {
+          name,
+          isPolitician: true,
+          politicianId: csuSoeder.id,
+          politicianName: csuSoeder.label || name,
+          party: csuSoeder.party?.id,
+          partyName: csuSoeder.party?.label,
+        };
+      }
+    }
+
+    if (politicians.length === 1) {
+      const hit = politicians[0];
+      return {
+        name,
+        isPolitician: true,
+        politicianId: hit.id,
+        politicianName: hit.label || name,
+        party: hit.party?.id,
+        partyName: hit.party?.label,
+      };
+    }
+
+    if (role && politicians.length > 1) {
+      console.log(
+        `🔍 Disambiguierung für ${name}: ${politicians.length} Treffer gefunden, Rolle: "${role}"`
+      );
+
+      const selectedPolitician = disambiguateByRole(politicians, role);
+      if (selectedPolitician) {
+        console.log(
+          `✅ Politiker ausgewählt: ${selectedPolitician.label} (${selectedPolitician.party?.label})`
+        );
+        return {
+          name,
+          isPolitician: true,
+          politicianId: selectedPolitician.id,
+          politicianName: selectedPolitician.label || name,
+          party: selectedPolitician.party?.id,
+          partyName: selectedPolitician.party?.label,
+        };
+      }
+    }
+
+    console.log(
+      `⚠️  Keine eindeutige Zuordnung für ${name}, verwende ersten Treffer`
+    );
+    const hit = politicians[0];
+    return {
+      name,
+      isPolitician: true,
+      politicianId: hit.id,
+      politicianName: hit.label || name,
+      party: hit.party?.id,
+      partyName: hit.party?.label,
+    };
+  } catch {
+    return {
+      name,
+      isPolitician: false,
+      politicianId: null,
+    };
+  }
+}
+
+// Speichern der politischen Themenbereiche
+export async function insertEpisodePoliticalAreas(
+  showName: string,
+  episodeDate: string,
+  politicalAreaIds: number[]
+): Promise<number> {
+  if (!politicalAreaIds.length) return 0;
+
+  try {
+    const insertData = politicalAreaIds.map((areaId) => ({
+      show_name: showName,
+      episode_date: episodeDate,
+      political_area_id: areaId,
+    }));
+
+    const { error } = await supabase
+      .from("tv_show_episode_political_areas")
+      .upsert(insertData, {
+        onConflict: "show_name,episode_date,political_area_id",
+        ignoreDuplicates: true,
+      });
+
+    if (error) {
+      console.error(
+        "Fehler beim Speichern der politischen Themenbereiche:",
+        error
+      );
+      return 0;
+    }
+
+    return insertData.length;
+  } catch (error) {
+    console.error(
+      "Fehler beim Speichern der politischen Themenbereiche:",
+      error
+    );
+    return 0;
+  }
 }

@@ -6,6 +6,7 @@ import { crawlNewMaybritIllnerEpisodes } from "./crawler/illner.js";
 import { crawlNewMaischbergerEpisodes } from "./crawler/maischberger.js";
 import { crawlIncrementalCarenMiosgaEpisodes } from "./crawler/miosga.js";
 import crawlHartAberFair from "./crawler/haf.js";
+import CrawlPinarAtalay from "./crawler/atalay.js";
 import pino from "pino";
 const logger = pino();
 
@@ -47,6 +48,13 @@ cron.schedule("0 1 * * 1", async () => {
   logger.info("Starte Caren Miosga Crawl...");
   await crawlIncrementalCarenMiosgaEpisodes();
   logger.info("Caren Miosga Crawl abgeschlossen.");
+});
+
+// Pinar Atalay: Jede 14 Tage Dienstags um 2 Uhr morgens
+cron.schedule("0 2 * * 2", async () => {
+  logger.info("Starte Pinar Atalay Crawl...");
+  await CrawlPinarAtalay();
+  logger.info("Pinar Atalay Crawl abgeschlossen.");
 });
 
 app.get("/", (req, res) => {

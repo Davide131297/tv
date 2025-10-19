@@ -23,6 +23,118 @@ export const POLITICAL_AREA = [
   { id: 7, label: "Kultur, Identität und Erinnerungspolitik" },
 ];
 
+// Rate-Limiting für AI-Requests
+let aiRequestCount = 0;
+let lastRequestTime = 0;
+const REQUEST_DELAY_MS = 4000;
+const MAX_RETRIES = 3;
+
+async function waitForRateLimit(): Promise<void> {
+  const now = Date.now();
+  const timeSinceLastRequest = now - lastRequestTime;
+
+  if (timeSinceLastRequest < REQUEST_DELAY_MS) {
+    const waitTime = REQUEST_DELAY_MS - timeSinceLastRequest;
+    console.log(`   ⏱️ Warte ${waitTime}ms wegen Rate Limit...`);
+    await new Promise((resolve) => setTimeout(resolve, waitTime));
+  }
+
+  lastRequestTime = Date.now();
+  aiRequestCount++;
+}
+
+export async function extractGuestsWithAI(
+  description: string,
+  retryCount = 0
+): Promise<string[]> {
+  const token = process.env.NEXT_PUBLIC_HF_ACCESS_TOKEN;
+  const MODEL = "aisingapore/Gemma-SEA-LION-v4-27B-IT";
+
+  if (!token) {
+    console.error("❌ HF_ACCESS_TOKEN fehlt in .env");
+    return [];
+  }
+
+  // Nach 150 Requests direkt zum Fallback wechseln
+  if (aiRequestCount >= 150) {
+    console.log("⚠️  AI Rate Limit erreicht");
+    return [];
+  }
+
+  await waitForRateLimit();
+
+  const hf = new InferenceClient(token);
+
+  const prompt = `Text: ${description}
+Gib mir die Namen der Gäste im Text ausschließlich als JSON Array mit Strings zurück. Keine Erklärungen, kein Codeblock, nichts davor oder danach.`;
+
+  try {
+    console.log(
+      `🤖 Extrahiere Gäste mit AI (Request ${aiRequestCount}/150)...`
+    );
+
+    const chat = await hf.chatCompletion({
+      model: MODEL,
+      messages: [
+        {
+          role: "system",
+          content:
+            'Du extrahierst ausschließlich Personennamen und antwortest nur mit einem gültigen JSON Array von Strings (z.B. ["Name1","Name2",...]). Keine zusätzlichen Zeichen.',
+        },
+        { role: "user", content: prompt },
+      ],
+      max_tokens: 150,
+      temperature: 0.0,
+      provider: "publicai",
+    });
+
+    const content = chat.choices?.[0]?.message?.content?.trim() ?? "";
+
+    const arrayMatch = content.match(/\[[\s\S]*\]/);
+    if (arrayMatch) {
+      try {
+        const parsed = JSON.parse(arrayMatch[0]);
+        if (
+          Array.isArray(parsed) &&
+          parsed.every((x) => typeof x === "string")
+        ) {
+          console.log(`   ✅ AI extrahierte ${parsed.length} Gäste:`, parsed);
+          return parsed;
+        }
+      } catch {
+        // ignorieren
+      }
+    }
+
+    console.log("⚠️  AI-Extraktion unerwartetes Format");
+    return [];
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unbekannter Fehler";
+    console.error(
+      `❌ AI-Extraktion fehlgeschlagen (Versuch ${
+        retryCount + 1
+      }/${MAX_RETRIES}): ${errorMessage}`
+    );
+
+    // Retry bei bestimmten Fehlern
+    if (
+      retryCount < MAX_RETRIES - 1 &&
+      (errorMessage.includes("rate") ||
+        errorMessage.includes("timeout") ||
+        errorMessage.includes("503") ||
+        errorMessage.includes("502"))
+    ) {
+      const backoffDelay = Math.pow(2, retryCount) * 2000;
+      console.log(`   🔄 Retry in ${backoffDelay}ms...`);
+      await new Promise((resolve) => setTimeout(resolve, backoffDelay));
+      return extractGuestsWithAI(description, retryCount + 1);
+    }
+
+    return [];
+  }
+}
+
 export async function getPoliticalArea(
   description: string
 ): Promise<number[] | []> {
