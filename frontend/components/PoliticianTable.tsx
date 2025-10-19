@@ -43,6 +43,7 @@ export default function PoliticianTable() {
     pageIndex: 0,
     pageSize: 20,
   });
+  const [searchInput, setSearchInput] = useState("");
 
   // Derive state from URL parameters
   const selectedShow = useMemo(() => {
@@ -58,6 +59,12 @@ export default function PoliticianTable() {
 
   const globalFilter = useMemo(() => {
     return searchParams.get("search") || "";
+  }, [searchParams]);
+
+  // Initialisiere searchInput mit dem Wert aus der URL
+  useEffect(() => {
+    const searchFromUrl = searchParams.get("search") || "";
+    setSearchInput(searchFromUrl);
   }, [searchParams]);
 
   const updateUrlParams = useCallback(
@@ -94,6 +101,16 @@ export default function PoliticianTable() {
 
   const handleSearchChange = (searchValue: string) => {
     updateUrlParams({ search: searchValue });
+  };
+
+  const handleSearchSubmit = () => {
+    updateUrlParams({ search: searchInput });
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleSearchSubmit();
+    }
   };
 
   // Lade Daten
@@ -306,10 +323,15 @@ export default function PoliticianTable() {
               <InputGroup>
                 <InputGroupInput
                   placeholder="Suche nach Name oder Partei..."
-                  onChange={(e) => handleSearchChange(e.target.value)}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
                 />
                 <InputGroupAddon align="inline-end">
-                  <InputGroupButton variant={"secondary"}>
+                  <InputGroupButton
+                    variant={"secondary"}
+                    onClick={handleSearchSubmit}
+                  >
                     Suchen
                   </InputGroupButton>
                 </InputGroupAddon>

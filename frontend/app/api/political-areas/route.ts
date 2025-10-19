@@ -33,6 +33,8 @@ export async function GET(request: NextRequest) {
         showName === "Hart aber fair")
     ) {
       query = query.eq("show_name", showName);
+    } else {
+      query = query.neq("show_name", "Pinar Atalay");
     }
 
     const { data, error } = await query;
