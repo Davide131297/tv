@@ -7,6 +7,7 @@ import { crawlNewMaischbergerEpisodes } from "./crawler/maischberger.js";
 import { crawlIncrementalCarenMiosgaEpisodes } from "./crawler/miosga.js";
 import crawlHartAberFair from "./crawler/haf.js";
 import CrawlPinarAtalay from "./crawler/atalay.js";
+import CrawlPhoenixRunde from "./crawler/phoenix-runde.js";
 import pino from "pino";
 const logger = pino();
 
@@ -57,6 +58,12 @@ cron.schedule("0 2 * * 2", async () => {
   logger.info("Pinar Atalay Crawl abgeschlossen.");
 });
 
+cron.schedule("0 3 * * 3,4,5", async () => {
+  logger.info("Starte Phoenix Runde Crawl...");
+  await CrawlPhoenixRunde();
+  logger.info("Phoenix Runde Crawl abgeschlossen.");
+});
+
 app.get("/", (req, res) => {
   res.send("Hello World!");
 });
@@ -94,6 +101,20 @@ app.post("/api/crawl-miosga", async (req, res) => {
   await crawlIncrementalCarenMiosgaEpisodes();
   logger.info("Caren Miosga Crawl abgeschlossen.");
   res.send("Caren Miosga Crawl gestartet.");
+});
+
+app.post("/api/crawl-atalay", async (req, res) => {
+  logger.info("Starte Pinar Atalay Crawl...");
+  await CrawlPinarAtalay();
+  logger.info("Pinar Atalay Crawl abgeschlossen.");
+  res.send("Pinar Atalay Crawl gestartet.");
+});
+
+app.post("/api/crawl-phoenix-runde", async (req, res) => {
+  logger.info("Starte Phoenix Runde Crawl...");
+  await CrawlPhoenixRunde();
+  logger.info("Phoenix Runde Crawl abgeschlossen.");
+  res.send("Phoenix Runde Crawl gestartet.");
 });
 
 app.listen(PORT, () => {
