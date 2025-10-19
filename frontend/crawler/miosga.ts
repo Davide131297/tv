@@ -19,7 +19,7 @@ import { supabase } from "@/lib/supabase";
 const LIST_URL =
   "https://www.ardaudiothek.de/sendung/caren-miosga/urn:ard:show:d6e5ba24e1508004/";
 
-const MODEL = "swiss-ai/Apertus-8B-Instruct-2509";
+const MODEL = "aisingapore/Gemma-SEA-LION-v4-27B-IT";
 
 // Rate-Limiting und Retry-Logik für AI-Requests
 let aiRequestCount = 0;

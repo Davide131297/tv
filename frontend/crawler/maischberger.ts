@@ -33,7 +33,7 @@ const BASE_URL = "https://www.daserste.de";
 const LIST_URL =
   "https://www.daserste.de/information/talk/maischberger/sendung/index.html";
 
-const MODEL = "swiss-ai/Apertus-8B-Instruct-2509";
+const MODEL = "aisingapore/Gemma-SEA-LION-v4-27B-IT";
 
 // Hilfsfunktion: Hole detaillierte Beschreibung von der Episodenseite
 async function getEpisodeDetailedDescription(

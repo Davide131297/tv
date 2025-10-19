@@ -547,7 +547,7 @@ export async function extractGuestsWithAI(
   teaserText: string
 ): Promise<string[]> {
   const token = process.env.NEXT_PUBLIC_HF_ACCESS_TOKEN;
-  const MODEL = "swiss-ai/Apertus-8B-Instruct-2509";
+  const MODEL = "aisingapore/Gemma-SEA-LION-v4-27B-IT";
 
   if (!token) {
     console.error("❌ HF_ACCESS_TOKEN fehlt in .env");
