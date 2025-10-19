@@ -324,6 +324,11 @@ export async function insertMultipleTvShowPoliticians(
     party_id: politician.partyId || null,
     party_name: politician.partyName || null,
     updated_at: new Date().toISOString(),
+    abgeordnetenwatch_url: politician.politicianName
+      ? `https://www.abgeordnetenwatch.de/profile/${politician.politicianName
+          .toLowerCase()
+          .replace(/\s+/g, "-")}`
+      : null,
   }));
 
   try {
