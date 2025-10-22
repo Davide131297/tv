@@ -35,6 +35,11 @@ const navigationItems = [
     description: "Partei-Chart und Verteilung",
   },
   {
+    title: "Zeitverlauf Parteien",
+    href: "/parteien-zeitverlauf",
+    description: "Monatliche Entwicklung der Partei-Auftritte",
+  },
+  {
     title: "Politische Themen",
     href: "/politische-themen",
     description: "Verteilung der politischen Themenbereiche",
