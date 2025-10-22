@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { MessageCircle, X, Send, Sparkles } from "lucide-react";
+import { X, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ReactMarkdown from "react-markdown";
 
@@ -16,7 +16,7 @@ export default function ChatBot() {
     {
       role: "assistant",
       content:
-        "Hallo! Ich bin der KI-Assistent für Polittalk-Watcher. Ich habe Zugriff auf alle aktuellen Daten aus der Datenbank. Du kannst mir z.B. folgende Fragen stellen:\n\n• Welche Partei hatte die meisten Auftritte?\n• Welche Politiker waren am häufigsten zu Gast?\n• Was waren die letzten Sendungen?\n• Welche politischen Themen werden am meisten diskutiert?\n• Wie viele Auftritte gibt es insgesamt?\n\nDeine Nachrichten werden nicht gespeichert. Die Zuverlässigkeit der Antworten kann wie bei jeder KI variieren und sogar von den Statistiken dieser Seite abweichen. Für genauere Informationen siehe dir die Statistiken selber an.\n\n Wie kann ich dir helfen?",
+        "Hallo! Ich bin der KI-Assistent für Polittalk-Watcher.\n\n&nbsp;\n\nIch habe Zugriff auf alle aktuellen Daten aus der Datenbank. Du kannst mir z.B. folgende Fragen stellen:\n\n&nbsp;\n\n• Welche Partei hatte die meisten Auftritte?\n\n&nbsp;\n\n• Welche Politiker waren am häufigsten zu Gast?\n\n&nbsp;\n\n• Was waren die letzten Sendungen?\n\n&nbsp;\n\n• Welche politischen Themen werden am meisten diskutiert?\n\n&nbsp;\n\n• Wie viele Auftritte gibt es insgesamt?\n\n&nbsp;\n\nDeine Nachrichten werden nicht gespeichert. Die Zuverlässigkeit der Antworten kann wie bei jeder KI variieren und sogar von den Statistiken dieser Seite abweichen. Für genauere Informationen siehe dir die Statistiken selber an.\n\n&nbsp;\n\nWie kann ich dir helfen?",
     },
   ]);
   const [input, setInput] = useState("");
@@ -160,7 +160,7 @@ export default function ChatBot() {
         className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-blue-600 text-white shadow-lg hover:bg-blue-700 transition-all duration-200 flex items-center justify-center"
         aria-label="Chat öffnen"
       >
-        {isOpen ? <X size={24} /> : <MessageCircle size={24} />}
+        {isOpen ? <X size={24} /> : <Sparkles size={24} />}
       </button>
 
       {/* Chat Window */}
@@ -169,7 +169,7 @@ export default function ChatBot() {
           {/* Header */}
           <div className="bg-blue-600 text-white p-4 rounded-t-lg flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <MessageCircle size={20} />
+              <Sparkles size={20} />
               <h3 className="font-semibold">KI-Assistent</h3>
             </div>
             <button
