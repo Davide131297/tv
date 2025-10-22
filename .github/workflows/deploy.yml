@@ -2,7 +2,7 @@ name: Deploy to Azure VM
 
 on:
   push:
-    branches: ["dev"] # läuft bei jedem Push auf dev
+    branches: ["main"] # läuft bei jedem Push auf main
 
 jobs:
   deploy:
