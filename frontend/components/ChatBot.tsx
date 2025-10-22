@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { X, Send, Sparkles } from "lucide-react";
+import { X, Send, Sparkles, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ReactMarkdown from "react-markdown";
 
@@ -66,8 +66,7 @@ export default function ChatBot() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error("API Error Response:", errorData);
-        throw new Error(errorData.error || "Fehler beim Senden der Nachricht");
+        console.info("API Error Response:", errorData);
       }
 
       // Handle streaming response
@@ -128,13 +127,11 @@ export default function ChatBot() {
       }
     } catch (error) {
       console.error("Chat Fehler:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Unbekannter Fehler";
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: `Entschuldigung, es gab einen Fehler: ${errorMessage}\n\nBitte versuche es erneut.`,
+          content: `Entschuldigung, es gab einen Fehler. \n\nBitte versuche es später erneut.`,
         },
       ]);
       setIsLoading(false);
@@ -151,6 +148,18 @@ export default function ChatBot() {
   const handleQuickQuestion = (question: string) => {
     sendMessage(question);
   };
+
+  function handleClose() {
+    setIsOpen(false);
+    setMessages([
+      {
+        role: "assistant",
+        content:
+          "Hallo! Ich bin der KI-Assistent für Polittalk-Watcher.\n\n&nbsp;\n\nIch habe Zugriff auf alle aktuellen Daten aus der Datenbank. Du kannst mir z.B. folgende Fragen stellen:\n\n&nbsp;\n\n• Welche Partei hatte die meisten Auftritte?\n\n&nbsp;\n\n• Welche Politiker waren am häufigsten zu Gast?\n\n&nbsp;\n\n• Was waren die letzten Sendungen?\n\n&nbsp;\n\n• Welche politischen Themen werden am meisten diskutiert?\n\n&nbsp;\n\n• Wie viele Auftritte gibt es insgesamt?\n\n&nbsp;\n\nDeine Nachrichten werden nicht gespeichert. Die Zuverlässigkeit der Antworten kann wie bei jeder KI variieren und sogar von den Statistiken dieser Seite abweichen. Für genauere Informationen siehe dir die Statistiken selber an.\n\n&nbsp;\n\nWie kann ich dir helfen?",
+      },
+    ]);
+    setShowQuickActions(true);
+  }
 
   return (
     <>
@@ -172,12 +181,20 @@ export default function ChatBot() {
               <Sparkles size={20} />
               <h3 className="font-semibold">KI-Assistent</h3>
             </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="hover:bg-blue-700 rounded p-1"
-            >
-              <X size={20} />
-            </button>
+            <div className="flex gap-2.5">
+              <button
+                onClick={() => setIsOpen(false)}
+                className="hover:bg-blue-700 rounded p-1"
+              >
+                <Minus size={20} />
+              </button>
+              <button
+                onClick={() => handleClose()}
+                className="hover:bg-blue-700 rounded p-1"
+              >
+                <X size={20} />
+              </button>
+            </div>
           </div>
 
           {/* Messages */}
@@ -250,7 +267,7 @@ export default function ChatBot() {
                 onKeyDown={handleKeyPress}
                 placeholder="Nachricht eingeben..."
                 disabled={isLoading}
-                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 dark:bg-gray-700 dark:text-white disabled:opacity-50"
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 dark:bg-gray-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <Button
                 onClick={() => sendMessage()}

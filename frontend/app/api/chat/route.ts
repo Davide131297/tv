@@ -4,7 +4,9 @@ export async function POST(request: NextRequest) {
   try {
     const { messages } = await request.json();
 
-    const response = await fetch("http://20.67.248.26:9000/api/chat", {
+    const baseUrl = process.env.BACKEND_URL;
+
+    const response = await fetch(`${baseUrl}/api/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
