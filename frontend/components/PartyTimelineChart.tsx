@@ -199,60 +199,76 @@ export default function PartyTimelineChart({
           )}
         </div>
 
-        <ChartContainer config={chartConfig}>
-          <LineChart
-            accessibilityLayer
-            data={processedData.data}
-            margin={{
-              top: 20,
-              left: 12,
-              right: 12,
-              bottom: 12,
-            }}
-          >
-            <CartesianGrid vertical={false} />
-            <XAxis
-              dataKey="month"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              tickFormatter={(value) => value.slice(0, 3)}
-              className="text-xs"
-            />
-            <YAxis
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              className="text-xs"
-            />
-            <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-            {processedData.parties.map((party) => {
-              const isSelected = isPartySelected(party);
-              const color =
-                party === "Union"
-                  ? "#000000"
-                  : PARTY_COLORS[party] || "#6b7280";
-              return (
-                <Line
-                  key={party}
-                  dataKey={party}
-                  type="monotone"
-                  stroke={isSelected ? color : "#d1d5db"}
-                  strokeWidth={isSelected ? 2 : 1}
-                  strokeOpacity={isSelected ? 1 : 0.3}
-                  dot={{
-                    fill: isSelected ? color : "#d1d5db",
-                    r: isSelected ? 4 : 2,
-                    fillOpacity: isSelected ? 1 : 0.3,
-                  }}
-                  activeDot={{
-                    r: isSelected ? 6 : 3,
-                  }}
+        {/* Chart Container mit sichtbarer horizontaler Scrollbar */}
+        <div className="w-full overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-2 scrollbar-visible">
+          <div className="min-w-[600px] sm:min-w-full">
+            <ChartContainer
+              config={chartConfig}
+              className="h-[350px] sm:h-[400px]"
+            >
+              <LineChart
+                accessibilityLayer
+                data={processedData.data}
+                margin={{
+                  top: 20,
+                  left: 12,
+                  right: 12,
+                  bottom: 12,
+                }}
+              >
+                <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="month"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  tickFormatter={(value) => value.slice(0, 3)}
+                  className="text-xs"
                 />
-              );
-            })}
-          </LineChart>
-        </ChartContainer>
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  className="text-xs"
+                />
+                <ChartTooltip
+                  cursor={false}
+                  content={<ChartTooltipContent />}
+                />
+                {processedData.parties.map((party) => {
+                  const isSelected = isPartySelected(party);
+                  const color =
+                    party === "Union"
+                      ? "#000000"
+                      : PARTY_COLORS[party] || "#6b7280";
+                  return (
+                    <Line
+                      key={party}
+                      dataKey={party}
+                      type="monotone"
+                      stroke={isSelected ? color : "#d1d5db"}
+                      strokeWidth={isSelected ? 2 : 1}
+                      strokeOpacity={isSelected ? 1 : 0.3}
+                      dot={{
+                        fill: isSelected ? color : "#d1d5db",
+                        r: isSelected ? 4 : 2,
+                        fillOpacity: isSelected ? 1 : 0.3,
+                      }}
+                      activeDot={{
+                        r: isSelected ? 6 : 3,
+                      }}
+                    />
+                  );
+                })}
+              </LineChart>
+            </ChartContainer>
+          </div>
+        </div>
+
+        {/* Hinweis für Mobile Nutzer */}
+        <div className="sm:hidden text-xs text-muted-foreground text-center mt-2">
+          ← Wische horizontal um alle Daten zu sehen →
+        </div>
       </CardContent>
       <CardFooter className="flex-col items-start gap-2 text-sm">
         <div className="flex gap-2 leading-none font-medium">
