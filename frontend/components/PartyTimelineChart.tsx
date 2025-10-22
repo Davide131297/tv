@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { TrendingUp } from "lucide-react";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
@@ -17,6 +18,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { Switch } from "@/components/ui/switch";
 import { PARTY_COLORS } from "@/types";
 
 interface MonthlyPartyStats {
@@ -29,6 +31,10 @@ interface PartyTimelineChartProps {
   parties: string[];
   selectedShow?: string;
   year?: string;
+  unionMode: boolean;
+  selectedParties: string[];
+  onUnionModeChange: (value: boolean) => void;
+  onSelectedPartiesChange: (parties: string[]) => void;
 }
 
 export default function PartyTimelineChart({
@@ -36,7 +42,57 @@ export default function PartyTimelineChart({
   parties,
   selectedShow,
   year,
+  unionMode,
+  selectedParties,
+  onUnionModeChange,
+  onSelectedPartiesChange,
 }: PartyTimelineChartProps) {
+  const toggleParty = (party: string) => {
+    const newSelection = selectedParties.includes(party)
+      ? selectedParties.filter((p) => p !== party)
+      : [...selectedParties, party];
+    onSelectedPartiesChange(newSelection);
+  };
+
+  const isPartySelected = (party: string) =>
+    selectedParties.length === 0 || selectedParties.includes(party);
+
+  // CDU & CSU zu Union zusammenfassen
+  const processedData = useMemo(() => {
+    if (!unionMode) return { data, parties };
+
+    const newData = data.map((monthData) => {
+      const { CDU = 0, CSU = 0, ...rest } = monthData;
+      return {
+        ...rest,
+        Union: (CDU as number) + (CSU as number),
+      };
+    });
+
+    const newParties = parties
+      .filter((p) => p !== "CDU" && p !== "CSU")
+      .concat(
+        parties.includes("CDU") || parties.includes("CSU") ? ["Union"] : []
+      );
+
+    // Sortiere Parteien nach Gesamtauftritten
+    const sortedParties = newParties.sort((a: string, b: string) => {
+      const totalA = newData.reduce(
+        (sum: number, month: MonthlyPartyStats) =>
+          sum + ((month[a] as number) || 0),
+        0
+      );
+      const totalB = newData.reduce(
+        (sum: number, month: MonthlyPartyStats) =>
+          sum + ((month[b] as number) || 0),
+        0
+      );
+      return totalB - totalA;
+    });
+
+    return { data: newData, parties: sortedParties };
+  }, [data, parties, unionMode]);
+
   // Dynamischer Titel basierend auf der ausgewählten Show
   const getTitle = () => {
     const baseTitle = `Partei-Auftritte ${year || "2025"}`;
@@ -61,23 +117,30 @@ export default function PartyTimelineChart({
   };
 
   // Erstelle Chart-Konfiguration dynamisch basierend auf Parteien
-  const chartConfig: ChartConfig = parties.reduce((config, party) => {
-    config[party] = {
-      label: party,
-      color: PARTY_COLORS[party] || "#6b7280",
-    };
-    return config;
-  }, {} as ChartConfig);
+  const chartConfig: ChartConfig = processedData.parties.reduce(
+    (config, party) => {
+      config[party] = {
+        label: party,
+        color: party === "Union" ? "#000000" : PARTY_COLORS[party] || "#6b7280",
+      };
+      return config;
+    },
+    {} as ChartConfig
+  );
 
   // Berechne Gesamtauftritte
-  const totalAppearances = data.reduce((sum, monthData) => {
-    return (
-      sum +
-      parties.reduce((monthSum, party) => {
-        return monthSum + ((monthData[party] as number) || 0);
-      }, 0)
-    );
-  }, 0);
+  const totalAppearances = processedData.data.reduce(
+    (sum: number, monthData: MonthlyPartyStats) => {
+      return (
+        sum +
+        processedData.parties.reduce((monthSum: number, party: string) => {
+          const value = monthData[party];
+          return monthSum + (typeof value === "number" ? value : 0);
+        }, 0)
+      );
+    },
+    0
+  );
 
   return (
     <Card>
@@ -88,10 +151,58 @@ export default function PartyTimelineChart({
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {/* Union Mode Switch */}
+        <div className="mb-4 flex items-center gap-2">
+          <Switch
+            id="union-switch"
+            checked={unionMode}
+            onCheckedChange={onUnionModeChange}
+          />
+          <label
+            htmlFor="union-switch"
+            className="text-sm select-none cursor-pointer"
+          >
+            CDU & CSU als Union zusammenfassen
+          </label>
+        </div>
+
+        {/* Party Selection Buttons */}
+        <div className="mb-4 flex flex-wrap gap-2">
+          {processedData.parties.map((party) => (
+            <button
+              key={party}
+              onClick={() => toggleParty(party)}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                isPartySelected(party)
+                  ? "opacity-100"
+                  : "opacity-40 hover:opacity-60"
+              }`}
+              style={{
+                backgroundColor: isPartySelected(party)
+                  ? party === "Union"
+                    ? "#000000"
+                    : PARTY_COLORS[party] || "#6b7280"
+                  : "#e5e7eb",
+                color: isPartySelected(party) ? "white" : "#6b7280",
+              }}
+            >
+              {party}
+            </button>
+          ))}
+          {selectedParties.length > 0 && (
+            <button
+              onClick={() => onSelectedPartiesChange([])}
+              className="px-3 py-1.5 rounded-md text-sm font-medium bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
+            >
+              Alle anzeigen
+            </button>
+          )}
+        </div>
+
         <ChartContainer config={chartConfig}>
           <LineChart
             accessibilityLayer
-            data={data}
+            data={processedData.data}
             margin={{
               top: 20,
               left: 12,
@@ -115,22 +226,31 @@ export default function PartyTimelineChart({
               className="text-xs"
             />
             <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-            {parties.map((party) => (
-              <Line
-                key={party}
-                dataKey={party}
-                type="monotone"
-                stroke={PARTY_COLORS[party] || "#6b7280"}
-                strokeWidth={2}
-                dot={{
-                  fill: PARTY_COLORS[party] || "#6b7280",
-                  r: 4,
-                }}
-                activeDot={{
-                  r: 6,
-                }}
-              />
-            ))}
+            {processedData.parties.map((party) => {
+              const isSelected = isPartySelected(party);
+              const color =
+                party === "Union"
+                  ? "#000000"
+                  : PARTY_COLORS[party] || "#6b7280";
+              return (
+                <Line
+                  key={party}
+                  dataKey={party}
+                  type="monotone"
+                  stroke={isSelected ? color : "#d1d5db"}
+                  strokeWidth={isSelected ? 2 : 1}
+                  strokeOpacity={isSelected ? 1 : 0.3}
+                  dot={{
+                    fill: isSelected ? color : "#d1d5db",
+                    r: isSelected ? 4 : 2,
+                    fillOpacity: isSelected ? 1 : 0.3,
+                  }}
+                  activeDot={{
+                    r: isSelected ? 6 : 3,
+                  }}
+                />
+              );
+            })}
           </LineChart>
         </ChartContainer>
       </CardContent>

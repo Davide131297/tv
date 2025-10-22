@@ -1,10 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import PartyTimelineChart from "@/components/PartyTimelineChart";
 import ShowOptionsButtons from "@/components/ShowOptionsButtons";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SHOW_OPTIONS } from "@/types";
 
 interface MonthlyPartyStats {
@@ -20,36 +27,102 @@ interface ApiResponse {
 }
 
 export default function PartyTimelinePageContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const selectedShow = searchParams.get("show") || "all";
-  const selectedYear =
-    searchParams.get("year") || new Date().getFullYear().toString();
+
+  const selectedShow = useMemo(() => {
+    const showParam = searchParams.get("show");
+    if (
+      showParam &&
+      SHOW_OPTIONS.some((option) => option.value === showParam)
+    ) {
+      return showParam;
+    }
+    return "all";
+  }, [searchParams]);
+
+  const selectedYear = useMemo(() => {
+    return searchParams.get("year") || new Date().getFullYear().toString();
+  }, [searchParams]);
+
+  const unionMode = useMemo(() => {
+    return searchParams.get("union") === "true";
+  }, [searchParams]);
+
+  const selectedParties = useMemo(() => {
+    const partiesParam = searchParams.get("parties");
+    return partiesParam ? partiesParam.split(",") : [];
+  }, [searchParams]);
 
   const [data, setData] = useState<MonthlyPartyStats[]>([]);
   const [parties, setParties] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const updateUrlParams = useCallback(
+    (updates: {
+      show?: string;
+      year?: string;
+      union?: boolean;
+      parties?: string[];
+    }) => {
+      const params = new URLSearchParams(searchParams.toString());
+
+      if (updates.show !== undefined) {
+        if (updates.show === "all") {
+          params.delete("show");
+        } else {
+          params.set("show", updates.show);
+        }
+      }
+
+      if (updates.year !== undefined) {
+        const currentYear = new Date().getFullYear().toString();
+        if (updates.year === currentYear) {
+          params.delete("year");
+        } else {
+          params.set("year", updates.year);
+        }
+      }
+
+      if (updates.union !== undefined) {
+        if (updates.union) {
+          params.set("union", "true");
+        } else {
+          params.delete("union");
+        }
+      }
+
+      if (updates.parties !== undefined) {
+        if (updates.parties.length === 0) {
+          params.delete("parties");
+        } else {
+          params.set("parties", updates.parties.join(","));
+        }
+      }
+
+      const newUrl = params.toString()
+        ? `/parteien-zeitverlauf?${params.toString()}`
+        : "/parteien-zeitverlauf";
+      router.push(newUrl, { scroll: false });
+    },
+    [searchParams, router]
+  );
+
   const handleShowChange = (show: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("show", show);
-    window.history.pushState(
-      {},
-      "",
-      `${window.location.pathname}?${params.toString()}`
-    );
-    window.location.reload();
+    updateUrlParams({ show });
   };
 
   const handleYearChange = (year: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("year", year);
-    window.history.pushState(
-      {},
-      "",
-      `${window.location.pathname}?${params.toString()}`
-    );
-    window.location.reload();
+    updateUrlParams({ year });
+  };
+
+  const handleUnionModeChange = (union: boolean) => {
+    updateUrlParams({ union });
+  };
+
+  const handleSelectedPartiesChange = (parties: string[]) => {
+    updateUrlParams({ parties });
   };
 
   useEffect(() => {
@@ -140,24 +213,21 @@ export default function PartyTimelinePageContent() {
 
         {/* Year Filter */}
         <div>
-          <label
-            htmlFor="year-select"
-            className="text-sm font-medium mb-2 block"
-          >
+          <label className="text-sm font-medium mb-2 block">
             Jahr auswählen:
           </label>
-          <select
-            id="year-select"
-            value={selectedYear}
-            onChange={(e) => handleYearChange(e.target.value)}
-            className="px-4 py-2 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground"
-          >
-            {availableYears.map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
-          </select>
+          <Select value={selectedYear} onValueChange={handleYearChange}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Jahr wählen" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableYears.map((year) => (
+                <SelectItem key={year} value={year}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -179,6 +249,10 @@ export default function PartyTimelinePageContent() {
           parties={parties}
           selectedShow={selectedShow}
           year={selectedYear}
+          unionMode={unionMode}
+          selectedParties={selectedParties}
+          onUnionModeChange={handleUnionModeChange}
+          onSelectedPartiesChange={handleSelectedPartiesChange}
         />
       )}
 
