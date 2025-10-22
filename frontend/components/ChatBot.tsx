@@ -87,6 +87,9 @@ export default function ChatBot() {
         },
       ]);
 
+      // Hide loading animation once stream starts
+      setIsLoading(false);
+
       let assistantContent = "";
 
       while (true) {
@@ -123,8 +126,6 @@ export default function ChatBot() {
           }
         }
       }
-
-      setIsLoading(false);
     } catch (error) {
       console.error("Chat Fehler:", error);
       const errorMessage =
