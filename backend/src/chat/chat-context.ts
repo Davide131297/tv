@@ -135,7 +135,6 @@ AKTUELLE DATENBANK-STATISTIKEN (Polittalk-Watcher):
 
 👥 PARTEIEN (Top-Auftritte):
 ${context.partyStats
-  .slice(0, 8)
   .map((p, i) => `${i + 1}. ${p.party}: ${p.count} Auftritte`)
   .join("\n")}
 
@@ -151,13 +150,11 @@ ${context.topPoliticians
 
 📋 POLITISCHE THEMENBEREICHE:
 ${context.politicalAreas
-  .slice(0, 6)
   .map((a, i) => `${i + 1}. ${a.area}: ${a.count} Episoden`)
   .join("\n")}
 
 📅 LETZTE SENDUNGEN:
 ${context.recentShows
-  .slice(0, 5)
   .map(
     (s) =>
       `- ${s.show_name} (${s.episode_date}): ${s.politician_name} (${
