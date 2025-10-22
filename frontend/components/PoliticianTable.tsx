@@ -167,6 +167,8 @@ export default function PoliticianTable() {
                   ? "bg-teal-100 text-teal-800"
                   : show === "Hart aber fair"
                   ? "bg-blue-100 text-blue-800"
+                  : show === "Phoenix Runde"
+                  ? "bg-cyan-100 text-cyan-800"
                   : "bg-gray-100 text-gray-800"
               }`}
             >
