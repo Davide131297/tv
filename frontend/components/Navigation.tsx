@@ -97,13 +97,21 @@ export default function Navigation() {
               <NavigationMenuItem>
                 <NavigationMenuTrigger>Ansichten</NavigationMenuTrigger>
                 <NavigationMenuContent>
-                  <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px]">
+                  <ul
+                    className={cn(
+                      "grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px]"
+                    )}
+                  >
                     {navigationItems.map((item) => (
                       <ListItem
                         key={item.title}
                         title={item.title}
                         href={item.href}
                         isActive={pathname === item.href}
+                        className={cn(
+                          item.title === "Datenbank" &&
+                            "border border-dashed border-gray-200"
+                        )}
                       >
                         {item.description}
                       </ListItem>

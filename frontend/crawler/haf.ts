@@ -1,6 +1,6 @@
 import {
   getLatestEpisodeDate,
-  insertTvShowPolitician,
+  insertMultipleTvShowPoliticians,
   checkPoliticianOverride,
   insertMultipleShowLinks,
 } from "@/lib/supabase-server-utils";
@@ -533,10 +533,16 @@ export default async function crawlHartAberFair() {
         }
 
         // Process politicians for this episode
-        let politiciansInserted = 0;
         console.log(
-          `\n� GÄSTE (${episodeDetails.politicians.length} gefunden):`
+          `\n🎭 GÄSTE (${episodeDetails.politicians.length} gefunden):`
         );
+
+        const politiciansToInsert: Array<{
+          politicianId: number;
+          politicianName: string;
+          partyId?: number;
+          partyName?: string;
+        }> = [];
 
         for (const politician of episodeDetails.politicians) {
           console.log(`   🔍 Verarbeite: ${politician.name}`);
@@ -546,50 +552,56 @@ export default async function crawlHartAberFair() {
             politician.role
           );
 
-          const politicalAreaIds = await getPoliticalArea(
-            episodeDetails.description
-          );
-
           if (
             politicianDetails.isPolitician &&
             politicianDetails.politicianId
           ) {
-            const success = await insertTvShowPolitician({
-              show_name: "Hart aber fair",
-              episode_date: episodeDetails.date,
-              politician_id: politicianDetails.politicianId,
-              politician_name:
+            politiciansToInsert.push({
+              politicianId: politicianDetails.politicianId,
+              politicianName:
                 politicianDetails.politicianName || politician.name,
-              party_id: politicianDetails.party,
-              party_name: politicianDetails.partyName,
+              partyId: politicianDetails.party,
+              partyName: politicianDetails.partyName,
             });
-
-            if (success) {
-              politiciansInserted++;
-              console.log(
-                `      ✅ Politiker gespeichert: ${
-                  politicianDetails.politicianName
-                } (${politicianDetails.partyName || "keine Partei"})`
-              );
-            }
+            console.log(
+              `      ✅ Politiker gefunden: ${
+                politicianDetails.politicianName
+              } (${politicianDetails.partyName || "keine Partei"})`
+            );
           } else {
             console.log(`      ❌ Kein Politiker: ${politician.name}`);
           }
 
-          // Speichere politische Themenbereiche
-          if (politicalAreaIds && politicalAreaIds.length > 0) {
-            const insertedAreas = await insertEpisodePoliticalAreas(
-              "Hart aber fair",
-              episodeDetails.date,
-              politicalAreaIds
-            );
-            console.log(
-              `   🏛️  ${insertedAreas}/${politicalAreaIds.length} Themenbereiche gespeichert`
-            );
-          }
-
           // Add delay to be respectful to external APIs
           await new Promise((resolve) => setTimeout(resolve, 300));
+        }
+
+        // Batch insert politicians
+        let politiciansInserted = 0;
+        if (politiciansToInsert.length > 0) {
+          politiciansInserted = await insertMultipleTvShowPoliticians(
+            "Hart aber fair",
+            episodeDetails.date,
+            politiciansToInsert
+          );
+          console.log(
+            `   👥 ${politiciansInserted}/${politiciansToInsert.length} Politiker gespeichert`
+          );
+        }
+
+        // Speichere politische Themenbereiche
+        const politicalAreaIds = await getPoliticalArea(
+          episodeDetails.description
+        );
+        if (politicalAreaIds && politicalAreaIds.length > 0) {
+          const insertedAreas = await insertEpisodePoliticalAreas(
+            "Hart aber fair",
+            episodeDetails.date,
+            politicalAreaIds
+          );
+          console.log(
+            `   🏛️  ${insertedAreas}/${politicalAreaIds.length} Themenbereiche gespeichert`
+          );
         }
 
         processedCount++;
