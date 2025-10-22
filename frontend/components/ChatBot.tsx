@@ -70,14 +70,61 @@ export default function ChatBot() {
         throw new Error(errorData.error || "Fehler beim Senden der Nachricht");
       }
 
-      const data = await response.json();
+      // Handle streaming response
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
 
-      const assistantMessage: Message = {
-        role: "assistant",
-        content: data.message,
-      };
+      if (!reader) {
+        throw new Error("Stream nicht verfügbar");
+      }
 
-      setMessages((prev) => [...prev, assistantMessage]);
+      // Add empty assistant message that we'll update with streamed content
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "",
+        },
+      ]);
+
+      let assistantContent = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n");
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6);
+            if (data === "[DONE]") {
+              break;
+            }
+
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.content) {
+                assistantContent += parsed.content;
+                // Update the last message with accumulated content
+                setMessages((prev) => {
+                  const newMessages = [...prev];
+                  const lastMessage = newMessages[newMessages.length - 1];
+                  if (lastMessage.role === "assistant") {
+                    lastMessage.content = assistantContent;
+                  }
+                  return newMessages;
+                });
+              }
+            } catch {
+              // Ignore JSON parse errors for incomplete chunks
+            }
+          }
+        }
+      }
+
+      setIsLoading(false);
     } catch (error) {
       console.error("Chat Fehler:", error);
       const errorMessage =
@@ -89,7 +136,6 @@ export default function ChatBot() {
           content: `Entschuldigung, es gab einen Fehler: ${errorMessage}\n\nBitte versuche es erneut.`,
         },
       ]);
-    } finally {
       setIsLoading(false);
     }
   };

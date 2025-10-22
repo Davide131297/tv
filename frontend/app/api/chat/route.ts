@@ -9,6 +9,10 @@ interface Message {
   content: string;
 }
 
+// Enable Edge Runtime for faster responses and better streaming support
+export const runtime = "edge";
+export const maxDuration = 30; // 30 seconds max (works on Hobby plan with Edge)
+
 export async function POST(req: NextRequest) {
   try {
     // Use HF_ACCESS_TOKEN (without NEXT_PUBLIC prefix) for server-side API routes
@@ -70,15 +74,48 @@ export async function POST(req: NextRequest) {
 
     const chatMessages = [systemMessage, ...messages];
 
-    let chat;
     try {
-      chat = await hf.chatCompletion({
+      // Use streaming for faster response and to avoid timeouts
+      const stream = await hf.chatCompletionStream({
         model: MODEL,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         messages: chatMessages as any,
         max_tokens: 500,
         temperature: 0.7,
         provider: "publicai",
+      });
+
+      // Create a ReadableStream to send data to the client
+      const encoder = new TextEncoder();
+      const readableStream = new ReadableStream({
+        async start(controller) {
+          try {
+            for await (const chunk of stream) {
+              const content = chunk.choices[0]?.delta?.content || "";
+              if (content) {
+                // Send each chunk as JSON
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify({ content })}\n\n`)
+                );
+              }
+            }
+            // Send done signal
+            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+            controller.close();
+          } catch (error) {
+            console.error("❌ Streaming error:", error);
+            controller.error(error);
+          }
+        },
+      });
+
+      // Return streaming response
+      return new Response(readableStream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+        },
       });
     } catch (aiError) {
       console.error("❌ HuggingFace API Fehler:", aiError);
@@ -87,17 +124,6 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
-
-    const content = chat.choices?.[0]?.message?.content?.trim() ?? "";
-
-    if (!content) {
-      return NextResponse.json(
-        { error: "Keine Antwort von der KI erhalten" },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({ message: content });
   } catch (error) {
     console.error("❌ Chat API Fehler:", error);
     // Detaillierte Fehlermeldung für Debugging
