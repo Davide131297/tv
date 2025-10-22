@@ -256,32 +256,45 @@ export async function GET(request: NextRequest) {
         query = applyShowFilter(query, showName);
 
         const { data, error } = await query;
-
         if (error) {
           throw error;
         }
+
+        // Hole alle relevanten episode_urls aus show_links
+        let showLinksQuery = supabase
+          .from("show_links")
+          .select("episode_date, episode_url");
+        if (showName) {
+          showLinksQuery = showLinksQuery.eq("show_name", showName);
+        }
+        const { data: showLinksData, error: showLinksError } =
+          await showLinksQuery;
+        if (showLinksError) {
+          console.warn("Warning: Could not fetch show links:", showLinksError);
+        }
+        const urlMap = new Map();
+        if (showLinksData) {
+          showLinksData.forEach((link) => {
+            urlMap.set(link.episode_date, link.episode_url);
+          });
+        }
+
+        // Füge jeder Zeile die episode_url hinzu
+        const dataWithUrls = data.map((row) => ({
+          ...row,
+          episode_url: urlMap.get(row.episode_date) || null,
+        }));
 
         // Hole Gesamtanzahl für Pagination
         let countQuery = supabase
           .from("tv_show_politicians")
           .select("*", { count: "exact", head: true });
-
-        if (
-          showName &&
-          (showName === "Markus Lanz" ||
-            showName === "Maybrit Illner" ||
-            showName === "Caren Miosga" ||
-            showName === "Maischberger" ||
-            showName === "Hart aber fair")
-        ) {
-          countQuery = countQuery.eq("show_name", showName);
-        }
-
+        countQuery = applyShowFilter(query, showName);
         const { count: totalCount } = await countQuery;
 
         return NextResponse.json({
           success: true,
-          data: data,
+          data: dataWithUrls,
           pagination: {
             limit,
             offset,

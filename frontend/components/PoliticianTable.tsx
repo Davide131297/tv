@@ -181,7 +181,27 @@ export default function PoliticianTable() {
         header: "Datum",
         cell: (info) => {
           const date = new Date(info.getValue());
-          return date.toLocaleDateString("de-DE");
+          const url = info.row.original.episode_url;
+          const formatted = date.toLocaleDateString("de-DE");
+          return url ? (
+            <Tooltip>
+              <TooltipTrigger>
+                <Link
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="cursor-pointer hover:text-blue-600"
+                >
+                  {formatted}
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Zur Sendung</p>
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            formatted
+          );
         },
         sortingFn: "datetime",
       }),
@@ -189,7 +209,6 @@ export default function PoliticianTable() {
         header: "Politiker",
         cell: (info) => (
           <div className="flex gap-1">
-            <div className="font-semibold">{info.getValue()}</div>
             {info.row.original.abgeordnetenwatch_url && (
               <Tooltip>
                 <TooltipTrigger>
@@ -198,7 +217,9 @@ export default function PoliticianTable() {
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    <ExternalLink className="inline-block w-3 h-3 text-blue-600 mb-3 cursor-pointer" />
+                    <div className="font-semibold cursor-pointer hover:text-blue-600">
+                      {info.getValue()}
+                    </div>
                   </Link>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -384,42 +405,61 @@ export default function PoliticianTable() {
             };
 
             return (
-              <div key={row.id} className="p-4 space-y-3">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex gap-1 font-semibold text-gray-900 text-sm">
-                      {data.politician_name}
-                      {data.abgeordnetenwatch_url && (
-                        <Link
-                          href={data.abgeordnetenwatch_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <ExternalLink className="inline-block w-3 h-3 text-blue-600 mb-3 cursor-pointer" />
-                        </Link>
-                      )}
+              <div key={row.id} className="p-4">
+                <div className="flex justify-between">
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex gap-1 font-semibold text-gray-900 text-sm">
+                          {data.politician_name}
+                          {data.abgeordnetenwatch_url && (
+                            <Link
+                              href={data.abgeordnetenwatch_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <ExternalLink className="inline-block w-3 h-3 text-blue-600 mb-3 cursor-pointer" />
+                            </Link>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {date.toLocaleDateString("de-DE")}
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      {date.toLocaleDateString("de-DE")}
+
+                    <div className="flex flex-wrap gap-2">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-semibold ${getShowColor(
+                          data.show_name
+                        )}`}
+                      >
+                        {data.show_name}
+                      </span>
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-semibold ${getPartyColor(
+                          data.party_name
+                        )}`}
+                      >
+                        {data.party_name}
+                      </span>
                     </div>
                   </div>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-semibold ${getShowColor(
-                      data.show_name
-                    )}`}
-                  >
-                    {data.show_name}
-                  </span>
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-semibold ${getPartyColor(
-                      data.party_name
-                    )}`}
-                  >
-                    {data.party_name}
-                  </span>
+                  <div>
+                    {data.episode_url && (
+                      <Link
+                        href={data.episode_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex gap-0.5 items-center text-xs"
+                      >
+                        <Button variant="outline" size="sm">
+                          <p className="text-[10px]">Zur Episode</p>
+                          <ExternalLink className="inline-block w-3 h-3 text-blue-600" />
+                        </Button>
+                      </Link>
+                    )}
+                  </div>
                 </div>
               </div>
             );

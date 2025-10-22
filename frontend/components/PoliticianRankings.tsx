@@ -241,9 +241,26 @@ export default function PoliticianRankings() {
                       <div className="sm:hidden">
                         <div className="flex justify-between items-start mb-2">
                           <div className="flex-1 min-w-0 pr-2">
-                            <h3 className="font-semibold text-base truncate">
-                              {politician.politician_name}
-                            </h3>
+                            <div className="flex gap-1 items-center">
+                              <h3 className="font-semibold text-base truncate">
+                                {politician.politician_name}
+                              </h3>
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <Link
+                                    href={`politiker?search=${politician.politician_name.replace(
+                                      / /g,
+                                      "+"
+                                    )}`}
+                                  >
+                                    <Eye className="cursor-pointer" size={16} />
+                                  </Link>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Genauer ansehen</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </div>
                             <Badge
                               className={`${getPartyColorClass(
                                 politician.party_name
