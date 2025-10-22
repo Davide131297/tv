@@ -65,7 +65,9 @@ export default function ChatBot() {
       });
 
       if (!response.ok) {
-        throw new Error("Fehler beim Senden der Nachricht");
+        const errorData = await response.json().catch(() => ({}));
+        console.error("API Error Response:", errorData);
+        throw new Error(errorData.error || "Fehler beim Senden der Nachricht");
       }
 
       const data = await response.json();
@@ -78,12 +80,13 @@ export default function ChatBot() {
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
       console.error("Chat Fehler:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unbekannter Fehler";
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content:
-            "Entschuldigung, es gab einen Fehler. Bitte versuche es erneut.",
+          content: `Entschuldigung, es gab einen Fehler: ${errorMessage}\n\nBitte versuche es erneut.`,
         },
       ]);
     } finally {

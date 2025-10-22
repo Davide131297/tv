@@ -11,11 +11,12 @@ interface Message {
 
 export async function POST(req: NextRequest) {
   try {
+    // Use HF_ACCESS_TOKEN (without NEXT_PUBLIC prefix) for server-side API routes
     const token = process.env.NEXT_PUBLIC_HF_ACCESS_TOKEN;
     if (!token) {
-      console.error("❌ NEXT_PUBLIC_HF_ACCESS_TOKEN fehlt in .env");
+      console.error("❌ HF_ACCESS_TOKEN fehlt in .env");
       return NextResponse.json(
-        { error: "API-Konfigurationsfehler" },
+        { error: "API-Konfigurationsfehler: HuggingFace Token fehlt" },
         { status: 500 }
       );
     }
@@ -32,7 +33,16 @@ export async function POST(req: NextRequest) {
     const hf = new InferenceClient(token);
 
     // Lade aktuelle Daten aus der Datenbank
-    const dbContext = await getChatContext();
+    let dbContext;
+    try {
+      dbContext = await getChatContext();
+    } catch (dbError) {
+      console.error("❌ Fehler beim Laden des Chat-Kontexts:", dbError);
+      return NextResponse.json(
+        { error: "Datenbank-Fehler beim Laden des Kontexts" },
+        { status: 500 }
+      );
+    }
     const contextString = formatContextForAI(dbContext);
 
     // System Prompt mit Datenbank-Kontext
@@ -60,14 +70,23 @@ export async function POST(req: NextRequest) {
 
     const chatMessages = [systemMessage, ...messages];
 
-    const chat = await hf.chatCompletion({
-      model: MODEL,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      messages: chatMessages as any,
-      max_tokens: 500,
-      temperature: 0.7,
-      provider: "publicai",
-    });
+    let chat;
+    try {
+      chat = await hf.chatCompletion({
+        model: MODEL,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        messages: chatMessages as any,
+        max_tokens: 500,
+        temperature: 0.7,
+        provider: "publicai",
+      });
+    } catch (aiError) {
+      console.error("❌ HuggingFace API Fehler:", aiError);
+      return NextResponse.json(
+        { error: "KI-Service nicht erreichbar" },
+        { status: 500 }
+      );
+    }
 
     const content = chat.choices?.[0]?.message?.content?.trim() ?? "";
 
@@ -80,9 +99,18 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ message: content });
   } catch (error) {
-    console.error("Chat API Fehler:", error);
+    console.error("❌ Chat API Fehler:", error);
+    // Detaillierte Fehlermeldung für Debugging
+    const errorMessage =
+      error instanceof Error ? error.message : "Unbekannter Fehler";
+    console.error("Error Details:", errorMessage);
+
     return NextResponse.json(
-      { error: "Fehler bei der Verarbeitung der Anfrage" },
+      {
+        error: "Fehler bei der Verarbeitung der Anfrage",
+        details:
+          process.env.NODE_ENV === "development" ? errorMessage : undefined,
+      },
       { status: 500 }
     );
   }
