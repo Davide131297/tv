@@ -8,8 +8,6 @@ import {
 } from "../lib/utils.js";
 import { createBrowser, setupSimplePage } from "../lib/browser-configs.js";
 import { Page } from "puppeteer";
-import axios from "axios";
-import type { AbgeordnetenwatchPolitician } from "../types/abgeordnetenwatch.js";
 
 // ---------------- Types ----------------
 
@@ -777,7 +775,10 @@ export default async function CrawlLanz() {
       `Politische Themenbereiche gesamt eingefügt: ${totalPoliticalAreasInserted}`
     );
     console.log(`Episode-URLs gesamt eingefügt: ${totalEpisodeLinksInserted}`);
-  } catch {
-    console.error("Schwerer Fehler im Crawl-Prozess");
+  } catch (error) {
+    console.error("Schwerer Fehler im Crawl-Prozess:", error);
+    throw error; // Werfe den Fehler weiter, damit er im Log erscheint
+  } finally {
+    await browser.close().catch(() => {});
   }
 }
