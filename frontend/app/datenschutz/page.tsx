@@ -101,8 +101,34 @@ export default function DatenschutzPage() {
         </section>
 
         <section className="mb-8">
+          <h2 className="text-2xl font-semibold mb-4">3. KI-Chatfunktion</h2>
+          <p className="mb-4">
+            Unsere Website bietet eine Chatfunktion, die KI-generierte Antworten
+            bereitstellt. Die Chatnachrichten werden über unsere eigenen Server
+            (gehostet bei Vercel) verarbeitet und anschließend an einen
+            Sprachmodell-Dienst von Hugging Face weitergeleitet.
+          </p>
+          <p className="mb-4">
+            Bei der Nutzung der Chatfunktion werden die von Ihnen eingegebenen
+            Nachrichten verarbeitet, um Ihnen eine Antwort zu generieren. Diese
+            Daten werden nicht dauerhaft gespeichert und dienen ausschließlich
+            der Bereitstellung der Chat-Funktionalität.
+          </p>
+          <p className="mb-4">
+            Weitere Informationen zur Datenverarbeitung durch Hugging Face
+            finden Sie unter:{" "}
+            <Link
+              className="text-blue-500 underline hover:text-blue-700"
+              href="https://huggingface.co/privacy"
+            >
+              https://huggingface.co/privacy
+            </Link>
+          </p>
+        </section>
+
+        <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">
-            3. Allgemeine Hinweise und Pflichtinformationen
+            4. Allgemeine Hinweise und Pflichtinformationen
           </h2>
 
           <h3 className="text-xl font-medium mb-3">Datenschutz</h3>
@@ -123,7 +149,7 @@ export default function DatenschutzPage() {
         </section>
 
         <section className="mb-8">
-          <h2 className="text-2xl font-semibold mb-4">4. Ihre Rechte</h2>
+          <h2 className="text-2xl font-semibold mb-4">5. Ihre Rechte</h2>
           <p className="mb-4">
             Sie haben jederzeit das Recht, unentgeltlich Auskunft über Herkunft,
             Empfänger und Zweck Ihrer gespeicherten personenbezogenen Daten zu
@@ -139,7 +165,7 @@ export default function DatenschutzPage() {
         </section>
 
         <section className="mb-8">
-          <h2 className="text-2xl font-semibold mb-4">5. Datenquellen</h2>
+          <h2 className="text-2xl font-semibold mb-4">6. Datenquellen</h2>
           <p className="mb-4">
             Die auf dieser Website dargestellten Informationen über politische
             Talkshow-Auftritte stammen aus öffentlich zugänglichen Quellen und
@@ -151,7 +177,7 @@ export default function DatenschutzPage() {
 
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">
-            6. Änderungen der Datenschutzerklärung
+            7. Änderungen der Datenschutzerklärung
           </h2>
           <p className="mb-4">
             Wir behalten uns vor, diese Datenschutzerklärung anzupassen, damit
