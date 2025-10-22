@@ -50,7 +50,7 @@ export default function PartyTimelinePageContent() {
   }, [searchParams]);
 
   const selectedParties = useMemo(() => {
-    const partiesParam = searchParams.get("parties");
+    const partiesParam = searchParams.get("parteien");
     return partiesParam ? partiesParam.split(",") : [];
   }, [searchParams]);
 
@@ -95,9 +95,9 @@ export default function PartyTimelinePageContent() {
 
       if (updates.parties !== undefined) {
         if (updates.parties.length === 0) {
-          params.delete("parties");
+          params.delete("parteien");
         } else {
-          params.set("parties", updates.parties.join(","));
+          params.set("parteien", updates.parties.join(","));
         }
       }
 
