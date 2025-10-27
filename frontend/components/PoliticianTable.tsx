@@ -37,6 +37,21 @@ import {
 
 const columnHelper = createColumnHelper<PoliticianAppearance>();
 
+// Normalize episode URLs coming from DB/crawlers.
+// - If URL already has http(s):// return as-is
+// - If it starts with '//' prepend current protocol
+// - If it starts with 'www.' or looks like a host, prepend https://
+// - Otherwise return as-is (could be an internal/relative link)
+function normalizeUrl(raw?: string | null) {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^\/\//.test(trimmed)) return `${window.location.protocol}${trimmed}`;
+  if (/^www\./i.test(trimmed) || /^[a-zA-Z0-9.-]+\.[a-z]{2,}/.test(trimmed))
+    return `https://${trimmed}`;
+  return trimmed;
+}
+
 export default function PoliticianTable() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -214,7 +229,8 @@ export default function PoliticianTable() {
         header: "Datum",
         cell: (info) => {
           const date = new Date(info.getValue());
-          const url = info.row.original.episode_url;
+          const rawUrl = info.row.original.episode_url;
+          const url = normalizeUrl(rawUrl);
           const formatted = date.toLocaleDateString("de-DE");
           return url ? (
             <Tooltip>
@@ -499,19 +515,24 @@ export default function PoliticianTable() {
                     </div>
                   </div>
                   <div>
-                    {data.episode_url && (
-                      <Link
-                        href={data.episode_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex gap-0.5 items-center text-xs"
-                      >
-                        <Button variant="outline" size="sm">
-                          <p className="text-[10px]">Zur Episode</p>
-                          <ExternalLink className="inline-block w-3 h-3 text-blue-600" />
-                        </Button>
-                      </Link>
-                    )}
+                    {(() => {
+                      const normalizedEpisodeUrl = normalizeUrl(
+                        data.episode_url
+                      );
+                      return normalizedEpisodeUrl ? (
+                        <Link
+                          href={normalizedEpisodeUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex gap-0.5 items-center text-xs"
+                        >
+                          <Button variant="outline" size="sm">
+                            <p className="text-[10px]">Zur Episode</p>
+                            <ExternalLink className="inline-block w-3 h-3 text-blue-600" />
+                          </Button>
+                        </Link>
+                      ) : null;
+                    })()}
                   </div>
                 </div>
               </div>
