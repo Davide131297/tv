@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
       case "party-stats": {
         // Statistiken pro Partei
         const showName = searchParams.get("show");
+        const year = searchParams.get("year");
 
         let query = supabase
           .from("tv_show_politicians")
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
           .not("party_name", "is", null)
           .neq("party_name", "");
 
-        query = applyShowFilter(query, showName);
+        query = applyShowFilter(query, showName, year);
 
         const { data, error } = await query;
 

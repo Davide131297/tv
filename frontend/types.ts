@@ -33,6 +33,9 @@ export interface PartyStats {
 export interface PartyChartProps {
   data: PartyStats[];
   selectedShow?: string;
+  selectedYear?: string;
+  years?: string[];
+  handleYearChange?: (year: string) => void;
 }
 
 // =============================================================================
