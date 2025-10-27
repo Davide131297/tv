@@ -12,21 +12,36 @@ interface EpisodeData {
   politician_count: number;
 }
 
-//eslint-disable-next-line @typescript-eslint/no-explicit-any
-function applyShowFilter(query: any, showName: string | null) {
+function applyShowFilter(
+  //eslint-disable-next-line @typescript-eslint/no-explicit-any
+  query: any,
+  showName: string | null,
+  year?: string | null
+) {
+  // 1️⃣ Erst nach showName filtern
   if (
     showName &&
-    (showName === "Markus Lanz" ||
-      showName === "Maybrit Illner" ||
-      showName === "Caren Miosga" ||
-      showName === "Maischberger" ||
-      showName === "Hart aber fair" ||
-      showName === "Phoenix Runde")
+    [
+      "Markus Lanz",
+      "Maybrit Illner",
+      "Caren Miosga",
+      "Maischberger",
+      "Hart aber fair",
+      "Phoenix Runde",
+    ].includes(showName)
   ) {
-    return query.eq("show_name", showName);
+    query = query.eq("show_name", showName);
   } else {
-    return query.neq("show_name", "Pinar Atalay");
+    query = query.neq("show_name", "Pinar Atalay");
   }
+
+  if (year && year !== "all") {
+    const startDate = `${year}-01-01`;
+    const endDate = `${year}-12-31`;
+    query = query.gte("episode_date", startDate).lte("episode_date", endDate);
+  }
+
+  return query;
 }
 
 export async function GET(request: NextRequest) {
@@ -202,10 +217,11 @@ export async function GET(request: NextRequest) {
       case "summary": {
         // Gesamt-Statistiken
         const showName = searchParams.get("show");
+        const year = searchParams.get("year");
 
         let query = supabase.from("tv_show_politicians").select("*");
 
-        query = applyShowFilter(query, showName);
+        query = applyShowFilter(query, showName, year);
 
         const { data: allData, error } = await query;
 

@@ -2,12 +2,15 @@ import Link from "next/link";
 import Image from "next/image";
 
 export default function Footer() {
+  const currentYear = new Date().getFullYear();
+
   return (
     <footer className="bg-white border-t mt-auto">
       <div className="text-center text-gray-500 text-sm py-4 px-4">
         <p>
           Daten basierend auf Markus Lanz, Maybritt Illner, Caren Miosga,
-          Maischberger, Hart aber fair und Phoenix Runde Sendungen (2025)
+          Maischberger, Hart aber fair und Phoenix Runde Sendungen (2024 -{" "}
+          {currentYear})
         </p>
         <p>
           und der API von{" "}

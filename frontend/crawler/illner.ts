@@ -25,7 +25,9 @@ interface GuestWithRole {
   role?: string;
 }
 
-const LIST_URL = "https://www.zdf.de/talk/maybrit-illner-128";
+const currentYear = new Date().getFullYear();
+
+const LIST_URL = `https://www.zdf.de/talk/maybrit-illner-128?staffel=${currentYear}`;
 
 // Extrahiere Episodenbeschreibung und bestimme politische Themenbereiche
 async function extractEpisodeDescription(
