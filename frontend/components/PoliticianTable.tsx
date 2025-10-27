@@ -280,6 +280,7 @@ export default function PoliticianTable() {
               BSW: "bg-yellow-700 text-white",
               parteilos: "bg-gray-500 text-white",
               ÖVP: "bg-[#63c3d0] text-white",
+              "FREIE WÄHLER": "bg-[#f97316] text-white",
             };
             return colors[partyName] || "bg-gray-400 text-white";
           };

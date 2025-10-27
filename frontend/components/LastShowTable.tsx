@@ -28,6 +28,8 @@ function getPartyColorClass(partyName: string) {
       return "bg-gray-500 text-white";
     case "ÖVP":
       return "bg-[#63c3d0] text-white";
+    case "FREIE WÄHLER":
+      return "bg-[#f97316] text-white";
     default:
       return "bg-gray-100 text-gray-600";
   }
