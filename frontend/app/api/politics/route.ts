@@ -126,6 +126,7 @@ export async function GET(request: NextRequest) {
         // Episoden mit Politiker-Namen und Episode-URLs
         const showName = searchParams.get("show") || "Markus Lanz";
         const limit = parseInt(searchParams.get("limit") || "0"); // 0 = alle
+        const year = searchParams.get("year");
 
         // Erste Abfrage: Hole alle Politiker-Daten
         let politiciansQuery = supabase
@@ -136,6 +137,14 @@ export async function GET(request: NextRequest) {
 
         if (limit > 0) {
           politiciansQuery = politiciansQuery.limit(limit);
+        }
+
+        if (year && year !== "all") {
+          const startDate = `${year}-01-01`;
+          const endDate = `${year}-12-31`;
+          politiciansQuery = politiciansQuery
+            .gte("episode_date", startDate)
+            .lte("episode_date", endDate);
         }
 
         const { data: politiciansData, error: politiciansError } =
@@ -271,15 +280,7 @@ export async function GET(request: NextRequest) {
           .order("id", { ascending: false })
           .range(offset, offset + limit - 1);
 
-        if (year && year !== "all") {
-          const startDate = `${year}-01-01`;
-          const endDate = `${year}-12-31`;
-          query = query
-            .gte("episode_date", startDate)
-            .lte("episode_date", endDate);
-        }
-
-        query = applyShowFilter(query, showName);
+        query = applyShowFilter(query, showName, year);
 
         const { data, error } = await query;
         if (error) {
@@ -332,11 +333,13 @@ export async function GET(request: NextRequest) {
       case "episode-statistics": {
         // Episoden-Statistiken für eine bestimmte Show
         const showName = searchParams.get("show") || "Markus Lanz";
+        const year = searchParams.get("year");
 
-        const { data, error } = await supabase
-          .from("tv_show_politicians")
-          .select("episode_date")
-          .eq("show_name", showName);
+        let query = supabase.from("tv_show_politicians").select("episode_date");
+
+        query = applyShowFilter(query, showName, year);
+
+        const { data, error } = await query;
 
         if (error) {
           throw error;
@@ -458,15 +461,7 @@ export async function GET(request: NextRequest) {
           .from("tv_show_politicians")
           .select("politician_name, party_name, show_name, episode_date");
 
-        if (year && year !== "all") {
-          const startDate = `${year}-01-01`;
-          const endDate = `${year}-12-31`;
-          query = query
-            .gte("episode_date", startDate)
-            .lte("episode_date", endDate);
-        }
-
-        query = applyShowFilter(query, showName);
+        query = applyShowFilter(query, showName, year);
 
         const { data, error } = await query;
 
