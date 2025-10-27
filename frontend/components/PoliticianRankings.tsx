@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
@@ -18,6 +18,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import Link from "next/link";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@/components/ui/native-select";
 
 interface PoliticianRanking {
   politician_name: string;
@@ -88,44 +92,62 @@ export default function PoliticianRankings() {
   const [metadata, setMetadata] = useState<
     PoliticianRankingsResponse["metadata"] | null
   >(null);
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState<string>(String(currentYear));
 
-  const fetchRankings = useCallback(async (showFilter: string = "") => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const params = new URLSearchParams({
-        type: "politician-rankings",
-        limit: "50",
-      });
-
-      if (showFilter && showFilter !== "all") {
-        params.set("show", showFilter);
-      }
-
-      const response = await fetch(`/api/politics?${params}`, {
-        method: "GET",
-        headers: FETCH_HEADERS,
-      });
-      const result: PoliticianRankingsResponse = await response.json();
-
-      if (result.success) {
-        setRankings(result.data);
-        setMetadata(result.metadata);
-      } else {
-        setError("Fehler beim Laden der Daten");
-      }
-    } catch (err) {
-      setError("Netzwerkfehler beim Laden der Daten");
-      console.error("Error fetching politician rankings:", err);
-    } finally {
-      setLoading(false);
-    }
+  // generate years from 2024 up to current year (descending order)
+  const years = useMemo(() => {
+    const start = 2024;
+    const end = new Date().getFullYear();
+    const list: string[] = [];
+    for (let y = end; y >= start; y--) list.push(String(y));
+    return list;
   }, []);
 
+  const fetchRankings = useCallback(
+    async (showFilter: string = "", yearFilter: string = "") => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const params = new URLSearchParams({
+          type: "politician-rankings",
+          limit: "50",
+        });
+
+        if (showFilter && showFilter !== "all") {
+          params.set("show", showFilter);
+        }
+
+        if (yearFilter !== undefined) {
+          params.set("year", yearFilter);
+        }
+
+        const response = await fetch(`/api/politics?${params}`, {
+          method: "GET",
+          headers: FETCH_HEADERS,
+        });
+        const result: PoliticianRankingsResponse = await response.json();
+
+        if (result.success) {
+          setRankings(result.data);
+          setMetadata(result.metadata);
+        } else {
+          setError("Fehler beim Laden der Daten");
+        }
+      } catch (err) {
+        setError("Netzwerkfehler beim Laden der Daten");
+        console.error("Error fetching politician rankings:", err);
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
   useEffect(() => {
-    fetchRankings(selectedShow);
-  }, [selectedShow, fetchRankings]);
+    fetchRankings(selectedShow, selectedYear);
+  }, [selectedShow, selectedYear, fetchRankings]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("de-DE", {
@@ -191,18 +213,37 @@ export default function PoliticianRankings() {
             )}
           </p>
         </div>
-        <Select value={selectedShow} onValueChange={setSelectedShow}>
-          <SelectTrigger className="w-full sm:w-48">
-            <SelectValue placeholder="Show auswählen" />
-          </SelectTrigger>
-          <SelectContent>
-            {SHOW_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-4">
+          <div className="flex gap-2 items-center">
+            <p>Jahr</p>
+            <NativeSelect
+              value={selectedYear}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                setSelectedYear(e.target.value)
+              }
+            >
+              <NativeSelectOption value="all">Insgesamt</NativeSelectOption>
+              {years &&
+                years.map((y) => (
+                  <NativeSelectOption key={y} value={y}>
+                    {y}
+                  </NativeSelectOption>
+                ))}
+            </NativeSelect>
+          </div>
+          <Select value={selectedShow} onValueChange={setSelectedShow}>
+            <SelectTrigger className="w-full sm:w-48">
+              <SelectValue placeholder="Show auswählen" />
+            </SelectTrigger>
+            <SelectContent>
+              {SHOW_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Rankings Liste */}

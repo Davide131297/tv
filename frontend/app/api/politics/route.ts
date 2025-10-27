@@ -451,11 +451,20 @@ export async function GET(request: NextRequest) {
       case "politician-rankings": {
         // Politiker-Rankings nach Anzahl Auftritte
         const showName = searchParams.get("show");
+        const year = searchParams.get("year");
         const limit = parseInt(searchParams.get("limit") || "100");
 
         let query = supabase
           .from("tv_show_politicians")
           .select("politician_name, party_name, show_name, episode_date");
+
+        if (year && year !== "all") {
+          const startDate = `${year}-01-01`;
+          const endDate = `${year}-12-31`;
+          query = query
+            .gte("episode_date", startDate)
+            .lte("episode_date", endDate);
+        }
 
         query = applyShowFilter(query, showName);
 
