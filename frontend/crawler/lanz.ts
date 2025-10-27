@@ -35,7 +35,9 @@ interface EpisodeResult {
   politicalAreaIds?: number[];
 }
 
-const LIST_URL = "https://www.zdf.de/talk/markus-lanz-114";
+const currentYear = new Date().getFullYear();
+
+const LIST_URL = `https://www.zdf.de/talk/markus-lanz-114?staffel=${currentYear}`;
 
 const DE_MONTHS: Record<string, string> = {
   januar: "01",

@@ -20,6 +20,10 @@ import {
 } from "@/components/ui/chart";
 import { Switch } from "@/components/ui/switch";
 import { PARTY_COLORS } from "@/types";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@/components/ui/native-select";
 
 interface MonthlyPartyStats {
   month: string;
@@ -35,6 +39,9 @@ interface PartyTimelineChartProps {
   selectedParties: string[];
   onUnionModeChange: (value: boolean) => void;
   onSelectedPartiesChange: (parties: string[]) => void;
+  selectedYear: string;
+  handleYearChange: (year: string) => void;
+  years: string[];
 }
 
 export default function PartyTimelineChart({
@@ -46,6 +53,9 @@ export default function PartyTimelineChart({
   selectedParties,
   onUnionModeChange,
   onSelectedPartiesChange,
+  selectedYear,
+  handleYearChange,
+  years,
 }: PartyTimelineChartProps) {
   const toggleParty = (party: string) => {
     const newSelection = selectedParties.includes(party)
@@ -151,19 +161,47 @@ export default function PartyTimelineChart({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {/* Union Mode Switch */}
-        <div className="mb-4 flex items-center gap-2">
-          <Switch
-            id="union-switch"
-            checked={unionMode}
-            onCheckedChange={onUnionModeChange}
-          />
-          <label
-            htmlFor="union-switch"
-            className="text-sm select-none cursor-pointer"
-          >
-            CDU & CSU als Union zusammenfassen
-          </label>
+        <div className="flex flex-col md:flex-row gap-2 justify-between mb-4 md:mb-0">
+          {/* Union Mode Switch */}
+          <div className="mb-4 flex items-center gap-2">
+            <Switch
+              id="union-switch"
+              checked={unionMode}
+              onCheckedChange={onUnionModeChange}
+            />
+            <label
+              htmlFor="union-switch"
+              className="text-sm select-none cursor-pointer"
+            >
+              CDU & CSU als Union zusammenfassen
+            </label>
+          </div>
+          {/* Year Filter */}
+          <div>
+            <label className="text-sm font-medium mb-2 block">
+              Jahr auswählen:
+            </label>
+            {/* Use either selectedYear prop or fallback to year prop for robustness */}
+            {(() => {
+              const yearValue = selectedYear ?? year ?? "all";
+              return (
+                <NativeSelect
+                  value={yearValue}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                    handleYearChange?.(e.target.value)
+                  }
+                >
+                  <NativeSelectOption value="all">Insgesamt</NativeSelectOption>
+                  {years &&
+                    years.map((y) => (
+                      <NativeSelectOption key={y} value={y}>
+                        {y}
+                      </NativeSelectOption>
+                    ))}
+                </NativeSelect>
+              );
+            })()}
+          </div>
         </div>
 
         {/* Party Selection Buttons */}
@@ -201,7 +239,10 @@ export default function PartyTimelineChart({
 
         {/* Chart Container mit sichtbarer horizontaler Scrollbar */}
         <div className="w-full overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-2 scrollbar-visible">
-          <div className="min-w-[600px] sm:min-w-full">
+          {/* Make the inner container wider depending on number of months so user can scroll */}
+          <div
+            style={{ minWidth: Math.max(600, processedData.data.length * 80) }}
+          >
             <ChartContainer
               config={chartConfig}
               className="h-[350px] sm:h-[400px]"
@@ -222,7 +263,25 @@ export default function PartyTimelineChart({
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
-                  tickFormatter={(value) => value.slice(0, 3)}
+                  tickFormatter={(value) => {
+                    // expected month format: YYYY-MM, fallback: take first 3 chars
+                    if (
+                      typeof value === "string" &&
+                      /^\d{4}-\d{2}$/.test(value)
+                    ) {
+                      const d = new Date(`${value}-01`);
+                      try {
+                        return d.toLocaleString("de-DE", {
+                          month: "short",
+                          year: "2-digit",
+                        });
+                      } catch {
+                        return value.slice(5);
+                      }
+                    }
+                    if (typeof value === "string") return value.slice(0, 3);
+                    return String(value);
+                  }}
                   className="text-xs"
                 />
                 <YAxis
@@ -276,7 +335,8 @@ export default function PartyTimelineChart({
           <TrendingUp className="h-4 w-4" />
         </div>
         <div className="text-muted-foreground leading-none">
-          Verteilung der Partei-Auftritte nach Monaten im Jahr {year || "2025"}
+          Verteilung der Partei-Auftritte nach Monaten im Jahr{" "}
+          {year === "all" ? "Alle Jahre" : year || "2025"}
         </div>
       </CardFooter>
     </Card>

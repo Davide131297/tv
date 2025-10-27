@@ -33,6 +33,9 @@ export interface PartyStats {
 export interface PartyChartProps {
   data: PartyStats[];
   selectedShow?: string;
+  selectedYear?: string;
+  years?: string[];
+  handleYearChange?: (year: string) => void;
 }
 
 // =============================================================================
@@ -48,6 +51,9 @@ export interface PoliticalAreaStats {
 export interface PoliticalAreasChartProps {
   data: PoliticalAreaStats[];
   selectedShow?: string;
+  selectedYear?: string;
+  years?: string[];
+  handleYearChange?: (year: string) => void;
 }
 
 // =============================================================================

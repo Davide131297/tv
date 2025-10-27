@@ -5,13 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import PartyTimelineChart from "@/components/PartyTimelineChart";
 import ShowOptionsButtons from "@/components/ShowOptionsButtons";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { SHOW_OPTIONS } from "@/types";
 
 interface MonthlyPartyStats {
@@ -29,6 +22,20 @@ interface ApiResponse {
 export default function PartyTimelinePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const currentYear = new Date().getFullYear();
+  // Initialize selectedYear from the URL if present to avoid an initial fetch with the wrong year
+  const [selectedYear, setSelectedYear] = useState<string>(
+    () => searchParams.get("year") || String(currentYear)
+  );
+
+  // generate years from 2024 up to current year (descending order)
+  const years = useMemo(() => {
+    const start = 2024;
+    const end = new Date().getFullYear();
+    const list: string[] = [];
+    for (let y = end; y >= start; y--) list.push(String(y));
+    return list;
+  }, []);
 
   const selectedShow = useMemo(() => {
     const showParam = searchParams.get("show");
@@ -39,10 +46,6 @@ export default function PartyTimelinePageContent() {
       return showParam;
     }
     return "all";
-  }, [searchParams]);
-
-  const selectedYear = useMemo(() => {
-    return searchParams.get("year") || new Date().getFullYear().toString();
   }, [searchParams]);
 
   const unionMode = useMemo(() => {
@@ -77,11 +80,10 @@ export default function PartyTimelinePageContent() {
       }
 
       if (updates.year !== undefined) {
-        const currentYear = new Date().getFullYear().toString();
-        if (updates.year === currentYear) {
-          params.delete("year");
-        } else {
+        if (updates.year) {
           params.set("year", updates.year);
+        } else {
+          params.delete("year");
         }
       }
 
@@ -114,6 +116,7 @@ export default function PartyTimelinePageContent() {
   };
 
   const handleYearChange = (year: string) => {
+    setSelectedYear(year);
     updateUrlParams({ year });
   };
 
@@ -132,7 +135,9 @@ export default function PartyTimelinePageContent() {
         setError(null);
 
         const response = await fetch(
-          `/api/party-timeline?show=${selectedShow}&year=${selectedYear}`
+          `/api/party-timeline?show=${selectedShow}&year=${encodeURIComponent(
+            selectedYear
+          )}`
         );
 
         if (!response.ok) {
@@ -158,15 +163,7 @@ export default function PartyTimelinePageContent() {
     }
 
     fetchData();
-  }, [selectedShow, selectedYear]);
-
-  // Verfügbare Jahre (ab 2025 bis aktuelles Jahr)
-  const currentYear = new Date().getFullYear();
-  const startYear = 2025;
-  const availableYears = Array.from(
-    { length: Math.max(currentYear - startYear + 1, 1) },
-    (_, i) => (startYear + i).toString()
-  );
+  }, [selectedShow, selectedYear, searchParams]);
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -210,25 +207,6 @@ export default function PartyTimelinePageContent() {
             })}
           </div>
         </div>
-
-        {/* Year Filter */}
-        <div>
-          <label className="text-sm font-medium mb-2 block">
-            Jahr auswählen:
-          </label>
-          <Select value={selectedYear} onValueChange={handleYearChange}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Jahr wählen" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableYears.map((year) => (
-                <SelectItem key={year} value={year}>
-                  {year}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
       </div>
 
       {isLoading && (
@@ -253,6 +231,9 @@ export default function PartyTimelinePageContent() {
           selectedParties={selectedParties}
           onUnionModeChange={handleUnionModeChange}
           onSelectedPartiesChange={handleSelectedPartiesChange}
+          selectedYear={selectedYear}
+          handleYearChange={handleYearChange}
+          years={years}
         />
       )}
 

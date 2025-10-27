@@ -20,6 +20,10 @@ import {
 } from "@/components/ui/card";
 import { ChartConfig, ChartContainer } from "@/components/ui/chart";
 import type { PoliticalAreasChartProps } from "@/types";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@/components/ui/native-select";
 
 // Color scheme for political areas
 const POLITICAL_AREA_COLORS: Record<number, string> = {
@@ -35,6 +39,9 @@ const POLITICAL_AREA_COLORS: Record<number, string> = {
 export default function PoliticalAreasChart({
   data,
   selectedShow,
+  selectedYear,
+  years,
+  handleYearChange,
 }: PoliticalAreasChartProps) {
   // Sortiere Daten nach Anzahl
   const sortedData = [...data].sort((a, b) => b.count - a.count);
@@ -122,6 +129,23 @@ export default function PoliticalAreasChart({
         <CardDescription>
           Verteilung der politischen Themenbereiche
         </CardDescription>
+        <div className="flex gap-2 items-center">
+          <p>Jahr</p>
+          <NativeSelect
+            value={selectedYear}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+              handleYearChange && handleYearChange(e.target.value)
+            }
+          >
+            <NativeSelectOption value="all">Insgesamt</NativeSelectOption>
+            {years &&
+              years.map((y) => (
+                <NativeSelectOption key={y} value={y}>
+                  {y}
+                </NativeSelectOption>
+              ))}
+          </NativeSelect>
+        </div>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig}>

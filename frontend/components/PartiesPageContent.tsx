@@ -16,6 +16,17 @@ export default function PartiesPageContent() {
   const [partyStats, setPartyStats] = useState<PartyStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState<string>(String(currentYear));
+
+  // generate years from 2024 up to current year (descending order)
+  const years = useMemo(() => {
+    const start = 2024;
+    const end = new Date().getFullYear();
+    const list: string[] = [];
+    for (let y = end; y >= start; y--) list.push(String(y));
+    return list;
+  }, []);
 
   // Derive state from URL parameters
   const selectedShow = useMemo(() => {
@@ -34,7 +45,7 @@ export default function PartiesPageContent() {
   }, [searchParams]);
 
   const updateUrlParams = useCallback(
-    (updates: { show?: string; union?: boolean }) => {
+    (updates: { show?: string; union?: boolean; year?: string }) => {
       const params = new URLSearchParams(searchParams.toString());
 
       if (updates.show !== undefined) {
@@ -53,6 +64,14 @@ export default function PartiesPageContent() {
         }
       }
 
+      if (updates.year !== undefined) {
+        if (updates.year) {
+          params.set("year", updates.year);
+        } else {
+          params.delete("year");
+        }
+      }
+
       const newUrl = params.toString() ? `?${params.toString()}` : "/parteien";
       router.push(newUrl, { scroll: false });
     },
@@ -67,15 +86,21 @@ export default function PartiesPageContent() {
     updateUrlParams({ union: unionValue });
   };
 
+  const handleYearChange = (yearValue: string) => {
+    setSelectedYear(yearValue);
+    updateUrlParams({ year: yearValue });
+  };
+
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const url =
         selectedShow === "all"
-          ? "/api/politics?type=party-stats"
+          ? "/api/politics?type=party-stats&year=" +
+            encodeURIComponent(selectedYear)
           : `/api/politics?type=party-stats&show=${encodeURIComponent(
               selectedShow
-            )}`;
+            )}&year=${encodeURIComponent(selectedYear)}`;
 
       const response = await fetch(url, {
         method: "GET",
@@ -96,11 +121,15 @@ export default function PartiesPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [selectedShow]);
+  }, [selectedShow, selectedYear]);
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+    const search = searchParams.get("year");
+    if (search && search !== selectedYear) {
+      setSelectedYear(search);
+    }
+  }, [fetchData, searchParams, selectedYear]);
 
   if (loading) {
     return (
@@ -195,7 +224,13 @@ export default function PartiesPageContent() {
         </div>
       </div>
 
-      <PartyChart data={displayedStats} selectedShow={selectedShow} />
+      <PartyChart
+        data={displayedStats}
+        selectedShow={selectedShow}
+        selectedYear={selectedYear}
+        years={years}
+        handleYearChange={handleYearChange}
+      />
 
       {/* Partei-Details Tabelle */}
       {displayedStats.length > 0 && (
