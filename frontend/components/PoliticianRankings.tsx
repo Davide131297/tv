@@ -2,13 +2,6 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Eye } from "lucide-react";
 import { FETCH_HEADERS } from "@/lib/utils";
 import { BADGE_PARTY_COLORS } from "@/types";
@@ -231,18 +224,18 @@ export default function PoliticianRankings() {
                 ))}
             </NativeSelect>
           </div>
-          <Select value={selectedShow} onValueChange={setSelectedShow}>
-            <SelectTrigger className="w-full sm:w-48">
-              <SelectValue placeholder="Show auswählen" />
-            </SelectTrigger>
-            <SelectContent>
-              {SHOW_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <NativeSelect
+            value={selectedShow}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+              setSelectedShow(e.target.value)
+            }
+          >
+            {SHOW_OPTIONS.map((option) => (
+              <NativeSelectOption key={option.value} value={option.value}>
+                {option.label}
+              </NativeSelectOption>
+            ))}
+          </NativeSelect>
         </div>
       </div>
 

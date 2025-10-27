@@ -161,7 +161,7 @@ export default function PartyTimelineChart({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="flex justify-between">
+        <div className="flex flex-col md:flex-row gap-2 justify-between mb-4 md:mb-0">
           {/* Union Mode Switch */}
           <div className="mb-4 flex items-center gap-2">
             <Switch

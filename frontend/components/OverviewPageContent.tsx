@@ -140,7 +140,7 @@ function OverviewPageContent() {
           Übersicht über alle Politiker-Auftritte in deutschen TV-Talkshows
         </p>
 
-        <div className="flex gap-2 justify-between">
+        <div className="flex flex-col md:flex-row gap-2 justify-between">
           {/* Show Auswahl */}
           <div className="flex flex-wrap gap-2">
             {SHOW_OPTIONS.map((option) => {
@@ -168,19 +168,22 @@ function OverviewPageContent() {
               );
             })}
           </div>
-          <NativeSelect
-            value={selectedYear}
-            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-              handleYearChange(e.target.value)
-            }
-          >
-            <NativeSelectOption value="all">Insgesamt</NativeSelectOption>
-            {years.map((y) => (
-              <NativeSelectOption key={y} value={y}>
-                {y}
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
+          <div className="flex gap-2 items-center">
+            <p>Jahr</p>
+            <NativeSelect
+              value={selectedYear}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                handleYearChange(e.target.value)
+              }
+            >
+              <NativeSelectOption value="all">Insgesamt</NativeSelectOption>
+              {years.map((y) => (
+                <NativeSelectOption key={y} value={y}>
+                  {y}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+          </div>
         </div>
       </div>
 
