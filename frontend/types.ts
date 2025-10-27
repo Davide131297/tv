@@ -51,6 +51,9 @@ export interface PoliticalAreaStats {
 export interface PoliticalAreasChartProps {
   data: PoliticalAreaStats[];
   selectedShow?: string;
+  selectedYear?: string;
+  years?: string[];
+  handleYearChange?: (year: string) => void;
 }
 
 // =============================================================================
