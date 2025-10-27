@@ -260,6 +260,7 @@ export async function GET(request: NextRequest) {
         const limit = parseInt(searchParams.get("limit") || "50");
         const offset = parseInt(searchParams.get("offset") || "0");
         const showName = searchParams.get("show");
+        const year = searchParams.get("year");
 
         let query = supabase
           .from("tv_show_politicians")
@@ -269,6 +270,14 @@ export async function GET(request: NextRequest) {
           .order("episode_date", { ascending: false })
           .order("id", { ascending: false })
           .range(offset, offset + limit - 1);
+
+        if (year && year !== "all") {
+          const startDate = `${year}-01-01`;
+          const endDate = `${year}-12-31`;
+          query = query
+            .gte("episode_date", startDate)
+            .lte("episode_date", endDate);
+        }
 
         query = applyShowFilter(query, showName);
 

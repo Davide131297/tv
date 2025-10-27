@@ -30,6 +30,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import Link from "next/link";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@/components/ui/native-select";
 
 const columnHelper = createColumnHelper<PoliticianAppearance>();
 
@@ -44,6 +48,17 @@ export default function PoliticianTable() {
     pageSize: 20,
   });
   const [searchInput, setSearchInput] = useState("");
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState<string>(String(currentYear));
+
+  // generate years from 2024 up to current year (descending order)
+  const years = useMemo(() => {
+    const start = 2024;
+    const end = new Date().getFullYear();
+    const list: string[] = [];
+    for (let y = end; y >= start; y--) list.push(String(y));
+    return list;
+  }, []);
 
   // Derive state from URL parameters
   const selectedShow = useMemo(() => {
@@ -68,7 +83,7 @@ export default function PoliticianTable() {
   }, [searchParams]);
 
   const updateUrlParams = useCallback(
-    (updates: { show?: string; search?: string }) => {
+    (updates: { show?: string; search?: string; year?: string }) => {
       const params = new URLSearchParams(searchParams.toString());
 
       if (updates.show !== undefined) {
@@ -84,6 +99,14 @@ export default function PoliticianTable() {
           params.delete("search");
         } else {
           params.set("search", updates.search);
+        }
+      }
+
+      if (updates.year !== undefined) {
+        if (updates.year) {
+          params.set("year", updates.year);
+        } else {
+          params.delete("year");
         }
       }
 
@@ -107,6 +130,11 @@ export default function PoliticianTable() {
     updateUrlParams({ search: searchInput });
   };
 
+  const handleYearChange = (yearValue: string) => {
+    setSelectedYear(yearValue);
+    updateUrlParams({ year: yearValue });
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       handleSearchSubmit();
@@ -119,10 +147,11 @@ export default function PoliticianTable() {
       setLoading(true);
       const url =
         selectedShow === "all"
-          ? "/api/politics?type=detailed-appearances&limit=500"
+          ? "/api/politics?type=detailed-appearances&limit=500&year=" +
+            encodeURIComponent(selectedYear)
           : `/api/politics?type=detailed-appearances&limit=500&show=${encodeURIComponent(
               selectedShow
-            )}`;
+            )}&year=${encodeURIComponent(selectedYear)}`;
 
       const response = await fetch(url, {
         method: "GET",
@@ -138,11 +167,15 @@ export default function PoliticianTable() {
     } finally {
       setLoading(false);
     }
-  }, [selectedShow]);
+  }, [selectedShow, selectedYear]);
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+    const search = searchParams.get("year");
+    if (search && search !== selectedYear) {
+      setSelectedYear(search);
+    }
+  }, [fetchData, searchParams, selectedYear]);
 
   const paginationStyle =
     "px-2 sm:px-3 py-1 text-xs sm:text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700";
@@ -300,14 +333,33 @@ export default function PoliticianTable() {
       {/* Header mit Suche */}
       <div className="p-4 sm:p-6 border-b border-gray-200">
         <div className="flex flex-col gap-4">
-          <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
-              Politiker-Auftritte
-            </h2>
-            <p className="mt-1 text-gray-600 text-sm sm:text-base">
-              {table.getFilteredRowModel().rows.length} von {data.length}{" "}
-              Auftritten
-            </p>
+          <div className="flex justify-between">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                Politiker-Auftritte
+              </h2>
+              <p className="mt-1 text-gray-600 text-sm sm:text-base">
+                {table.getFilteredRowModel().rows.length} von {data.length}{" "}
+                Auftritten
+              </p>
+            </div>
+            <div className="flex gap-2 items-center">
+              <p>Jahr</p>
+              <NativeSelect
+                value={selectedYear}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                  handleYearChange && handleYearChange(e.target.value)
+                }
+              >
+                <NativeSelectOption value="all">Insgesamt</NativeSelectOption>
+                {years &&
+                  years.map((y) => (
+                    <NativeSelectOption key={y} value={y}>
+                      {y}
+                    </NativeSelectOption>
+                  ))}
+              </NativeSelect>
+            </div>
           </div>
 
           <div className="flex flex-col xl:flex-row gap-4 xl:justify-between">
