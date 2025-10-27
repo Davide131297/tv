@@ -46,3 +46,7 @@ Thumbs.db
 dist/
 backend/dist/
 frontend/dist/
+
+# supabase
+supabase-local/
+crawl_all.sh
