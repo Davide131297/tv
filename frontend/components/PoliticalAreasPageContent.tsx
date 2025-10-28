@@ -17,6 +17,20 @@ export default function PoliticalAreasPageContent() {
   >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const currentYear = new Date().getFullYear();
+  // Initialize selectedYear from URL params so first fetch uses correct year
+  const [selectedYear, setSelectedYear] = useState<string>(
+    () => searchParams.get("year") || String(currentYear)
+  );
+
+  // generate years from 2024 up to current year (descending order)
+  const years = useMemo(() => {
+    const start = 2024;
+    const end = new Date().getFullYear();
+    const list: string[] = [];
+    for (let y = end; y >= start; y--) list.push(String(y));
+    return list;
+  }, []);
 
   // Derive state from URL parameters
   const selectedShow = useMemo(() => {
@@ -31,7 +45,7 @@ export default function PoliticalAreasPageContent() {
   }, [searchParams]);
 
   const updateUrlParams = useCallback(
-    (updates: { show?: string }) => {
+    (updates: { show?: string; year?: string }) => {
       const params = new URLSearchParams(searchParams.toString());
 
       if (updates.show !== undefined) {
@@ -39,6 +53,13 @@ export default function PoliticalAreasPageContent() {
           params.delete("show");
         } else {
           params.set("show", updates.show);
+        }
+      }
+      if (updates.year !== undefined) {
+        if (updates.year) {
+          params.set("year", updates.year);
+        } else {
+          params.delete("year");
         }
       }
 
@@ -54,13 +75,20 @@ export default function PoliticalAreasPageContent() {
     updateUrlParams({ show: showValue });
   };
 
+  const handleYearChange = (yearValue: string) => {
+    setSelectedYear(yearValue);
+    updateUrlParams({ year: yearValue });
+  };
+
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const url =
         selectedShow === "all"
-          ? "/api/political-areas"
-          : `/api/political-areas?show=${encodeURIComponent(selectedShow)}`;
+          ? "/api/political-areas?year=" + encodeURIComponent(selectedYear)
+          : `/api/political-areas?show=${encodeURIComponent(
+              selectedShow
+            )}&year=${encodeURIComponent(selectedYear)}`;
 
       const response = await fetch(url, {
         method: "GET",
@@ -81,11 +109,11 @@ export default function PoliticalAreasPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [selectedShow]);
+  }, [selectedShow, selectedYear]);
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, searchParams, selectedYear]);
 
   if (loading) {
     return (
@@ -156,6 +184,9 @@ export default function PoliticalAreasPageContent() {
       <PoliticalAreasChart
         data={politicalAreaStats}
         selectedShow={selectedShow}
+        selectedYear={selectedYear}
+        years={years}
+        handleYearChange={handleYearChange}
       />
 
       {/* Themen-Details Tabelle */}

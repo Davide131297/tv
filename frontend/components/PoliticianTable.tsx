@@ -30,8 +30,27 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import Link from "next/link";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@/components/ui/native-select";
 
 const columnHelper = createColumnHelper<PoliticianAppearance>();
+
+// Normalize episode URLs coming from DB/crawlers.
+// - If URL already has http(s):// return as-is
+// - If it starts with '//' prepend current protocol
+// - If it starts with 'www.' or looks like a host, prepend https://
+// - Otherwise return as-is (could be an internal/relative link)
+function normalizeUrl(raw?: string | null) {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^\/\//.test(trimmed)) return `${window.location.protocol}${trimmed}`;
+  if (/^www\./i.test(trimmed) || /^[a-zA-Z0-9.-]+\.[a-z]{2,}/.test(trimmed))
+    return `https://${trimmed}`;
+  return trimmed;
+}
 
 export default function PoliticianTable() {
   const router = useRouter();
@@ -44,6 +63,17 @@ export default function PoliticianTable() {
     pageSize: 20,
   });
   const [searchInput, setSearchInput] = useState("");
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState<string>(String(currentYear));
+
+  // generate years from 2024 up to current year (descending order)
+  const years = useMemo(() => {
+    const start = 2024;
+    const end = new Date().getFullYear();
+    const list: string[] = [];
+    for (let y = end; y >= start; y--) list.push(String(y));
+    return list;
+  }, []);
 
   // Derive state from URL parameters
   const selectedShow = useMemo(() => {
@@ -68,7 +98,7 @@ export default function PoliticianTable() {
   }, [searchParams]);
 
   const updateUrlParams = useCallback(
-    (updates: { show?: string; search?: string }) => {
+    (updates: { show?: string; search?: string; year?: string }) => {
       const params = new URLSearchParams(searchParams.toString());
 
       if (updates.show !== undefined) {
@@ -84,6 +114,14 @@ export default function PoliticianTable() {
           params.delete("search");
         } else {
           params.set("search", updates.search);
+        }
+      }
+
+      if (updates.year !== undefined) {
+        if (updates.year) {
+          params.set("year", updates.year);
+        } else {
+          params.delete("year");
         }
       }
 
@@ -107,6 +145,11 @@ export default function PoliticianTable() {
     updateUrlParams({ search: searchInput });
   };
 
+  const handleYearChange = (yearValue: string) => {
+    setSelectedYear(yearValue);
+    updateUrlParams({ year: yearValue });
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       handleSearchSubmit();
@@ -119,10 +162,11 @@ export default function PoliticianTable() {
       setLoading(true);
       const url =
         selectedShow === "all"
-          ? "/api/politics?type=detailed-appearances&limit=500"
-          : `/api/politics?type=detailed-appearances&limit=500&show=${encodeURIComponent(
+          ? "/api/politics?type=detailed-appearances&limit=1000&year=" +
+            encodeURIComponent(selectedYear)
+          : `/api/politics?type=detailed-appearances&limit=1000&show=${encodeURIComponent(
               selectedShow
-            )}`;
+            )}&year=${encodeURIComponent(selectedYear)}`;
 
       const response = await fetch(url, {
         method: "GET",
@@ -138,11 +182,15 @@ export default function PoliticianTable() {
     } finally {
       setLoading(false);
     }
-  }, [selectedShow]);
+  }, [selectedShow, selectedYear]);
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+    const search = searchParams.get("year");
+    if (search && search !== selectedYear) {
+      setSelectedYear(search);
+    }
+  }, [fetchData, searchParams, selectedYear]);
 
   const paginationStyle =
     "px-2 sm:px-3 py-1 text-xs sm:text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700";
@@ -181,7 +229,28 @@ export default function PoliticianTable() {
         header: "Datum",
         cell: (info) => {
           const date = new Date(info.getValue());
-          return date.toLocaleDateString("de-DE");
+          const rawUrl = info.row.original.episode_url;
+          const url = normalizeUrl(rawUrl);
+          const formatted = date.toLocaleDateString("de-DE");
+          return url ? (
+            <Tooltip>
+              <TooltipTrigger>
+                <Link
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="cursor-pointer hover:text-blue-600"
+                >
+                  {formatted}
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Zur Sendung</p>
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            formatted
+          );
         },
         sortingFn: "datetime",
       }),
@@ -189,7 +258,6 @@ export default function PoliticianTable() {
         header: "Politiker",
         cell: (info) => (
           <div className="flex gap-1">
-            <div className="font-semibold">{info.getValue()}</div>
             {info.row.original.abgeordnetenwatch_url && (
               <Tooltip>
                 <TooltipTrigger>
@@ -198,7 +266,9 @@ export default function PoliticianTable() {
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    <ExternalLink className="inline-block w-3 h-3 text-blue-600 mb-3 cursor-pointer" />
+                    <div className="font-semibold cursor-pointer hover:text-blue-600">
+                      {info.getValue()}
+                    </div>
                   </Link>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -226,6 +296,7 @@ export default function PoliticianTable() {
               BSW: "bg-yellow-700 text-white",
               parteilos: "bg-gray-500 text-white",
               ÖVP: "bg-[#63c3d0] text-white",
+              "FREIE WÄHLER": "bg-[#f97316] text-white",
             };
             return colors[partyName] || "bg-gray-400 text-white";
           };
@@ -279,14 +350,33 @@ export default function PoliticianTable() {
       {/* Header mit Suche */}
       <div className="p-4 sm:p-6 border-b border-gray-200">
         <div className="flex flex-col gap-4">
-          <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
-              Politiker-Auftritte
-            </h2>
-            <p className="mt-1 text-gray-600 text-sm sm:text-base">
-              {table.getFilteredRowModel().rows.length} von {data.length}{" "}
-              Auftritten
-            </p>
+          <div className="flex justify-between">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                Politiker-Auftritte
+              </h2>
+              <p className="mt-1 text-gray-600 text-sm sm:text-base">
+                {table.getFilteredRowModel().rows.length} von {data.length}{" "}
+                Auftritten
+              </p>
+            </div>
+            <div className="flex gap-2 items-center">
+              <p>Jahr</p>
+              <NativeSelect
+                value={selectedYear}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                  handleYearChange && handleYearChange(e.target.value)
+                }
+              >
+                <NativeSelectOption value="all">Insgesamt</NativeSelectOption>
+                {years &&
+                  years.map((y) => (
+                    <NativeSelectOption key={y} value={y}>
+                      {y}
+                    </NativeSelectOption>
+                  ))}
+              </NativeSelect>
+            </div>
           </div>
 
           <div className="flex flex-col xl:flex-row gap-4 xl:justify-between">
@@ -384,42 +474,66 @@ export default function PoliticianTable() {
             };
 
             return (
-              <div key={row.id} className="p-4 space-y-3">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex gap-1 font-semibold text-gray-900 text-sm">
-                      {data.politician_name}
-                      {data.abgeordnetenwatch_url && (
-                        <Link
-                          href={data.abgeordnetenwatch_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <ExternalLink className="inline-block w-3 h-3 text-blue-600 mb-3 cursor-pointer" />
-                        </Link>
-                      )}
+              <div key={row.id} className="p-4">
+                <div className="flex justify-between">
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex gap-1 font-semibold text-gray-900 text-sm">
+                          {data.politician_name}
+                          {data.abgeordnetenwatch_url && (
+                            <Link
+                              href={data.abgeordnetenwatch_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <ExternalLink className="inline-block w-3 h-3 text-blue-600 mb-3 cursor-pointer" />
+                            </Link>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {date.toLocaleDateString("de-DE")}
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      {date.toLocaleDateString("de-DE")}
+
+                    <div className="flex flex-wrap gap-2">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-semibold ${getShowColor(
+                          data.show_name
+                        )}`}
+                      >
+                        {data.show_name}
+                      </span>
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-semibold ${getPartyColor(
+                          data.party_name
+                        )}`}
+                      >
+                        {data.party_name}
+                      </span>
                     </div>
                   </div>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-semibold ${getShowColor(
-                      data.show_name
-                    )}`}
-                  >
-                    {data.show_name}
-                  </span>
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-semibold ${getPartyColor(
-                      data.party_name
-                    )}`}
-                  >
-                    {data.party_name}
-                  </span>
+                  <div>
+                    {(() => {
+                      const normalizedEpisodeUrl = normalizeUrl(
+                        data.episode_url
+                      );
+                      return normalizedEpisodeUrl ? (
+                        <Link
+                          href={normalizedEpisodeUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex gap-0.5 items-center text-xs"
+                        >
+                          <Button variant="outline" size="sm">
+                            <p className="text-[10px]">Zur Episode</p>
+                            <ExternalLink className="inline-block w-3 h-3 text-blue-600" />
+                          </Button>
+                        </Link>
+                      ) : null;
+                    })()}
+                  </div>
                 </div>
               </div>
             );

@@ -14,8 +14,18 @@ import {
 import { ChartConfig, ChartContainer } from "@/components/ui/chart";
 import type { PartyChartProps } from "@/types";
 import { PARTY_COLORS } from "@/types";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@/components/ui/native-select";
 
-export default function PartyChart({ data, selectedShow }: PartyChartProps) {
+export default function PartyChart({
+  data,
+  selectedShow,
+  selectedYear,
+  years,
+  handleYearChange,
+}: PartyChartProps) {
   // Sortiere Daten nach Anzahl
   const sortedData = [...data].sort((a, b) => b.count - a.count);
 
@@ -63,6 +73,23 @@ export default function PartyChart({ data, selectedShow }: PartyChartProps) {
         <CardDescription>
           Verteilung der Politiker nach Parteien
         </CardDescription>
+        <div className="flex gap-2 items-center">
+          <p>Jahr</p>
+          <NativeSelect
+            value={selectedYear}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+              handleYearChange && handleYearChange(e.target.value)
+            }
+          >
+            <NativeSelectOption value="all">Insgesamt</NativeSelectOption>
+            {years &&
+              years.map((y) => (
+                <NativeSelectOption key={y} value={y}>
+                  {y}
+                </NativeSelectOption>
+              ))}
+          </NativeSelect>
+        </div>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig}>

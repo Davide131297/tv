@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const showName = searchParams.get("show");
+    const year = searchParams.get("year");
 
     // Base query to join political areas with episode data
     let query = supabase.from("tv_show_episode_political_areas").select(`
@@ -35,6 +36,12 @@ export async function GET(request: NextRequest) {
       query = query.eq("show_name", showName);
     } else {
       query = query.neq("show_name", "Pinar Atalay");
+    }
+
+    if (year !== "all") {
+      query = query
+        .gte("episode_date", `${year}-01-01`)
+        .lte("episode_date", `${year}-12-31`);
     }
 
     const { data, error } = await query;

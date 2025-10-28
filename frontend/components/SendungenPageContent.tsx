@@ -8,6 +8,10 @@ import { SHOW_OPTIONS_WITHOUT_ALL } from "@/types";
 import { FETCH_HEADERS } from "@/lib/utils";
 import ShowOptionsButtons from "@/components/ShowOptionsButtons";
 import LastShowTable from "@/components/LastShowTable";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@/components/ui/native-select";
 
 export default function SendungenPageContent() {
   const router = useRouter();
@@ -16,6 +20,17 @@ export default function SendungenPageContent() {
   const [statistics, setStatistics] = useState<Statistics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState<string>(String(currentYear));
+
+  // generate years from 2024 up to current year (descending order)
+  const years = useMemo(() => {
+    const start = 2024;
+    const end = new Date().getFullYear();
+    const list: string[] = [];
+    for (let y = end; y >= start; y--) list.push(String(y));
+    return list;
+  }, []);
 
   // Derive selectedShow from URL parameters
   const selectedShow = useMemo(() => {
@@ -37,6 +52,14 @@ export default function SendungenPageContent() {
     router.push(newUrl, { scroll: false });
   };
 
+  const handleYearChange = (yearValue: string) => {
+    setSelectedYear(yearValue);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("year", yearValue);
+    const newUrl = `?${params.toString()}`;
+    router.push(newUrl, { scroll: false });
+  };
+
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
@@ -45,7 +68,7 @@ export default function SendungenPageContent() {
       const episodesResponse = await fetch(
         `/api/politics?type=episodes-with-politicians&show=${encodeURIComponent(
           selectedShow
-        )}`,
+        )}&year=${encodeURIComponent(selectedYear)}`,
         {
           method: "GET",
           headers: FETCH_HEADERS,
@@ -65,7 +88,7 @@ export default function SendungenPageContent() {
       const statsResponse = await fetch(
         `/api/politics?type=episode-statistics&show=${encodeURIComponent(
           selectedShow
-        )}`,
+        )}&year=${encodeURIComponent(selectedYear)}`,
         {
           method: "GET",
           headers: FETCH_HEADERS,
@@ -84,11 +107,15 @@ export default function SendungenPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [selectedShow]);
+  }, [selectedShow, selectedYear]);
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+    const search = searchParams.get("year");
+    if (search && search !== selectedYear) {
+      setSelectedYear(search);
+    }
+  }, [fetchData, searchParams, selectedYear]);
 
   if (loading) {
     return (
@@ -153,32 +180,53 @@ export default function SendungenPageContent() {
           Chronologische Übersicht aller Sendungen mit Politik-Gästen
         </p>
 
-        {/* Show Auswahl */}
-        <div className="flex flex-wrap gap-2">
-          {SHOW_OPTIONS_WITHOUT_ALL.map((option) => {
-            const getButtonColors = (
-              showValue: string,
-              isSelected: boolean
-            ) => {
-              if (!isSelected)
-                return "bg-gray-100 text-gray-700 hover:bg-gray-200";
+        <div className="flex flex-col md:flex-row md:justify-between gap-4 md:gap-0">
+          {/* Show Auswahl */}
+          <div className="flex flex-wrap gap-2">
+            {SHOW_OPTIONS_WITHOUT_ALL.map((option) => {
+              const getButtonColors = (
+                showValue: string,
+                isSelected: boolean
+              ) => {
+                if (!isSelected)
+                  return "bg-gray-100 text-gray-700 hover:bg-gray-200";
 
-              return ShowOptionsButtons(showValue);
-            };
+                return ShowOptionsButtons(showValue);
+              };
 
-            return (
-              <Button
-                key={option.value}
-                onClick={() => handleShowChange(option.value)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${getButtonColors(
-                  option.value,
-                  selectedShow === option.value
-                )}`}
-              >
-                {option.label}
-              </Button>
-            );
-          })}
+              return (
+                <Button
+                  key={option.value}
+                  onClick={() => handleShowChange(option.value)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${getButtonColors(
+                    option.value,
+                    selectedShow === option.value
+                  )}`}
+                >
+                  {option.label}
+                </Button>
+              );
+            })}
+          </div>
+
+          {/* Jahr Auswahl */}
+          <div className="flex gap-2 items-center">
+            <p>Jahr</p>
+            <NativeSelect
+              value={selectedYear}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                handleYearChange && handleYearChange(e.target.value)
+              }
+            >
+              <NativeSelectOption value="all">Insgesamt</NativeSelectOption>
+              {years &&
+                years.map((y) => (
+                  <NativeSelectOption key={y} value={y}>
+                    {y}
+                  </NativeSelectOption>
+                ))}
+            </NativeSelect>
+          </div>
         </div>
 
         {/* Show-spezifische Überschrift */}

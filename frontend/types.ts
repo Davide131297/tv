@@ -33,6 +33,9 @@ export interface PartyStats {
 export interface PartyChartProps {
   data: PartyStats[];
   selectedShow?: string;
+  selectedYear?: string;
+  years?: string[];
+  handleYearChange?: (year: string) => void;
 }
 
 // =============================================================================
@@ -48,6 +51,9 @@ export interface PoliticalAreaStats {
 export interface PoliticalAreasChartProps {
   data: PoliticalAreaStats[];
   selectedShow?: string;
+  selectedYear?: string;
+  years?: string[];
+  handleYearChange?: (year: string) => void;
 }
 
 // =============================================================================
@@ -76,6 +82,7 @@ export interface PoliticianAppearance {
   party_name: string;
   politician_details: PoliticianDetails;
   abgeordnetenwatch_url: string;
+  episode_url?: string; // Optional: Link zur Episode
 }
 
 // =============================================================================
@@ -138,6 +145,7 @@ export const PARTY_COLORS: Record<string, string> = {
   BSW: "#a16207",
   parteilos: "#6b7280",
   ÖVP: "#63c3d0",
+  "FREIE WÄHLER": "#f97316",
 };
 
 export const BADGE_PARTY_COLORS: Record<string, string> = {
@@ -150,6 +158,7 @@ export const BADGE_PARTY_COLORS: Record<string, string> = {
   AfD: "bg-blue-50 text-blue-700 border-blue-200",
   Unbekannt: "bg-gray-100 text-gray-800 border-gray-200",
   ÖVP: "bg-cyan-100 text-cyan-800 border-cyan-200",
+  "FREIE WÄHLER": "bg-orange-100 text-orange-800 border-orange-200",
 };
 
 // =============================================================================

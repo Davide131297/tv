@@ -13,13 +13,20 @@ export async function GET(request: NextRequest) {
     const year =
       searchParams.get("year") || new Date().getFullYear().toString();
 
+    console.log("API Request - Show:", showName, "Year:", year);
+
+    // Base query without year filters; add year filters only if a specific year is requested
     let query = supabase
       .from("tv_show_politicians")
       .select("party_name, episode_date")
       .not("party_name", "is", null)
-      .neq("party_name", "")
-      .gte("episode_date", `${year}-01-01`)
-      .lte("episode_date", `${year}-12-31`);
+      .neq("party_name", "");
+
+    if (year !== "all") {
+      query = query
+        .gte("episode_date", `${year}-01-01`)
+        .lte("episode_date", `${year}-12-31`);
+    }
 
     // Filter nach Show
     if (
@@ -43,52 +50,84 @@ export async function GET(request: NextRequest) {
       throw error;
     }
 
-    // Gruppiere nach Monat und Partei
+    // Ensure we have an array to iterate over
+    const rows = data || [];
+
+    // Gruppiere nach Monat-Jahr (YYYY-MM) und Partei
     const monthlyStats: Record<string, Record<string, number>> = {};
     const allParties = new Set<string>();
 
-    // Initialisiere alle 12 Monate
-    const months = [
-      "Januar",
-      "Februar",
-      "März",
-      "April",
-      "Mai",
-      "Juni",
-      "Juli",
-      "August",
-      "September",
-      "Oktober",
-      "November",
-      "Dezember",
-    ];
+    // Helper to generate month keys between two dates (inclusive) in YYYY-MM format
+    const pad2 = (n: number) => String(n).padStart(2, "0");
+    const monthKey = (d: Date) =>
+      `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
 
-    months.forEach((month) => {
-      monthlyStats[month] = {};
+    // If there are no rows, return zeroed months for the current year or empty for 'all'
+    const validDates = rows
+      .map((r) => (r && r.episode_date ? new Date(r.episode_date) : null))
+      .filter((d) => d instanceof Date && !Number.isNaN(d.getTime())) as Date[];
+
+    const monthKeys: string[] = [];
+
+    if (year === "all") {
+      if (validDates.length === 0) {
+        // nothing to show
+        return NextResponse.json({
+          success: true,
+          data: [],
+          parties: [],
+          year,
+        });
+      }
+      // compute range from earliest to latest date
+      let minDate = new Date(Math.min(...validDates.map((d) => d.getTime())));
+      let maxDate = new Date(Math.max(...validDates.map((d) => d.getTime())));
+
+      // normalize to first day of month
+      minDate = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+      maxDate = new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
+
+      const cur = new Date(minDate);
+      while (cur <= maxDate) {
+        monthKeys.push(monthKey(cur));
+        cur.setMonth(cur.getMonth() + 1);
+      }
+    } else {
+      // Specific year: generate 12 months for that year
+      for (let m = 1; m <= 12; m++) {
+        monthKeys.push(`${year}-${pad2(m)}`);
+      }
+    }
+
+    // initialize
+    monthKeys.forEach((mk) => {
+      monthlyStats[mk] = {};
     });
 
-    data.forEach((row) => {
-      const date = new Date(row.episode_date);
-      const monthIndex = date.getMonth();
-      const monthName = months[monthIndex];
-      const party = row.party_name as string;
+    rows.forEach((row) => {
+      if (!row || !row.episode_date) return;
+
+      const d = new Date(row.episode_date);
+      if (Number.isNaN(d.getTime())) return;
+
+      const mk = monthKey(d);
+      const party = (row.party_name as string) || "Unbekannt";
+
+      // only count if within our generated month keys (useful for specific year)
+      if (!monthlyStats[mk]) return;
 
       allParties.add(party);
 
-      if (!monthlyStats[monthName][party]) {
-        monthlyStats[monthName][party] = 0;
-      }
-      monthlyStats[monthName][party]++;
+      if (!monthlyStats[mk][party]) monthlyStats[mk][party] = 0;
+      monthlyStats[mk][party]++;
     });
 
     // Transformiere in Array-Format für recharts
-    const results: MonthlyPartyStats[] = months.map((month) => {
-      const monthData: MonthlyPartyStats = { month };
-
+    const results: MonthlyPartyStats[] = monthKeys.map((mk) => {
+      const monthData: MonthlyPartyStats = { month: mk } as MonthlyPartyStats;
       allParties.forEach((party) => {
-        monthData[party] = monthlyStats[month][party] || 0;
+        monthData[party] = monthlyStats[mk][party] || 0;
       });
-
       return monthData;
     });
 

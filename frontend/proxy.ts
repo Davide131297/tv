@@ -7,7 +7,7 @@ const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
 const CRAWL_API_KEY = process.env.NEXT_PUBLIC_CRAWL_API_KEY;
 const POLITICS_API_KEY = process.env.NEXT_PUBLIC_POLITICS_API_KEY;
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Apply middleware to crawl API routes and politics API
