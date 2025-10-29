@@ -123,7 +123,17 @@ export default function PoliticianRankings() {
         const result: PoliticianRankingsResponse = await response.json();
 
         if (result.success) {
-          setRankings(result.data);
+          const sorted = [...result.data].sort((a, b) => {
+            if (b.total_appearances !== a.total_appearances) {
+              return b.total_appearances - a.total_appearances;
+            }
+
+            const at = new Date(a.latest_appearance).getTime() || 0;
+            const bt = new Date(b.latest_appearance).getTime() || 0;
+            return bt - at;
+          });
+
+          setRankings(sorted);
           setMetadata(result.metadata);
         } else {
           setError("Fehler beim Laden der Daten");
