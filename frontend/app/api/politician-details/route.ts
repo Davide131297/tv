@@ -44,8 +44,6 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    console.log("results:", results);
-
     return NextResponse.json(results);
   } catch (err) {
     console.error("[api/politician-details] Error:", err);

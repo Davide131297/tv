@@ -119,22 +119,23 @@ export default function PoliticianModal({
       const detailData = await detailRes.json();
       console.log("Detaildaten erhalten:", detailData);
 
-      const wikidataRes = await fetch(
-        `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${selected.qid_wikidata}&format=json&origin=*`
-      );
-      if (!wikidataRes.ok) {
-        console.warn(
-          "Fehler beim Abrufen der Wikidata-Daten:",
-          wikidataRes.status
+      if (selected.qid_wikidata) {
+        const wikidataRes = await fetch(
+          `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${selected.qid_wikidata}&format=json&origin=*`
         );
-        return;
+        if (!wikidataRes.ok) {
+          console.warn(
+            "Fehler beim Abrufen der Wikidata-Daten:",
+            wikidataRes.status
+          );
+        }
+
+        const wikidataJson = await wikidataRes.json();
+        const entity = wikidataJson.entities[selected.qid_wikidata];
+        const descriptionDe = entity.descriptions.de?.value;
+
+        setDescription(descriptionDe);
       }
-
-      const wikidataJson = await wikidataRes.json();
-      const entity = wikidataJson.entities[selected.qid_wikidata];
-      const descriptionDe = entity.descriptions.de?.value;
-
-      setDescription(descriptionDe);
       setAppearances(detailData);
     } catch (err) {
       console.error(err);
@@ -227,27 +228,29 @@ export default function PoliticianModal({
                   <dl className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-5 text-sm text-gray-700 dark:text-gray-200">
                     <div>
                       <dt className="font-medium">Beruf / Tätigkeit</dt>
-                      <dd>{description}</dd>
+                      <dd>{description || selectedPolitician.occupation}</dd>
                     </div>
                     <div>
                       <dt className="font-medium">Bildung</dt>
                       <dd>{selectedPolitician.education ?? "–"}</dd>
                     </div>
-                    <div>
-                      <dt className="font-medium">Wikidata</dt>
-                      <dd>
-                        {selectedPolitician.qid_wikidata ? (
-                          <LinkPreview
-                            url={`https://www.wikidata.org/wiki/${selectedPolitician.qid_wikidata}`}
-                            className="text-blue-600 hover:underline"
-                          >
-                            {selectedPolitician.qid_wikidata}
-                          </LinkPreview>
-                        ) : (
-                          "–"
-                        )}
-                      </dd>
-                    </div>
+                    {selectedPolitician.qid_wikidata && (
+                      <div>
+                        <dt className="font-medium">Wikidata</dt>
+                        <dd>
+                          {selectedPolitician.qid_wikidata ? (
+                            <LinkPreview
+                              url={`https://www.wikidata.org/wiki/${selectedPolitician.qid_wikidata}`}
+                              className="text-blue-600 hover:underline"
+                            >
+                              {selectedPolitician.qid_wikidata}
+                            </LinkPreview>
+                          ) : (
+                            "–"
+                          )}
+                        </dd>
+                      </div>
+                    )}
                   </dl>
                   <div className="mt-6">
                     <h3 className="text-lg font-medium mb-2">Auftritte</h3>
