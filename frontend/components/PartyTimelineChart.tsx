@@ -69,35 +69,38 @@ export default function PartyTimelineChart({
 
   // CDU & CSU zu Union zusammenfassen
   const processedData = useMemo(() => {
-    if (!unionMode) return { data, parties };
+    const newData: MonthlyPartyStats[] = unionMode
+      ? data.map((monthData) => {
+          const { CDU = 0, CSU = 0, ...rest } = monthData;
+          return {
+            ...rest,
+            Union: (CDU as number) + (CSU as number),
+          };
+        })
+      : data;
 
-    const newData = data.map((monthData) => {
-      const { CDU = 0, CSU = 0, ...rest } = monthData;
-      return {
-        ...rest,
-        Union: (CDU as number) + (CSU as number),
-      };
-    });
+    const newParties = unionMode
+      ? parties
+          .filter((p) => p !== "CDU" && p !== "CSU")
+          .concat(
+            parties.includes("CDU") || parties.includes("CSU") ? ["Union"] : []
+          )
+      : parties.slice();
 
-    const newParties = parties
-      .filter((p) => p !== "CDU" && p !== "CSU")
-      .concat(
-        parties.includes("CDU") || parties.includes("CSU") ? ["Union"] : []
-      );
+    const totals: Record<string, number> = newParties.reduce(
+      (acc: Record<string, number>, p: string) => {
+        acc[p] = newData.reduce(
+          (sum: number, month: MonthlyPartyStats) =>
+            sum + ((month[p] as number) || 0),
+          0
+        );
+        return acc;
+      },
+      {}
+    );
 
-    // Sortiere Parteien nach Gesamtauftritten
-    const sortedParties = newParties.sort((a: string, b: string) => {
-      const totalA = newData.reduce(
-        (sum: number, month: MonthlyPartyStats) =>
-          sum + ((month[a] as number) || 0),
-        0
-      );
-      const totalB = newData.reduce(
-        (sum: number, month: MonthlyPartyStats) =>
-          sum + ((month[b] as number) || 0),
-        0
-      );
-      return totalB - totalA;
+    const sortedParties = newParties.slice().sort((a: string, b: string) => {
+      return (totals[b] || 0) - (totals[a] || 0);
     });
 
     return { data: newData, parties: sortedParties };
