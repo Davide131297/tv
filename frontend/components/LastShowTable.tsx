@@ -1,6 +1,7 @@
 import { EpisodeData } from "@/types";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import PoliticianModal from "./PoliticianModal";
 
 type LastShowTableProps = {
   episodes: EpisodeData[];
@@ -95,9 +96,11 @@ export default function LastShowTable({ episodes }: LastShowTableProps) {
                           key={`${episode.episode_date}-${politician.name}-${idx}`}
                           className="flex items-center justify-between text-sm"
                         >
-                          <span className="font-medium text-gray-900">
-                            {politician.name}
-                          </span>
+                          <PoliticianModal
+                            politicianName={politician.name}
+                            politicianParty={politician.party_name}
+                            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded font-medium text-blue-600"
+                          />
                           <span
                             className={cn(
                               "text-xs px-2 py-1 rounded",
@@ -176,9 +179,11 @@ export default function LastShowTable({ episodes }: LastShowTableProps) {
                             key={`${episode.episode_date}-${politician.name}-${idx}`}
                             className="flex items-center space-x-2"
                           >
-                            <span className="font-medium">
-                              {politician.name}
-                            </span>
+                            <PoliticianModal
+                              politicianName={politician.name}
+                              politicianParty={politician.party_name}
+                              className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded font-medium text-blue-600"
+                            />
                             <span
                               className={cn(
                                 "text-xs px-2 py-1 rounded",

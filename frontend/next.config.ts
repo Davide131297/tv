@@ -28,6 +28,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "www.paypal.com",
       },
+      {
+        protocol: "https",
+        hostname: "api.microlink.io",
+      },
     ],
   },
   // async redirects() {

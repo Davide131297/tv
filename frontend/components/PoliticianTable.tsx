@@ -34,6 +34,7 @@ import {
   NativeSelect,
   NativeSelectOption,
 } from "@/components/ui/native-select";
+import PoliticianModal from "./PoliticianModal";
 
 const columnHelper = createColumnHelper<PoliticianAppearance>();
 
@@ -257,26 +258,11 @@ export default function PoliticianTable() {
       columnHelper.accessor("politician_name", {
         header: "Politiker",
         cell: (info) => (
-          <div className="flex gap-1">
-            {info.row.original.abgeordnetenwatch_url && (
-              <Tooltip>
-                <TooltipTrigger>
-                  <Link
-                    href={info.row.original.abgeordnetenwatch_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <div className="font-semibold cursor-pointer hover:text-blue-600">
-                      {info.getValue()}
-                    </div>
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Zur Politiker-Seite</p>
-                </TooltipContent>
-              </Tooltip>
-            )}
-          </div>
+          <PoliticianModal
+            politicianName={info.getValue()}
+            politicianParty={info.row.original.party_name}
+            className="cursor-pointer inline-flex items-center justify-center gap-2 whitespace-nowrap px-3 py-1 rounded text-sm text-blue-600 hover:text-blue-800"
+          />
         ),
       }),
       columnHelper.accessor("party_name", {
@@ -478,19 +464,12 @@ export default function PoliticianTable() {
                 <div className="flex justify-between">
                   <div className="space-y-3">
                     <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="flex gap-1 font-semibold text-gray-900 text-sm">
-                          {data.politician_name}
-                          {data.abgeordnetenwatch_url && (
-                            <Link
-                              href={data.abgeordnetenwatch_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <ExternalLink className="inline-block w-3 h-3 text-blue-600 mb-3 cursor-pointer" />
-                            </Link>
-                          )}
-                        </div>
+                      <div>
+                        <PoliticianModal
+                          politicianName={data.politician_name}
+                          politicianParty={data.party_name}
+                          className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded text-sm text-blue-600"
+                        />
                         <div className="text-xs text-gray-500 mt-1">
                           {date.toLocaleDateString("de-DE")}
                         </div>
