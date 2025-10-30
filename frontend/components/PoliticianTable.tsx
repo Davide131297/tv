@@ -240,7 +240,7 @@ export default function PoliticianTable() {
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="cursor-pointer hover:text-blue-600"
+                  className="cursor-pointer text-blue-600 hover:text-blue-800 hover:underline"
                 >
                   {formatted}
                 </Link>
@@ -261,7 +261,7 @@ export default function PoliticianTable() {
           <PoliticianModal
             politicianName={info.getValue()}
             politicianParty={info.row.original.party_name}
-            className="cursor-pointer inline-flex items-center justify-center gap-2 whitespace-nowrap px-3 py-1 rounded text-sm text-blue-600 hover:text-blue-800"
+            className="cursor-pointer inline-flex items-center justify-center gap-2 whitespace-nowrap px-3 py-1 rounded text-sm text-blue-600 hover:text-blue-800 hover:underline"
           />
         ),
       }),
