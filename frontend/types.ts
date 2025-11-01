@@ -56,6 +56,20 @@ export interface PoliticalAreasChartProps {
   handleYearChange?: (year: string) => void;
 }
 
+export interface PoliticalAreaEpisodeRow {
+  political_area_id: number;
+  episode_date: string;
+  political_area?: {
+    id: number;
+    label: string;
+  } | null;
+}
+
+export interface PoliticalAreasChartPropsExtended
+  extends PoliticalAreasChartProps {
+  rows?: PoliticalAreaEpisodeRow[];
+}
+
 // =============================================================================
 // POLITICIAN TYPES
 // =============================================================================

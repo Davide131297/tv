@@ -14,9 +14,10 @@ export async function GET(request: NextRequest) {
     const showName = searchParams.get("show");
     const year = searchParams.get("year");
 
-    // Base query to join political areas with episode data
+    // Base query to join political areas with episode data (include episode_date for monthly timeline)
     let query = supabase.from("tv_show_episode_political_areas").select(`
         political_area_id,
+        episode_date,
         political_area(
           id,
           label
@@ -38,7 +39,8 @@ export async function GET(request: NextRequest) {
       query = query.neq("show_name", "Pinar Atalay");
     }
 
-    if (year !== "all") {
+    // Only apply year filtering when a year param is provided and not equal to "all"
+    if (year && year !== "all") {
       query = query
         .gte("episode_date", `${year}-01-01`)
         .lte("episode_date", `${year}-12-31`);
@@ -59,7 +61,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Group and count political areas
+    // Group and count political areas (summary)
     const areaCount = data.reduce(
       //eslint-disable-next-line @typescript-eslint/no-explicit-any
       (acc: Record<number, { label: string; count: number }>, row: any) => {
@@ -87,9 +89,11 @@ export async function GET(request: NextRequest) {
       }))
       .sort((a, b) => b.count - a.count);
 
+    // Return both a summary and the raw rows so the frontend can compute monthly timelines
     return NextResponse.json({
       success: true,
       data: results,
+      rows: data, // raw rows include episode_date and political_area
       total: results.reduce((sum, item) => sum + item.count, 0),
       metadata: {
         show_filter: showName || "all",
