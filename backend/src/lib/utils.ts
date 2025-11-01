@@ -135,7 +135,7 @@ export async function getPoliticalArea(
   description: string
 ): Promise<number[] | []> {
   const token = process.env.HF_ACCESS_TOKEN;
-  const MODEL = "aisingapore/Gemma-SEA-LION-v4-27B-IT";
+  const MODEL = process.env.AI_MODEL_NAME;
   if (!token) {
     console.error("❌ HF_ACCESS_TOKEN fehlt in .env");
     return [];
@@ -556,7 +556,7 @@ export async function extractGuestsWithAI(
   teaserText: string
 ): Promise<string[]> {
   const token = process.env.NEXT_PUBLIC_HF_ACCESS_TOKEN;
-  const MODEL = "aisingapore/Gemma-SEA-LION-v4-27B-IT";
+  const MODEL = "swiss-ai/Apertus-70B-Instruct-2509";
 
   if (!token) {
     console.error("❌ HF_ACCESS_TOKEN fehlt in .env");
