@@ -15,6 +15,7 @@ import {
   NativeSelect,
   NativeSelectOption,
 } from "@/components/ui/native-select";
+import PoliticianModal from "./PoliticianModal";
 
 interface PoliticianRanking {
   politician_name: string;
@@ -274,7 +275,7 @@ export default function PoliticianRankings() {
                     <Badge
                       className={`${getRankBadgeColor(
                         rank
-                      )} min-w-[32px] sm:min-w-[40px] justify-center flex-shrink-0`}
+                      )} min-w-8 sm:min-w-10 justify-center shrink-0`}
                     >
                       #{rank}
                     </Badge>
@@ -286,9 +287,11 @@ export default function PoliticianRankings() {
                         <div className="flex justify-between items-start mb-2">
                           <div className="flex-1 min-w-0 pr-2">
                             <div className="flex gap-1 items-center">
-                              <h3 className="font-semibold text-base truncate">
-                                {politician.politician_name}
-                              </h3>
+                              <PoliticianModal
+                                politicianName={politician.politician_name}
+                                politicianParty={politician.party_name}
+                                className="text-blue-500"
+                              />
                               <Tooltip>
                                 <TooltipTrigger>
                                   <Link
@@ -301,7 +304,7 @@ export default function PoliticianRankings() {
                                   </Link>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  <p>Genauer ansehen</p>
+                                  <p>Shows ansehen</p>
                                 </TooltipContent>
                               </Tooltip>
                             </div>
@@ -358,9 +361,11 @@ export default function PoliticianRankings() {
                         <div className="flex gap-4 items-center justify-between mb-2">
                           <div className="flex-1 min-w-0">
                             <div className="flex gap-2.5 items-center">
-                              <h3 className="font-semibold text-lg truncate">
-                                {politician.politician_name}
-                              </h3>
+                              <PoliticianModal
+                                politicianName={politician.politician_name}
+                                politicianParty={politician.party_name}
+                                className="hover:underline hover:text-blue-600 cursor-pointer font-bold text-lg"
+                              />
                               <Tooltip>
                                 <TooltipTrigger>
                                   <Link

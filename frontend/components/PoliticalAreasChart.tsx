@@ -1,13 +1,17 @@
 "use client";
 
 import { TrendingUp } from "lucide-react";
+import { useEffect, useState } from "react";
 import {
   Bar,
   BarChart,
   CartesianGrid,
   LabelList,
   XAxis,
+  YAxis,
   Tooltip,
+  Legend,
+  ResponsiveContainer,
 } from "recharts";
 
 import {
@@ -18,8 +22,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ChartConfig, ChartContainer } from "@/components/ui/chart";
-import type { PoliticalAreasChartProps } from "@/types";
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import type {
+  PoliticalAreasChartPropsExtended,
+  PoliticalAreaEpisodeRow,
+} from "@/types";
 import {
   NativeSelect,
   NativeSelectOption,
@@ -27,22 +39,24 @@ import {
 
 // Color scheme for political areas
 const POLITICAL_AREA_COLORS: Record<number, string> = {
-  1: "#ef4444", // Energie, Klima - Rot
-  2: "#3b82f6", // Wirtschaft - Blau
-  3: "#7c3aed", // Sicherheit, Verteidigung - Lila
-  4: "#059669", // Migration, Integration - Grün
-  5: "#dc2626", // Haushalt, Sozialpolitik - Dunkelrot
-  6: "#0891b2", // Digitalisierung - Cyan
-  7: "#ea580c", // Kultur, Identität - Orange
+  1: "#059669", // Energie, Klima – Grün (Natur/Umwelt)
+  2: "#2563eb", // Wirtschaft – Blau (Stabilität/Wirtschaft)
+  3: "#1e293b", // Sicherheit, Verteidigung – Dunkelblau/Anthrazit (Seriosität/Sicherheit)
+  4: "#eab308", // Migration, Integration – Gelb (Offenheit/Vielfalt)
+  5: "#b91c1c", // Haushalt, Sozialpolitik – Dunkelrot (Soziale Themen)
+  6: "#06b6d4", // Digitalisierung – Cyan/Türkis (Tech/Innovation)
+  7: "#ea580c", // Kultur, Identität – Orange (Kreativität/Kultur)
 };
 
 export default function PoliticalAreasChart({
   data,
+  rows,
   selectedShow,
   selectedYear,
   years,
   handleYearChange,
-}: PoliticalAreasChartProps) {
+}: PoliticalAreasChartPropsExtended) {
+  const [isMobile, setIsMobile] = useState<boolean>(false);
   // Sortiere Daten nach Anzahl
   const sortedData = [...data].sort((a, b) => b.count - a.count);
 
@@ -96,40 +110,196 @@ export default function PoliticalAreasChart({
 
   const totalAuftritte = sortedData.reduce((sum, item) => sum + item.count, 0);
 
-  // Custom Tooltip Komponente
-  const CustomTooltip = ({
+  const monthLabels = [
+    "Jan",
+    "Feb",
+    "Mär",
+    "Apr",
+    "Mai",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Okt",
+    "Nov",
+    "Dez",
+  ];
+
+  // Detect mobile viewport to adapt timeline for small screens
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640); // tailwind 'sm' breakpoint
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  // Build monthly timeline data.
+  // If the user selected "all" years, build a month-year timeline (e.g. Jan 2023, Feb 2023, ...)
+  // spanning from the earliest to the latest episode in `rows`. Otherwise build a Jan-Dec
+  // aggregation for the selected single year.
+  let monthlyData: Record<string, any>[] = [];
+
+  if (selectedYear === "all") {
+    // Build continuous month-year buckets between min and max episode_date
+    if (rows && rows.length > 0) {
+      // find min and max dates
+      const dates = rows
+        .map((r: PoliticalAreaEpisodeRow) => {
+          try {
+            return new Date(r.episode_date);
+          } catch {
+            return null;
+          }
+        })
+        .filter(Boolean) as Date[];
+
+      if (dates.length > 0) {
+        let minDate = new Date(Math.min(...dates.map((d) => d.getTime())));
+        let maxDate = new Date(Math.max(...dates.map((d) => d.getTime())));
+
+        // normalize to first day of month
+        minDate = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+        maxDate = new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
+
+        const buckets: { key: string; label: string; date: Date }[] = [];
+        const cur = new Date(minDate);
+        while (cur.getTime() <= maxDate.getTime()) {
+          const y = cur.getFullYear();
+          const m = cur.getMonth();
+          const key = `${y}-${String(m + 1).padStart(2, "0")}`; // e.g. 2024-01
+          const label = `${monthLabels[m]} ${y}`; // e.g. Jan 2024
+          buckets.push({ key, label, date: new Date(cur) });
+          cur.setMonth(cur.getMonth() + 1);
+        }
+
+        // initialize monthlyData with zeroed keys for each T
+        monthlyData = buckets.map((b) => {
+          const base: Record<string, any> = { month: b.label, __key: b.key };
+          sortedData.forEach((item) => {
+            const k = AREA_ID_TO_T_NUMBER[item.area_id] || `T${item.area_id}`;
+            base[k] = 0;
+          });
+          return base;
+        });
+
+        // fill counts
+        rows.forEach((r: PoliticalAreaEpisodeRow) => {
+          try {
+            if (!r || !r.episode_date) return;
+            const d = new Date(r.episode_date);
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+              2,
+              "0"
+            )}`;
+            const idx = monthlyData.findIndex((md) => md.__key === key);
+            if (idx === -1) return;
+            const k =
+              AREA_ID_TO_T_NUMBER[r.political_area_id] ||
+              `T${r.political_area_id}`;
+            if (monthlyData[idx][k] === undefined) monthlyData[idx][k] = 0;
+            monthlyData[idx][k]++;
+          } catch (e) {
+            console.warn(
+              "Fehler beim Verarbeiten der Episode für Timeline:",
+              r,
+              e
+            );
+          }
+        });
+      }
+    }
+  } else {
+    // Single-year view: Jan - Dez buckets
+    monthlyData = monthLabels.map((label) => {
+      const base: Record<string, any> = { month: label };
+      sortedData.forEach((item) => {
+        const key = AREA_ID_TO_T_NUMBER[item.area_id] || `T${item.area_id}`;
+        base[key] = 0;
+      });
+      return base;
+    });
+
+    if (rows && rows.length > 0) {
+      rows.forEach((r: PoliticalAreaEpisodeRow) => {
+        try {
+          if (!r || !r.episode_date) return;
+          const d = new Date(r.episode_date);
+          const monthIndex = d.getMonth();
+          if (Number.isNaN(monthIndex) || monthIndex < 0 || monthIndex > 11)
+            return;
+          const key =
+            AREA_ID_TO_T_NUMBER[r.political_area_id] ||
+            `T${r.political_area_id}`;
+          if (monthlyData[monthIndex][key] === undefined)
+            monthlyData[monthIndex][key] = 0;
+          monthlyData[monthIndex][key]++;
+        } catch (e) {
+          console.warn("Fehler beim Verarbeiten der Episode:", r, e);
+        }
+      });
+    }
+  }
+
+  const UnifiedTooltip = ({
     active,
     payload,
     label,
   }: {
     active?: boolean;
-    payload?: Array<{ payload: { full_label: string; auftritte: number } }>;
+    payload?: any[];
     label?: string;
   }) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      return (
-        <div className="bg-white px-2 py-1 border border-gray-200 rounded shadow-md text-xs">
-          <p className="font-medium text-gray-900 leading-tight">
-            {data.full_label}
-          </p>
-          <p className="text-gray-600 leading-tight">
-            {label}: {data.auftritte} Episoden
-          </p>
-        </div>
-      );
-    }
-    return null;
+    if (!active || !payload || !payload.length) return null;
+
+    const first = payload[0];
+    const firstPayload = first && first.payload ? first.payload : null;
+
+    return (
+      <div
+        style={{ backgroundColor: "#ffffff", opacity: 1, zIndex: 9999 }}
+        className="px-3 py-2 border border-gray-200 rounded shadow-md text-xs"
+      >
+        {firstPayload && firstPayload.full_label ? (
+          <div>
+            <p className="font-medium text-gray-900 leading-tight">
+              {firstPayload.full_label}
+            </p>
+            <p className="text-gray-600 leading-tight">
+              {label}: {firstPayload.auftritte} Episoden
+            </p>
+          </div>
+        ) : (
+          // Line chart: list each series value for the month
+          <div>
+            <p className="font-medium text-gray-900 leading-tight">{label}</p>
+            <div className="mt-1 space-y-1">
+              {payload.map((p: any) => (
+                <div key={p.dataKey} className="flex items-center gap-2">
+                  <span
+                    className="inline-block w-2 h-2 rounded"
+                    style={{ backgroundColor: p.stroke || "#6b7280" }}
+                  />
+                  <span className="text-gray-700 text-xs">{p.name}</span>
+                  <span className="ml-2 text-gray-900 text-xs font-medium">
+                    {p.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>{getTitle()}</CardTitle>
-        <CardDescription>
+        <CardDescription className="hidden">
           Verteilung der politischen Themenbereiche
         </CardDescription>
-        <div className="flex gap-2 items-center">
+        <div className="flex gap-2 items-center mt-2.5">
           <p>Jahr</p>
           <NativeSelect
             value={selectedYear}
@@ -148,101 +318,182 @@ export default function PoliticalAreasChart({
         </div>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig}>
-          <BarChart
-            accessibilityLayer
-            data={chartData}
-            margin={{
-              top: 20,
-              bottom: 40,
-            }}
-          >
-            <CartesianGrid vertical={false} />
-            <XAxis
-              dataKey="thema"
-              tickLine={false}
-              tickMargin={10}
-              axisLine={false}
-              fontSize={12}
-              className="text-sm"
-              interval={0}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="auftritte" radius={8}>
-              <LabelList
-                position="top"
-                offset={8}
-                className="fill-foreground text-xs"
-                fontSize={10}
-              />
-            </Bar>
-          </BarChart>
-        </ChartContainer>
+        <div className="flex flex-col gap-8">
+          {/* Timeline (line chart) */}
+          <div className="w-full bg-gray-50 rounded-lg p-4">
+            <h3 className="text-sm font-semibold mb-3">
+              Themen nach Zeitverlauf
+            </h3>
+            <div className="max-h-[420px] overflow-y-auto">
+              {/* Custom per-month stacked bars so each month shows segments ordered
+                  from largest to smallest (left → right). This is implemented
+                  with simple flex-based divs rather than Recharts to allow
+                  per-row ordering of segments. */}
+              <div className="space-y-2">
+                {monthlyData.map((md) => {
+                  // build segments for this month
+                  const segments = Object.entries(md)
+                    .filter(([k]) => k !== "month" && k !== "__key")
+                    .map(([k, v]) => ({ key: k, value: Number(v) }))
+                    .map((s) => {
+                      // find meta (label + color) for this key
+                      const metaItem = sortedData.find(
+                        (it) =>
+                          (AREA_ID_TO_T_NUMBER[it.area_id] ||
+                            `T${it.area_id}`) === s.key
+                      );
+                      return {
+                        ...s,
+                        label: metaItem?.area_label || s.key,
+                        color: metaItem
+                          ? POLITICAL_AREA_COLORS[metaItem.area_id]
+                          : "#6b7280",
+                      };
+                    })
+                    .sort((a, b) => b.value - a.value);
 
-        {/* Legende */}
-        <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-          <h3 className="text-sm font-medium text-gray-900 mb-3">
-            Themenbereiche (feste Zuordnung):
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-            {/* Zeige alle verfügbaren Themen in fester Reihenfolge */}
-            {Object.entries(AREA_ID_TO_T_NUMBER)
-              .sort(([a], [b]) => parseInt(a) - parseInt(b))
-              .map(([areaId, tNumber]) => {
-                const chartItem = chartData.find(
-                  (item) => item.area_id === parseInt(areaId)
-                );
-                const isPresent = !!chartItem;
+                  const total = segments.reduce((sum, s) => sum + s.value, 0);
 
-                // Fallback für Themennamen basierend auf area_id
-                const getThemeName = (id: number) => {
-                  switch (id) {
-                    case 1:
-                      return "Energie, Klima und Versorgungssicherheit";
-                    case 2:
-                      return "Wirtschaft, Innovation und Wettbewerbsfähigkeit";
-                    case 3:
-                      return "Sicherheit, Verteidigung und Außenpolitik";
-                    case 4:
-                      return "Migration, Integration und gesellschaftlicher Zusammenhalt";
-                    case 5:
-                      return "Haushalt, öffentliche Finanzen und Sozialpolitik";
-                    case 6:
-                      return "Digitalisierung, Medien und Demokratie";
-                    case 7:
-                      return "Kultur, Identität und Erinnerungspolitik";
-                    default:
-                      return "Unbekanntes Thema";
-                  }
-                };
-
-                const themeName =
-                  chartItem?.full_label || getThemeName(parseInt(areaId));
-
-                return (
-                  <div
-                    key={areaId}
-                    className={`flex items-center gap-2 ${
-                      !isPresent ? "opacity-50" : ""
-                    }`}
-                  >
+                  return (
                     <div
-                      className="w-3 h-3 rounded"
-                      style={{
-                        backgroundColor:
-                          POLITICAL_AREA_COLORS[parseInt(areaId)] || "#6b7280",
-                      }}
-                    />
-                    <span className="font-medium">{tNumber}:</span>
-                    <span className="text-gray-600">{themeName}</span>
-                    {!isPresent && (
-                      <span className="text-xs text-gray-400">
-                        (nicht vorhanden)
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
+                      key={md.__key || md.month}
+                      className="flex items-center"
+                    >
+                      <div className="w-10 text-xs text-gray-700">
+                        {md.month}
+                      </div>
+                      <div className="flex-1 bg-gray-100 rounded overflow-hidden h-6 flex">
+                        {segments.map((seg) => {
+                          const pct = total > 0 ? (seg.value / total) * 100 : 0;
+                          return (
+                            <div
+                              key={seg.key}
+                              title={`${seg.label}: ${seg.value}`}
+                              style={{
+                                width: `${pct}%`,
+                                backgroundColor: seg.color,
+                              }}
+                              className="h-full"
+                            />
+                          );
+                        })}
+                      </div>
+                      <div className="w-12 text-right text-sm text-gray-700">
+                        {total}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div className="p-4 bg-white rounded-md">
+            <h3 className="text-sm font-semibold mb-3">
+              Verteilung der politischen Themenbereiche
+            </h3>
+            <ChartContainer config={chartConfig}>
+              <BarChart
+                accessibilityLayer
+                data={chartData}
+                margin={{
+                  top: 20,
+                  bottom: 40,
+                }}
+              >
+                <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="thema"
+                  tickLine={false}
+                  tickMargin={10}
+                  axisLine={false}
+                  fontSize={12}
+                  className="text-sm"
+                  interval={0}
+                />
+                <Tooltip
+                  content={<UnifiedTooltip />}
+                  wrapperStyle={{ zIndex: 9999, pointerEvents: "auto" }}
+                />
+                <Bar dataKey="auftritte" radius={8}>
+                  <LabelList
+                    position="top"
+                    offset={8}
+                    className="fill-foreground text-xs"
+                    fontSize={10}
+                  />
+                </Bar>
+              </BarChart>
+            </ChartContainer>
+          </div>
+
+          {/* Legende */}
+          <div className="p-4 bg-gray-50 rounded-lg">
+            <h3 className="text-sm font-medium text-gray-900 mb-3">
+              Themenbereiche (feste Zuordnung):
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+              {/* Zeige alle verfügbaren Themen in fester Reihenfolge */}
+              {Object.entries(AREA_ID_TO_T_NUMBER)
+                .sort(([a], [b]) => parseInt(a) - parseInt(b))
+                .map(([areaId, tNumber]) => {
+                  const chartItem = chartData.find(
+                    (item) => item.area_id === parseInt(areaId)
+                  );
+                  const isPresent = !!chartItem;
+
+                  // Fallback für Themennamen basierend auf area_id
+                  const getThemeName = (id: number) => {
+                    switch (id) {
+                      case 1:
+                        return "Energie, Klima und Versorgungssicherheit";
+                      case 2:
+                        return "Wirtschaft, Innovation und Wettbewerbsfähigkeit";
+                      case 3:
+                        return "Sicherheit, Verteidigung und Außenpolitik";
+                      case 4:
+                        return "Migration, Integration und gesellschaftlicher Zusammenhalt";
+                      case 5:
+                        return "Haushalt, öffentliche Finanzen und Sozialpolitik";
+                      case 6:
+                        return "Digitalisierung, Medien und Demokratie";
+                      case 7:
+                        return "Kultur, Identität und Erinnerungspolitik";
+                      default:
+                        return "Unbekanntes Thema";
+                    }
+                  };
+
+                  const themeName =
+                    chartItem?.full_label || getThemeName(parseInt(areaId));
+
+                  return (
+                    <div
+                      key={areaId}
+                      className={`flex items-center gap-2 ${
+                        !isPresent ? "opacity-50" : ""
+                      }`}
+                      style={{ alignItems: "center" }}
+                    >
+                      <div
+                        className="w-3 h-3 rounded"
+                        style={{
+                          backgroundColor:
+                            POLITICAL_AREA_COLORS[parseInt(areaId)] ||
+                            "#6b7280",
+                        }}
+                      />
+                      <span className="font-medium">{tNumber}:</span>
+                      <span className="text-gray-600">{themeName}</span>
+                      {!isPresent && (
+                        <span className="text-xs text-gray-400">
+                          (nicht vorhanden)
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
           </div>
         </div>
       </CardContent>

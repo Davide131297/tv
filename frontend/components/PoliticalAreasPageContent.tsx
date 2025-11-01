@@ -15,6 +15,7 @@ export default function PoliticalAreasPageContent() {
   const [politicalAreaStats, setPoliticalAreaStats] = useState<
     PoliticalAreaStats[]
   >([]);
+  const [politicalAreaRows, setPoliticalAreaRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const currentYear = new Date().getFullYear();
@@ -102,6 +103,7 @@ export default function PoliticalAreasPageContent() {
       const data = await response.json();
       if (data.success) {
         setPoliticalAreaStats(data.data);
+        if (data.rows) setPoliticalAreaRows(data.rows);
       }
     } catch (err) {
       console.error("Error fetching data:", err);
@@ -146,12 +148,6 @@ export default function PoliticalAreasPageContent() {
           Verteilung der politischen Themen in deutschen TV-Talkshows
         </p>
 
-        <div className="mx-auto bg-red-300 text-red-600 rounded-lg p-4 mb-4">
-          <strong>Achtung:</strong> Diese Seite ist noch experimentell. Die
-          Datenqualität wird in Zukunft verbessert es können einige Sendungen in
-          der Bewertung fehlen.
-        </div>
-
         {/* Show Auswahl */}
         <div className="flex flex-wrap gap-2 items-center mb-4">
           {SHOW_OPTIONS.map((option) => {
@@ -183,6 +179,7 @@ export default function PoliticalAreasPageContent() {
 
       <PoliticalAreasChart
         data={politicalAreaStats}
+        rows={politicalAreaRows}
         selectedShow={selectedShow}
         selectedYear={selectedYear}
         years={years}

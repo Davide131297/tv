@@ -17,6 +17,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL || "https://polittalk-watcher.de"
+  ),
   title: {
     default: "Polittalk-Watcher – Politische Talkshows im Faktencheck",
     template: "%s | Polittalk-Watcher",
