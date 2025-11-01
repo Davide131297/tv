@@ -8,7 +8,9 @@ import { Switch } from "@/components/ui/switch";
 import type { PartyStats } from "@/types";
 import { SHOW_OPTIONS } from "@/types";
 import { FETCH_HEADERS } from "@/lib/utils";
-import ShowOptionsButtons from "@/components/ShowOptionsButtons";
+import ShowOptionsButtons, {
+  getShowButtonColor,
+} from "@/components/ShowOptionsButtons";
 
 export default function PartiesPageContent() {
   const router = useRouter();
@@ -183,45 +185,10 @@ export default function PartiesPageContent() {
         </p>
 
         {/* Show Auswahl */}
-        <div className="flex flex-wrap gap-2 items-center mb-4">
-          {SHOW_OPTIONS.map((option) => {
-            const getButtonColors = (
-              showValue: string,
-              isSelected: boolean
-            ) => {
-              if (!isSelected)
-                return "bg-gray-100 text-gray-700 hover:bg-gray-200";
-
-              return ShowOptionsButtons(showValue);
-            };
-
-            return (
-              <Button
-                key={option.value}
-                onClick={() => handleShowChange(option.value)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${getButtonColors(
-                  option.value,
-                  selectedShow === option.value
-                )}`}
-              >
-                {option.label}
-              </Button>
-            );
-          })}
-          <div className="flex items-center gap-2 ml-6">
-            <Switch
-              id="union-switch"
-              checked={unionMode}
-              onCheckedChange={handleUnionModeChange}
-            />
-            <label
-              htmlFor="union-switch"
-              className="text-sm select-none cursor-pointer"
-            >
-              CDU & CSU als Union zusammenfassen
-            </label>
-          </div>
-        </div>
+        <ShowOptionsButtons
+          selectedShow={selectedShow}
+          onShowChange={handleShowChange}
+        />
       </div>
 
       <PartyChart
@@ -230,6 +197,8 @@ export default function PartiesPageContent() {
         selectedYear={selectedYear}
         years={years}
         handleYearChange={handleYearChange}
+        unionMode={unionMode}
+        onUnionChange={handleUnionModeChange}
       />
 
       {/* Partei-Details Tabelle */}

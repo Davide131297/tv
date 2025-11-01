@@ -2,7 +2,7 @@
 
 import { TrendingUp } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis } from "recharts";
-
+import { Switch } from "./ui/switch";
 import {
   Card,
   CardContent,
@@ -25,6 +25,8 @@ export default function PartyChart({
   selectedYear,
   years,
   handleYearChange,
+  unionMode,
+  onUnionChange,
 }: PartyChartProps) {
   // Sortiere Daten nach Anzahl
   const sortedData = [...data].sort((a, b) => b.count - a.count);
@@ -73,57 +75,74 @@ export default function PartyChart({
         <CardDescription>
           Verteilung der Politiker nach Parteien
         </CardDescription>
-        <div className="flex gap-2 items-center">
-          <p>Jahr</p>
-          <NativeSelect
-            value={selectedYear}
-            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-              handleYearChange && handleYearChange(e.target.value)
-            }
-          >
-            <NativeSelectOption value="all">Insgesamt</NativeSelectOption>
-            {years &&
-              years.map((y) => (
-                <NativeSelectOption key={y} value={y}>
-                  {y}
-                </NativeSelectOption>
-              ))}
-          </NativeSelect>
+        <div className="flex justify-between mt-3">
+          <div className="flex gap-2 items-center">
+            <p>Jahr</p>
+            <NativeSelect
+              value={selectedYear}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                handleYearChange && handleYearChange(e.target.value)
+              }
+            >
+              <NativeSelectOption value="all">Insgesamt</NativeSelectOption>
+              {years &&
+                years.map((y) => (
+                  <NativeSelectOption key={y} value={y}>
+                    {y}
+                  </NativeSelectOption>
+                ))}
+            </NativeSelect>
+          </div>
+          <div className="flex items-center gap-2 ml-6">
+            <Switch
+              id="union-switch"
+              checked={unionMode}
+              onCheckedChange={onUnionChange}
+            />
+            <label
+              htmlFor="union-switch"
+              className="text-sm select-none cursor-pointer"
+            >
+              CDU & CSU als Union zusammenfassen
+            </label>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig}>
-          <BarChart
-            accessibilityLayer
-            data={chartData}
-            margin={{
-              top: 20,
-              bottom: 60,
-            }}
-          >
-            <CartesianGrid vertical={false} />
-            <XAxis
-              dataKey="party"
-              tickLine={false}
-              tickMargin={10}
-              axisLine={false}
-              angle={-45}
-              textAnchor="end"
-              height={120}
-              fontSize={10}
-              className="text-xs sm:text-sm"
-              interval={0}
-            />
-            <Bar dataKey="auftritte" radius={8}>
-              <LabelList
-                position="top"
-                offset={8}
-                className="fill-foreground text-xs sm:text-sm"
+        <div className="bg-gray-50 px-4 pt-2 rounded-md">
+          <ChartContainer config={chartConfig}>
+            <BarChart
+              accessibilityLayer
+              data={chartData}
+              margin={{
+                top: 20,
+                bottom: 60,
+              }}
+            >
+              <CartesianGrid vertical={false} />
+              <XAxis
+                dataKey="party"
+                tickLine={false}
+                tickMargin={10}
+                axisLine={false}
+                angle={-45}
+                textAnchor="end"
+                height={120}
                 fontSize={10}
+                className="text-xs sm:text-sm"
+                interval={0}
               />
-            </Bar>
-          </BarChart>
-        </ChartContainer>
+              <Bar dataKey="auftritte" radius={8}>
+                <LabelList
+                  position="top"
+                  offset={8}
+                  className="fill-foreground text-xs sm:text-sm"
+                  fontSize={10}
+                />
+              </Bar>
+            </BarChart>
+          </ChartContainer>
+        </div>
       </CardContent>
       <CardFooter className="flex-col items-start gap-2 text-sm">
         <div className="flex gap-2 leading-none font-medium">

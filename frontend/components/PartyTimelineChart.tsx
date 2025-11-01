@@ -3,7 +3,6 @@
 import { useMemo } from "react";
 import { TrendingUp } from "lucide-react";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
-
 import {
   Card,
   CardContent,
@@ -155,6 +154,8 @@ export default function PartyTimelineChart({
     0
   );
 
+  const yearValue = selectedYear ?? year ?? "all";
+
   return (
     <Card>
       <CardHeader>
@@ -164,7 +165,28 @@ export default function PartyTimelineChart({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col md:flex-row gap-2 justify-between mb-4 md:mb-0">
+        <div className="flex flex-col md:flex-row gap-2 justify-between mb-4">
+          {/* Year Filter */}
+          <div>
+            <label className="text-sm font-medium mb-2 block">
+              Jahr auswählen:
+            </label>
+            {/* Use either selectedYear prop or fallback to year prop for robustness */}
+            <NativeSelect
+              value={yearValue}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                handleYearChange?.(e.target.value)
+              }
+            >
+              <NativeSelectOption value="all">Insgesamt</NativeSelectOption>
+              {years &&
+                years.map((y) => (
+                  <NativeSelectOption key={y} value={y}>
+                    {y}
+                  </NativeSelectOption>
+                ))}
+            </NativeSelect>
+          </div>
           {/* Union Mode Switch */}
           <div className="mb-4 flex items-center gap-2">
             <Switch
@@ -179,32 +201,6 @@ export default function PartyTimelineChart({
               CDU & CSU als Union zusammenfassen
             </label>
           </div>
-          {/* Year Filter */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">
-              Jahr auswählen:
-            </label>
-            {/* Use either selectedYear prop or fallback to year prop for robustness */}
-            {(() => {
-              const yearValue = selectedYear ?? year ?? "all";
-              return (
-                <NativeSelect
-                  value={yearValue}
-                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                    handleYearChange?.(e.target.value)
-                  }
-                >
-                  <NativeSelectOption value="all">Insgesamt</NativeSelectOption>
-                  {years &&
-                    years.map((y) => (
-                      <NativeSelectOption key={y} value={y}>
-                        {y}
-                      </NativeSelectOption>
-                    ))}
-                </NativeSelect>
-              );
-            })()}
-          </div>
         </div>
 
         {/* Party Selection Buttons */}
@@ -213,7 +209,7 @@ export default function PartyTimelineChart({
             <button
               key={party}
               onClick={() => toggleParty(party)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+              className={`cursor-pointer px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
                 isPartySelected(party)
                   ? "opacity-100"
                   : "opacity-40 hover:opacity-60"
@@ -233,7 +229,7 @@ export default function PartyTimelineChart({
           {selectedParties.length > 0 && (
             <button
               onClick={() => onSelectedPartiesChange([])}
-              className="px-3 py-1.5 rounded-md text-sm font-medium bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
+              className="cursor-pointer px-3 py-1.5 rounded-md text-sm font-medium bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
             >
               Alle anzeigen
             </button>
@@ -241,7 +237,7 @@ export default function PartyTimelineChart({
         </div>
 
         {/* Chart Container mit sichtbarer horizontaler Scrollbar */}
-        <div className="w-full overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-2 scrollbar-visible">
+        <div className="w-full overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-2 scrollbar-visible bg-gray-50 rounded-md">
           {/* Make the inner container wider depending on number of months so user can scroll */}
           <div
             style={{ minWidth: Math.max(600, processedData.data.length * 80) }}

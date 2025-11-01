@@ -36,6 +36,8 @@ export interface PartyChartProps {
   selectedYear?: string;
   years?: string[];
   handleYearChange?: (year: string) => void;
+  unionMode: boolean;
+  onUnionChange: (union: boolean) => void;
 }
 
 // =============================================================================
@@ -131,6 +133,7 @@ export const SHOW_OPTIONS: ShowOption[] = [
   { value: "Maischberger", label: "Maischberger" },
   { value: "Hart aber fair", label: "Hart aber fair" },
   { value: "Phoenix Runde", label: "Phoenix Runde" },
+  { value: "Phoenix Persönlich", label: "Phoenix Persönlich" },
 ];
 
 export const SHOW_OPTIONS_WITHOUT_ALL: ShowOption[] = [
@@ -140,6 +143,7 @@ export const SHOW_OPTIONS_WITHOUT_ALL: ShowOption[] = [
   { value: "Maischberger", label: "Maischberger" },
   { value: "Hart aber fair", label: "Hart aber fair" },
   { value: "Phoenix Runde", label: "Phoenix Runde" },
+  { value: "Phoenix Persönlich", label: "Phoenix Persönlich" },
 ];
 
 // =============================================================================

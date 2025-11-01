@@ -11,6 +11,7 @@ import {
   NativeSelect,
   NativeSelectOption,
 } from "@/components/ui/native-select";
+import ColorBox from "./ui/color-box";
 
 function OverviewPageContent() {
   const router = useRouter();
@@ -140,34 +141,12 @@ function OverviewPageContent() {
           Übersicht über alle Politiker-Auftritte in deutschen TV-Talkshows
         </p>
 
-        <div className="flex flex-col md:flex-row gap-2 justify-between">
+        <div className="flex flex-col justify-between">
           {/* Show Auswahl */}
-          <div className="flex flex-wrap gap-2">
-            {SHOW_OPTIONS.map((option) => {
-              const getButtonColors = (
-                showValue: string,
-                isSelected: boolean
-              ) => {
-                if (!isSelected)
-                  return "bg-gray-100 text-gray-700 hover:bg-gray-200";
-
-                return ShowOptionsButtons(showValue);
-              };
-
-              return (
-                <Button
-                  key={option.value}
-                  onClick={() => handleShowChange(option.value)}
-                  className={`px-3 py-1 text-sm rounded-lg transition-colors ${getButtonColors(
-                    option.value,
-                    selectedShow === option.value
-                  )}`}
-                >
-                  {option.label}
-                </Button>
-              );
-            })}
-          </div>
+          <ShowOptionsButtons
+            selectedShow={selectedShow}
+            onShowChange={handleShowChange}
+          />
           <div className="flex gap-2 items-center">
             <p>Jahr</p>
             <NativeSelect
@@ -200,41 +179,26 @@ function OverviewPageContent() {
 
           {/* Hauptstatistiken */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
-              <div className="text-3xl font-bold text-blue-600 mb-2">
-                {summary.total_appearances}
-              </div>
-              <div className="text-sm text-blue-700 font-medium">
-                Gesamt-Auftritte
-              </div>
-            </div>
-
-            <div className="bg-green-50 rounded-lg p-6 border border-green-200">
-              <div className="text-3xl font-bold text-green-600 mb-2">
-                {summary.total_episodes}
-              </div>
-              <div className="text-sm text-green-700 font-medium">
-                Sendungen
-              </div>
-            </div>
-
-            <div className="bg-purple-50 rounded-lg p-6 border border-purple-200">
-              <div className="text-3xl font-bold text-purple-600 mb-2">
-                {summary.unique_politicians}
-              </div>
-              <div className="text-sm text-purple-700 font-medium">
-                Verschiedene Politiker
-              </div>
-            </div>
-
-            <div className="bg-orange-50 rounded-lg p-6 border border-orange-200">
-              <div className="text-3xl font-bold text-orange-600 mb-2">
-                {summary.parties_represented}
-              </div>
-              <div className="text-sm text-orange-700 font-medium">
-                Vertretene Parteien
-              </div>
-            </div>
+            <ColorBox
+              color="blue"
+              number={summary.total_appearances}
+              text="Gesamt-Auftritte"
+            />
+            <ColorBox
+              color="green"
+              number={summary.total_episodes}
+              text="Sendungen"
+            />
+            <ColorBox
+              color="purple"
+              number={summary.unique_politicians}
+              text="Verschiedene Politiker"
+            />
+            <ColorBox
+              color="orange"
+              number={summary.parties_represented}
+              text="Vertretene Parteien"
+            />
           </div>
 
           {/* Durchschnittswerte */}

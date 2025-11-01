@@ -180,32 +180,10 @@ export default function PartyTimelinePageContent() {
           <label className="text-sm font-medium mb-2 block">
             Show auswählen:
           </label>
-          <div className="flex flex-wrap gap-2">
-            {SHOW_OPTIONS.map((option) => {
-              const getButtonColors = (
-                showValue: string,
-                isSelected: boolean
-              ) => {
-                if (!isSelected)
-                  return "bg-gray-100 text-gray-700 hover:bg-gray-200";
-
-                return ShowOptionsButtons(showValue);
-              };
-
-              return (
-                <Button
-                  key={option.value}
-                  onClick={() => handleShowChange(option.value)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${getButtonColors(
-                    option.value,
-                    selectedShow === option.value
-                  )}`}
-                >
-                  {option.label}
-                </Button>
-              );
-            })}
-          </div>
+          <ShowOptionsButtons
+            selectedShow={selectedShow}
+            onShowChange={handleShowChange}
+          />
         </div>
       </div>
 
