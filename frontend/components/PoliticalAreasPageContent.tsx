@@ -155,17 +155,26 @@ export default function PoliticalAreasPageContent() {
         />
       </div>
 
-      <PoliticalAreasChart
-        data={politicalAreaStats}
-        rows={politicalAreaRows}
-        selectedShow={selectedShow}
-        selectedYear={selectedYear}
-        years={years}
-        handleYearChange={handleYearChange}
-      />
+      {selectedShow === "Pinar Atalay" ? (
+        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800">
+          Die Darstellung der politischen Themenbereiche für die Show{" "}
+          <strong>Pinar Atalay</strong> ist derzeit nicht verfügbar.
+        </div>
+      ) : (
+        <>
+          <PoliticalAreasChart
+            data={politicalAreaStats}
+            rows={politicalAreaRows}
+            selectedShow={selectedShow}
+            selectedYear={selectedYear}
+            years={years}
+            handleYearChange={handleYearChange}
+          />
 
-      {/* Themen-Details Tabelle */}
-      <PoliticalAreasTable politicalAreaStats={politicalAreaStats} />
+          {/* Themen-Details Tabelle */}
+          <PoliticalAreasTable politicalAreaStats={politicalAreaStats} />
+        </>
+      )}
     </div>
   );
 }

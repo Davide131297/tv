@@ -18,6 +18,8 @@ export function getShowButtonColor(showValue: string) {
     case "Phoenix Runde":
     case "Phoenix Persönlich":
       return "bg-cyan-100 text-cyan-800 hover:bg-cyan-200";
+    case "Pinar Atalay":
+      return "bg-rose-100 text-pink-800 hover:bg-rose-200";
     default:
       return "bg-gray-100 text-gray-700 hover:bg-gray-200";
   }

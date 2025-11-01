@@ -29,19 +29,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Filter nach Show
-    if (
-      showName &&
-      showName !== "all" &&
-      (showName === "Markus Lanz" ||
-        showName === "Maybrit Illner" ||
-        showName === "Caren Miosga" ||
-        showName === "Maischberger" ||
-        showName === "Hart aber fair" ||
-        showName === "Phoenix Runde")
-    ) {
+    if (showName && showName !== "all") {
       query = query.eq("show_name", showName);
-    } else {
-      query = query.neq("show_name", "Pinar Atalay");
     }
 
     const { data, error } = await query;

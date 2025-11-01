@@ -134,6 +134,7 @@ export const SHOW_OPTIONS: ShowOption[] = [
   { value: "Hart aber fair", label: "Hart aber fair" },
   { value: "Phoenix Runde", label: "Phoenix Runde" },
   { value: "Phoenix Persönlich", label: "Phoenix Persönlich" },
+  { value: "Pinar Atalay", label: "Pinar Atalay" },
 ];
 
 export const SHOW_OPTIONS_WITHOUT_ALL: ShowOption[] = [
@@ -144,6 +145,7 @@ export const SHOW_OPTIONS_WITHOUT_ALL: ShowOption[] = [
   { value: "Hart aber fair", label: "Hart aber fair" },
   { value: "Phoenix Runde", label: "Phoenix Runde" },
   { value: "Phoenix Persönlich", label: "Phoenix Persönlich" },
+  { value: "Pinar Atalay", label: "Pinar Atalay" },
 ];
 
 // =============================================================================

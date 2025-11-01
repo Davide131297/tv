@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { format } from "date-fns";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -9,8 +10,8 @@ export default function Footer() {
       <div className="text-center text-gray-500 text-sm py-4 px-4">
         <p>
           Daten basierend auf Markus Lanz, Maybritt Illner, Caren Miosga,
-          Maischberger, Hart aber fair und Phoenix Runde Sendungen (2024 -{" "}
-          {currentYear})
+          Maischberger, Hart aber fair, Phoenix Runde, Phoenix Persönlich und
+          Pinar Atalay (2024 - {currentYear})
         </p>
         <p>
           und der API von{" "}
@@ -25,7 +26,7 @@ export default function Footer() {
           .
         </p>
         <div className="flex justify-center gap-4 mt-2">
-          <p>Letztes Update: {new Date().toLocaleDateString("de-DE")}</p>
+          <p>Letztes Update: {format(new Date(), "dd.MM.yyyy")}</p>
           <Link
             href="/datenschutz"
             className="text-black/70 hover:text-black/90 hover:underline"
