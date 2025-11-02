@@ -1,5 +1,5 @@
-import { SHOW_OPTIONS } from "@/types";
-import { Button } from "./ui/button";
+import { SHOW_OPTIONS, SHOW_OPTIONS_WITHOUT_ALL } from "@/types";
+import { cn } from "@/lib/utils";
 
 export function getShowButtonColor(showValue: string) {
   switch (showValue) {
@@ -20,38 +20,39 @@ export function getShowButtonColor(showValue: string) {
       return "bg-cyan-100 text-cyan-800 hover:bg-cyan-200";
     case "Pinar Atalay":
       return "bg-rose-100 text-pink-800 hover:bg-rose-200";
+    case "Blome & Pfeffer":
+      return "bg-rose-100 text-pink-800 hover:bg-rose-200";
     default:
       return "bg-gray-100 text-gray-700 hover:bg-gray-200";
   }
 }
 
 export default function ShowOptionsButtons({
-  selectedShow,
   onShowChange,
+  selectedShow,
+  withAll = true,
 }: {
-  selectedShow: string;
   onShowChange: (show: string) => void;
+  selectedShow: string;
+  withAll?: boolean;
 }) {
+  const shows = withAll ? SHOW_OPTIONS : SHOW_OPTIONS_WITHOUT_ALL;
   return (
     <div className="flex flex-wrap gap-2 items-center mb-4">
-      {SHOW_OPTIONS.map((option) => {
-        const getButtonColors = (showValue: string, isSelected: boolean) => {
-          if (!isSelected) return "bg-gray-100 text-gray-700 hover:bg-gray-200";
-
-          return getShowButtonColor(showValue);
-        };
-
+      {shows.map((option) => {
         return (
-          <Button
+          <button
             key={option.value}
             onClick={() => onShowChange(option.value)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${getButtonColors(
-              option.value,
+            className={cn(
+              "px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer",
               selectedShow === option.value
-            )}`}
+                ? option.btnColor
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            )}
           >
             {option.label}
-          </Button>
+          </button>
         );
       })}
     </div>

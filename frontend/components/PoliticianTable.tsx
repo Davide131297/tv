@@ -218,6 +218,8 @@ export default function PoliticianTable() {
                   ? "bg-blue-100 text-blue-800"
                   : show === "Phoenix Runde" || show === "Phoenix Persönlich"
                   ? "bg-cyan-100 text-cyan-800"
+                  : show === "Pinar Atalay" || show === "Blome & Pfeffer"
+                  ? "bg-rose-100 text-pink-800"
                   : "bg-gray-100 text-gray-800"
               }`}
             >
@@ -368,8 +370,8 @@ export default function PoliticianTable() {
           <div className="flex flex-col xl:flex-row gap-4 xl:justify-between">
             {/* Show Filter */}
             <ShowOptionsButtons
-              selectedShow={selectedShow}
               onShowChange={handleShowChange}
+              selectedShow={selectedShow}
             />
 
             {/* Globale Suche */}
@@ -433,7 +435,9 @@ export default function PoliticianTable() {
                 case "Phoenix Runde":
                 case "Phoenix-Persönlich":
                   return "bg-cyan-100 text-cyan-800";
-
+                case "Pinar Atalay":
+                case "Blome & Pfeffer":
+                  return "bg-rose-100 text-pink-800";
                 default:
                   return "bg-gray-100 text-gray-800";
               }

@@ -144,8 +144,8 @@ function OverviewPageContent() {
         <div className="flex flex-col justify-between">
           {/* Show Auswahl */}
           <ShowOptionsButtons
-            selectedShow={selectedShow}
             onShowChange={handleShowChange}
+            selectedShow={selectedShow}
           />
           <div className="flex gap-2 items-center">
             <p>Jahr</p>

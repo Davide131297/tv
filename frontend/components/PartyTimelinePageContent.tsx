@@ -181,8 +181,8 @@ export default function PartyTimelinePageContent() {
             Show auswählen:
           </label>
           <ShowOptionsButtons
-            selectedShow={selectedShow}
             onShowChange={handleShowChange}
+            selectedShow={selectedShow}
           />
         </div>
       </div>

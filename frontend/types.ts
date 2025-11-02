@@ -119,6 +119,7 @@ export interface EpisodeData {
 export interface ShowOption {
   value: string;
   label: string;
+  btnColor: string;
 }
 
 // =============================================================================
@@ -126,26 +127,104 @@ export interface ShowOption {
 // =============================================================================
 
 export const SHOW_OPTIONS: ShowOption[] = [
-  { value: "all", label: "Alle Shows" },
-  { value: "Markus Lanz", label: "Markus Lanz" },
-  { value: "Maybrit Illner", label: "Maybrit Illner" },
-  { value: "Caren Miosga", label: "Caren Miosga" },
-  { value: "Maischberger", label: "Maischberger" },
-  { value: "Hart aber fair", label: "Hart aber fair" },
-  { value: "Phoenix Runde", label: "Phoenix Runde" },
-  { value: "Phoenix Persönlich", label: "Phoenix Persönlich" },
-  { value: "Pinar Atalay", label: "Pinar Atalay" },
+  {
+    value: "all",
+    label: "Alle Shows",
+    btnColor: "bg-black text-white hover:bg-gray-800 hover:text-white",
+  },
+  {
+    value: "Markus Lanz",
+    label: "Markus Lanz",
+    btnColor: "bg-orange-100 text-orange-800 hover:bg-orange-200",
+  },
+  {
+    value: "Maybrit Illner",
+    label: "Maybrit Illner",
+    btnColor: "bg-purple-100 text-purple-800 hover:bg-purple-200",
+  },
+  {
+    value: "Caren Miosga",
+    label: "Caren Miosga",
+    btnColor: "bg-green-100 text-green-800 hover:bg-green-200",
+  },
+  {
+    value: "Maischberger",
+    label: "Maischberger",
+    btnColor: "bg-teal-100 text-teal-800 hover:bg-teal-200",
+  },
+  {
+    value: "Hart aber fair",
+    label: "Hart aber fair",
+    btnColor: "bg-blue-100 text-blue-800 hover:bg-blue-200",
+  },
+  {
+    value: "Phoenix Runde",
+    label: "Phoenix Runde",
+    btnColor: "bg-cyan-100 text-cyan-800 hover:bg-cyan-200",
+  },
+  {
+    value: "Phoenix Persönlich",
+    label: "Phoenix Persönlich",
+    btnColor: "bg-cyan-100 text-cyan-800 hover:bg-cyan-200",
+  },
+  {
+    value: "Pinar Atalay",
+    label: "Pinar Atalay",
+    btnColor: "bg-rose-100 text-pink-800 hover:bg-rose-200",
+  },
+  {
+    value: "Blome & Pfeffer",
+    label: "Blome & Pfeffer",
+    btnColor: "bg-rose-100 text-pink-800 hover:bg-rose-200",
+  },
 ];
 
 export const SHOW_OPTIONS_WITHOUT_ALL: ShowOption[] = [
-  { value: "Markus Lanz", label: "Markus Lanz" },
-  { value: "Maybrit Illner", label: "Maybrit Illner" },
-  { value: "Caren Miosga", label: "Caren Miosga" },
-  { value: "Maischberger", label: "Maischberger" },
-  { value: "Hart aber fair", label: "Hart aber fair" },
-  { value: "Phoenix Runde", label: "Phoenix Runde" },
-  { value: "Phoenix Persönlich", label: "Phoenix Persönlich" },
-  { value: "Pinar Atalay", label: "Pinar Atalay" },
+  {
+    value: "Markus Lanz",
+    label: "Markus Lanz",
+    btnColor: "bg-orange-100 text-orange-800 hover:bg-orange-200",
+  },
+  {
+    value: "Maybrit Illner",
+    label: "Maybrit Illner",
+    btnColor: "bg-purple-100 text-purple-800 hover:bg-purple-200",
+  },
+  {
+    value: "Caren Miosga",
+    label: "Caren Miosga",
+    btnColor: "bg-green-100 text-green-800 hover:bg-green-200",
+  },
+  {
+    value: "Maischberger",
+    label: "Maischberger",
+    btnColor: "bg-teal-100 text-teal-800 hover:bg-teal-200",
+  },
+  {
+    value: "Hart aber fair",
+    label: "Hart aber fair",
+    btnColor: "bg-blue-100 text-blue-800 hover:bg-blue-200",
+  },
+  {
+    value: "Phoenix Runde",
+    label: "Phoenix Runde",
+    btnColor: "bg-cyan-100 text-cyan-800 hover:bg-cyan-200",
+  },
+  {
+    value: "Phoenix Persönlich",
+    label: "Phoenix Persönlich",
+    btnColor: "bg-cyan-100 text-cyan-800 hover:bg-cyan-200",
+  },
+  {
+    value: "Pinar Atalay",
+    label: "Pinar Atalay",
+    btnColor: "bg-rose-100 text-pink-800 hover:bg-rose-200",
+  },
+  {
+    value: "Blome & Pfeffer",
+    label: "Blome & Pfeffer",
+    btnColor: "bg-rose-100 text-pink-800 hover:bg-rose-200",
+  },
 ];
 
 // =============================================================================

@@ -150,8 +150,8 @@ export default function PoliticalAreasPageContent() {
 
         {/* Show Auswahl */}
         <ShowOptionsButtons
-          selectedShow={selectedShow}
           onShowChange={handleShowChange}
+          selectedShow={selectedShow}
         />
       </div>
 

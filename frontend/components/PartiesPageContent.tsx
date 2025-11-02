@@ -3,14 +3,10 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import PartyChart from "@/components/PartyChart";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import type { PartyStats } from "@/types";
 import { SHOW_OPTIONS } from "@/types";
 import { FETCH_HEADERS } from "@/lib/utils";
-import ShowOptionsButtons, {
-  getShowButtonColor,
-} from "@/components/ShowOptionsButtons";
+import ShowOptionsButtons from "./ShowOptionsButtons";
 
 export default function PartiesPageContent() {
   const router = useRouter();
@@ -186,8 +182,8 @@ export default function PartiesPageContent() {
 
         {/* Show Auswahl */}
         <ShowOptionsButtons
-          selectedShow={selectedShow}
           onShowChange={handleShowChange}
+          selectedShow={selectedShow}
         />
       </div>
 
