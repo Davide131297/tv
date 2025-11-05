@@ -12,11 +12,11 @@ const LIST_URL = "https://plus.rtl.de/video-tv/shows/pinar-atalay-1041381";
 
 // Datum aus Episode-Nummer extrahieren (Folge 1 = 17.03.2025)
 function getEpisodeDateFromNumber(episodeNumber: number): string {
-  // Startdatum: 17. März 2025
-  const startDate = new Date("2025-03-17");
+  // Startdatum: 06. Oktober 2025
+  const startDate = new Date("2025-10-06");
 
-  // Episoden erscheinen wöchentlich (jeden Montag)
-  const daysToAdd = (episodeNumber - 1) * 7;
+  // Episoden erscheinen alle 2 Wochen (jeden 2. Montag)
+  const daysToAdd = (episodeNumber - 1) * 14;
   const episodeDate = new Date(startDate);
   episodeDate.setDate(episodeDate.getDate() + daysToAdd);
 
