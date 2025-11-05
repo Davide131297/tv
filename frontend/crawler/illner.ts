@@ -7,8 +7,8 @@ import {
   getLatestEpisodeDate,
   checkPoliticianOverride,
   insertMultipleShowLinks,
+  insertEpisodePoliticalAreas,
 } from "@/lib/supabase-server-utils";
-import { supabase } from "@/lib/supabase";
 import { getPoliticalArea } from "@/lib/utils";
 
 type GuestDetails = {
@@ -72,46 +72,6 @@ async function extractEpisodeDescription(
   } catch (error) {
     console.warn(`Fehler beim Extrahieren der Episode-Beschreibung:`, error);
     return null;
-  }
-}
-
-// Hilfsfunktion zum Speichern der politischen Themenbereiche
-async function insertEpisodePoliticalAreas(
-  showName: string,
-  episodeDate: string,
-  politicalAreaIds: number[]
-): Promise<number> {
-  if (!politicalAreaIds.length) return 0;
-
-  try {
-    const insertData = politicalAreaIds.map((areaId) => ({
-      show_name: showName,
-      episode_date: episodeDate,
-      political_area_id: areaId,
-    }));
-
-    const { error } = await supabase
-      .from("tv_show_episode_political_areas")
-      .upsert(insertData, {
-        onConflict: "show_name,episode_date,political_area_id",
-        ignoreDuplicates: true,
-      });
-
-    if (error) {
-      console.error(
-        "Fehler beim Speichern der politischen Themenbereiche:",
-        error
-      );
-      return 0;
-    }
-
-    return insertData.length;
-  } catch (error) {
-    console.error(
-      "Fehler beim Speichern der politischen Themenbereiche:",
-      error
-    );
-    return 0;
   }
 }
 
