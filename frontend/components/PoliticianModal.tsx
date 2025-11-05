@@ -25,7 +25,6 @@ import { LinkPreview } from "@/components/ui/link-preview";
 import { BADGE_PARTY_COLORS } from "@/types";
 import { DialogTitle } from "@radix-ui/react-dialog";
 import { LoaderOne } from "@/components/ui/loader";
-import { ExternalLink } from "lucide-react";
 
 type Appearances = {
   id: string;
@@ -96,9 +95,6 @@ export default function PoliticianModal({
         selected = list[0];
       }
 
-      console.log("Data received from API:", data);
-      console.log("Gefundene Politiker:", list);
-      console.log("Ausgewählter Politiker:", selected);
       setSelectedPolitician(selected);
 
       if (!selected || !selected.id) {
@@ -117,7 +113,15 @@ export default function PoliticianModal({
       }
 
       const detailData = await detailRes.json();
-      console.log("Detaildaten erhalten:", detailData);
+
+      // sortiere Auftritte: aktuellstes oben, ältestes unten
+      const sortedAppearances = Array.isArray(detailData)
+        ? [...detailData].sort(
+            (a: Appearances, b: Appearances) =>
+              new Date(b.episode_date).getTime() -
+              new Date(a.episode_date).getTime()
+          )
+        : [];
 
       if (selected.qid_wikidata) {
         const wikidataRes = await fetch(
@@ -136,7 +140,7 @@ export default function PoliticianModal({
 
         setDescription(descriptionDe);
       }
-      setAppearances(detailData);
+      setAppearances(sortedAppearances);
     } catch (err) {
       console.error(err);
       setError("Beim Laden der Politikerdaten ist ein Fehler aufgetreten.");
