@@ -258,6 +258,7 @@ export const BADGE_PARTY_COLORS: Record<string, string> = {
   Unbekannt: "bg-gray-100 text-gray-800 border-gray-200",
   ÖVP: "bg-cyan-100 text-cyan-800 border-cyan-200",
   "FREIE WÄHLER": "bg-orange-100 text-orange-800 border-orange-200",
+  BSW: "bg-orange-500 text-white border-orange-700",
 };
 
 // =============================================================================
