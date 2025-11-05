@@ -3,12 +3,10 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import PartyChart from "@/components/PartyChart";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import type { PartyStats } from "@/types";
 import { SHOW_OPTIONS } from "@/types";
 import { FETCH_HEADERS } from "@/lib/utils";
-import ShowOptionsButtons from "@/components/ShowOptionsButtons";
+import ShowOptionsButtons from "./ShowOptionsButtons";
 
 export default function PartiesPageContent() {
   const router = useRouter();
@@ -172,7 +170,7 @@ export default function PartiesPageContent() {
   const displayedStats = getUnionStats(partyStats);
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
+    <div className="container mx-auto py-8 px-4">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
           📊 Partei-Statistiken
@@ -183,45 +181,10 @@ export default function PartiesPageContent() {
         </p>
 
         {/* Show Auswahl */}
-        <div className="flex flex-wrap gap-2 items-center mb-4">
-          {SHOW_OPTIONS.map((option) => {
-            const getButtonColors = (
-              showValue: string,
-              isSelected: boolean
-            ) => {
-              if (!isSelected)
-                return "bg-gray-100 text-gray-700 hover:bg-gray-200";
-
-              return ShowOptionsButtons(showValue);
-            };
-
-            return (
-              <Button
-                key={option.value}
-                onClick={() => handleShowChange(option.value)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${getButtonColors(
-                  option.value,
-                  selectedShow === option.value
-                )}`}
-              >
-                {option.label}
-              </Button>
-            );
-          })}
-          <div className="flex items-center gap-2 ml-6">
-            <Switch
-              id="union-switch"
-              checked={unionMode}
-              onCheckedChange={handleUnionModeChange}
-            />
-            <label
-              htmlFor="union-switch"
-              className="text-sm select-none cursor-pointer"
-            >
-              CDU & CSU als Union zusammenfassen
-            </label>
-          </div>
-        </div>
+        <ShowOptionsButtons
+          onShowChange={handleShowChange}
+          selectedShow={selectedShow}
+        />
       </div>
 
       <PartyChart
@@ -230,6 +193,8 @@ export default function PartiesPageContent() {
         selectedYear={selectedYear}
         years={years}
         handleYearChange={handleYearChange}
+        unionMode={unionMode}
+        onUnionChange={handleUnionModeChange}
       />
 
       {/* Partei-Details Tabelle */}

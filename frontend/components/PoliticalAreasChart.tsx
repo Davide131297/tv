@@ -8,12 +8,8 @@ import {
   CartesianGrid,
   LabelList,
   XAxis,
-  YAxis,
   Tooltip,
-  Legend,
-  ResponsiveContainer,
 } from "recharts";
-
 import {
   Card,
   CardContent,
@@ -22,12 +18,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  ChartConfig,
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
+import { ChartConfig, ChartContainer } from "@/components/ui/chart";
 import type {
   PoliticalAreasChartPropsExtended,
   PoliticalAreaEpisodeRow,
@@ -36,6 +27,11 @@ import {
   NativeSelect,
   NativeSelectOption,
 } from "@/components/ui/native-select";
+import {
+  Tooltip as ChadcnTooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 // Color scheme for political areas
 const POLITICAL_AREA_COLORS: Record<number, string> = {
@@ -366,15 +362,22 @@ export default function PoliticalAreasChart({
                         {segments.map((seg) => {
                           const pct = total > 0 ? (seg.value / total) * 100 : 0;
                           return (
-                            <div
-                              key={seg.key}
-                              title={`${seg.label}: ${seg.value}`}
-                              style={{
-                                width: `${pct}%`,
-                                backgroundColor: seg.color,
-                              }}
-                              className="h-full"
-                            />
+                            <ChadcnTooltip key={seg.key}>
+                              <TooltipTrigger asChild>
+                                <div
+                                  key={seg.key}
+                                  title={`${seg.label}: ${seg.value}`}
+                                  style={{
+                                    width: `${pct}%`,
+                                    backgroundColor: seg.color,
+                                  }}
+                                  className="h-full"
+                                />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{`${seg.label}: ${seg.value}`}</p>
+                              </TooltipContent>
+                            </ChadcnTooltip>
                           );
                         })}
                       </div>

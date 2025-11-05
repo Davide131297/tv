@@ -216,8 +216,10 @@ export default function PoliticianTable() {
                   ? "bg-teal-100 text-teal-800"
                   : show === "Hart aber fair"
                   ? "bg-blue-100 text-blue-800"
-                  : show === "Phoenix Runde"
+                  : show === "Phoenix Runde" || show === "Phoenix Persönlich"
                   ? "bg-cyan-100 text-cyan-800"
+                  : show === "Pinar Atalay" || show === "Blome & Pfeffer"
+                  ? "bg-rose-100 text-pink-800"
                   : "bg-gray-100 text-gray-800"
               }`}
             >
@@ -367,34 +369,10 @@ export default function PoliticianTable() {
 
           <div className="flex flex-col xl:flex-row gap-4 xl:justify-between">
             {/* Show Filter */}
-            <div className="flex flex-wrap gap-2">
-              {SHOW_OPTIONS.map((option) => {
-                const getButtonColors = (
-                  showValue: string,
-                  isSelected: boolean
-                ) => {
-                  if (!isSelected)
-                    return "bg-gray-100 text-gray-700 hover:bg-gray-200";
-
-                  return ShowOptionsButtons(showValue);
-                };
-
-                return (
-                  <Button
-                    key={option.value}
-                    onClick={() => {
-                      handleShowChange(option.value);
-                    }}
-                    className={`px-2 sm:px-3 py-1 text-xs sm:text-sm rounded-lg transition-colors ${getButtonColors(
-                      option.value,
-                      selectedShow === option.value
-                    )}`}
-                  >
-                    {option.label}
-                  </Button>
-                );
-              })}
-            </div>
+            <ShowOptionsButtons
+              onShowChange={handleShowChange}
+              selectedShow={selectedShow}
+            />
 
             {/* Globale Suche */}
             <div className="relative w-80">
@@ -454,6 +432,12 @@ export default function PoliticianTable() {
                   return "bg-teal-100 text-teal-800";
                 case "Hart aber fair":
                   return "bg-blue-100 text-blue-800";
+                case "Phoenix Runde":
+                case "Phoenix-Persönlich":
+                  return "bg-cyan-100 text-cyan-800";
+                case "Pinar Atalay":
+                case "Blome & Pfeffer":
+                  return "bg-rose-100 text-pink-800";
                 default:
                   return "bg-gray-100 text-gray-800";
               }

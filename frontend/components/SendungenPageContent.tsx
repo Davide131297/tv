@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button";
 import type { EpisodeData, Statistics } from "@/types";
 import { SHOW_OPTIONS_WITHOUT_ALL } from "@/types";
 import { FETCH_HEADERS } from "@/lib/utils";
-import ShowOptionsButtons from "@/components/ShowOptionsButtons";
 import LastShowTable from "@/components/LastShowTable";
 import {
   NativeSelect,
   NativeSelectOption,
 } from "@/components/ui/native-select";
+import ColorBox from "./ui/color-box";
+import { getShowButtonColor } from "./ShowOptionsButtons";
 
 export default function SendungenPageContent() {
   const router = useRouter();
@@ -171,7 +172,7 @@ export default function SendungenPageContent() {
       };
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
+    <div className="container mx-auto py-8 px-4">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
           📺 Sendungsübersicht
@@ -191,7 +192,7 @@ export default function SendungenPageContent() {
                 if (!isSelected)
                   return "bg-gray-100 text-gray-700 hover:bg-gray-200";
 
-                return ShowOptionsButtons(showValue);
+                return getShowButtonColor(showValue);
               };
 
               return (
@@ -239,50 +240,32 @@ export default function SendungenPageContent() {
 
       {/* Statistiken */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6 mb-8">
-        <div className="bg-blue-50 rounded-lg p-4 sm:p-6 border border-blue-200">
-          <div className="text-2xl sm:text-3xl font-bold text-blue-600 mb-2">
-            {statisticsData.totalEpisodes}
-          </div>
-          <div className="text-xs sm:text-sm text-blue-700 font-medium">
-            Gesamt-Sendungen
-          </div>
-        </div>
-
-        <div className="bg-red-50 rounded-lg p-4 sm:p-6 border border-red-200">
-          <div className="text-2xl sm:text-3xl font-bold text-red-600 mb-2">
-            {statisticsData.totalAppearances}
-          </div>
-          <div className="text-xs sm:text-sm text-red-700 font-medium">
-            Politiker-Auftritte
-          </div>
-        </div>
-
-        <div className="bg-green-50 rounded-lg p-4 sm:p-6 border border-green-200">
-          <div className="text-2xl sm:text-3xl font-bold text-green-600 mb-2">
-            {statisticsData.episodesWithPoliticians}
-          </div>
-          <div className="text-xs sm:text-sm text-green-700 font-medium">
-            Mit Politik-Gästen
-          </div>
-        </div>
-
-        <div className="bg-purple-50 rounded-lg p-4 sm:p-6 border border-purple-200">
-          <div className="text-2xl sm:text-3xl font-bold text-purple-600 mb-2">
-            ø {statisticsData.averagePoliticiansPerEpisode}
-          </div>
-          <div className="text-xs sm:text-sm text-purple-700 font-medium">
-            Politiker pro Sendung
-          </div>
-        </div>
-
-        <div className="bg-orange-50 rounded-lg p-4 sm:p-6 border border-orange-200">
-          <div className="text-2xl sm:text-3xl font-bold text-orange-600 mb-2">
-            {statisticsData.maxPoliticiansInEpisode}
-          </div>
-          <div className="text-xs sm:text-sm text-orange-700 font-medium">
-            Max. Politiker/Sendung
-          </div>
-        </div>
+        <ColorBox
+          color="blue"
+          number={statisticsData.totalEpisodes}
+          text="Gesamt-Sendungen"
+        />
+        <ColorBox
+          color="red"
+          number={statisticsData.totalAppearances}
+          text="Politiker-Auftritte"
+        />
+        <ColorBox
+          color="green"
+          number={statisticsData.episodesWithPoliticians}
+          text="Mit Politik-Gästen"
+        />
+        <ColorBox
+          color="purple"
+          number={statisticsData.averagePoliticiansPerEpisode}
+          text="Politiker pro Sendung"
+          withSymbol
+        />
+        <ColorBox
+          color="orange"
+          number={statisticsData.maxPoliticiansInEpisode}
+          text="Max. Politiker/Sendung"
+        />
       </div>
 
       {/* Sendungsliste */}

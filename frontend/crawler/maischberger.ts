@@ -7,10 +7,10 @@ import {
   getLatestEpisodeDate,
   checkPoliticianOverride,
   insertMultipleShowLinks,
+  insertEpisodePoliticalAreas,
 } from "@/lib/supabase-server-utils";
 import { createBrowser, setupSimplePage } from "@/lib/browser-config";
 import { getPoliticalArea } from "@/lib/utils";
-import { supabase } from "@/lib/supabase";
 
 interface MaischbergerEpisode {
   url: string;
@@ -33,7 +33,7 @@ const BASE_URL = "https://www.daserste.de";
 const LIST_URL =
   "https://www.daserste.de/information/talk/maischberger/sendung/index.html";
 
-const MODEL = "aisingapore/Gemma-SEA-LION-v4-27B-IT";
+const MODEL = process.env.NEXT_PUBLIC_AI_MODEL_NAME;
 
 // Hilfsfunktion: Hole detaillierte Beschreibung von der Episodenseite
 async function getEpisodeDetailedDescription(
@@ -137,46 +137,6 @@ Gib mir die Namen der Gäste ohne Rollen im Text ausschließlich als JSON Array 
   } catch {
     console.error("❌ AI-Extraktion fehlgeschlagen, verwende Fallback");
     return extractGuestsFallback(teaserText);
-  }
-}
-
-// Hilfsfunktion zum Speichern der politischen Themenbereiche
-async function insertEpisodePoliticalAreas(
-  showName: string,
-  episodeDate: string,
-  politicalAreaIds: number[]
-): Promise<number> {
-  if (!politicalAreaIds.length) return 0;
-
-  try {
-    const insertData = politicalAreaIds.map((areaId) => ({
-      show_name: showName,
-      episode_date: episodeDate,
-      political_area_id: areaId,
-    }));
-
-    const { error } = await supabase
-      .from("tv_show_episode_political_areas")
-      .upsert(insertData, {
-        onConflict: "show_name,episode_date,political_area_id",
-        ignoreDuplicates: true,
-      });
-
-    if (error) {
-      console.error(
-        "Fehler beim Speichern der politischen Themenbereiche:",
-        error
-      );
-      return 0;
-    }
-
-    return insertData.length;
-  } catch (error) {
-    console.error(
-      "Fehler beim Speichern der politischen Themenbereiche:",
-      error
-    );
-    return 0;
   }
 }
 

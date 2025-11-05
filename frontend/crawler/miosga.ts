@@ -9,17 +9,17 @@ import {
   getLatestEpisodeDate,
   checkPoliticianOverride,
   insertMultipleShowLinks,
+  insertEpisodePoliticalAreas,
 } from "@/lib/supabase-server-utils";
 import axios from "axios";
 import { Page } from "puppeteer";
 import { InferenceClient } from "@huggingface/inference";
 import { getPoliticalArea } from "@/lib/utils";
-import { supabase } from "@/lib/supabase";
 
 const LIST_URL =
   "https://www.ardaudiothek.de/sendung/caren-miosga/urn:ard:show:d6e5ba24e1508004/";
 
-const MODEL = "aisingapore/Gemma-SEA-LION-v4-27B-IT";
+const MODEL = process.env.NEXT_PUBLIC_AI_MODEL_NAME;
 
 // Rate-Limiting und Retry-Logik für AI-Requests
 let aiRequestCount = 0;
@@ -510,46 +510,6 @@ async function getEpisodeDetailedDescription(
       error
     );
     return "";
-  }
-}
-
-// Hilfsfunktion zum Speichern der politischen Themenbereiche
-async function insertEpisodePoliticalAreas(
-  showName: string,
-  episodeDate: string,
-  politicalAreaIds: number[]
-): Promise<number> {
-  if (!politicalAreaIds.length) return 0;
-
-  try {
-    const insertData = politicalAreaIds.map((areaId) => ({
-      show_name: showName,
-      episode_date: episodeDate,
-      political_area_id: areaId,
-    }));
-
-    const { error } = await supabase
-      .from("tv_show_episode_political_areas")
-      .upsert(insertData, {
-        onConflict: "show_name,episode_date,political_area_id",
-        ignoreDuplicates: true,
-      });
-
-    if (error) {
-      console.error(
-        "Fehler beim Speichern der politischen Themenbereiche:",
-        error
-      );
-      return 0;
-    }
-
-    return insertData.length;
-  } catch (error) {
-    console.error(
-      "Fehler beim Speichern der politischen Themenbereiche:",
-      error
-    );
-    return 0;
   }
 }
 

@@ -163,8 +163,9 @@ export default function PoliticianModal({
         >
           <DialogTrigger asChild>
             <span role="button" tabIndex={0} className={className}>
-              <span className="truncate">{politicianName}</span>
-              <ExternalLink className="w-4 h-4 text-blue-600 md:hidden" />
+              <span className="truncate text-blue-500 hover:underline hover:text-blue-700 cursor-pointer">
+                {politicianName}
+              </span>
             </span>
           </DialogTrigger>
 

@@ -19,20 +19,8 @@ function applyShowFilter(
   year?: string | null
 ) {
   // 1️⃣ Erst nach showName filtern
-  if (
-    showName &&
-    [
-      "Markus Lanz",
-      "Maybrit Illner",
-      "Caren Miosga",
-      "Maischberger",
-      "Hart aber fair",
-      "Phoenix Runde",
-    ].includes(showName)
-  ) {
+  if (showName !== null) {
     query = query.eq("show_name", showName);
-  } else {
-    query = query.neq("show_name", "Pinar Atalay");
   }
 
   if (year && year !== "all") {
