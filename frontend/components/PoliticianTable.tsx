@@ -242,7 +242,7 @@ export default function PoliticianTable() {
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="cursor-pointer text-blue-600 hover:text-blue-800 hover:underline"
+                  className="cursor-pointer text-blue-500 hover:text-blue-800 hover:underline"
                 >
                   {formatted}
                 </Link>
