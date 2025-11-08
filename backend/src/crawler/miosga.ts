@@ -8,26 +8,16 @@ import {
   insertEpisodePoliticalAreas,
   insertMultipleTvShowPoliticians,
 } from "../lib/utils.js";
+import {
+  formatDateForDB,
+  GuestWithRole,
+} from "../lib/crawler-utils.js";
 import { Page } from "puppeteer";
-
-type GuestWithRole = {
-  name: string;
-  role?: string;
-};
 
 const LIST_URL =
   "https://www.ardaudiothek.de/sendung/caren-miosga/urn:ard:show:d6e5ba24e1508004/";
 
-// Hilfsfunktion: Konvertiere dd.mm.yyyy zu yyyy-mm-dd für DB-Konsistenz
-function formatDateForDB(dateStr: string): string {
-  if (dateStr.includes(".")) {
-    // Format: dd.mm.yyyy -> yyyy-mm-dd
-    const [day, month, year] = dateStr.split(".");
-    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-  }
-  // Falls bereits im richtigen Format
-  return dateStr;
-}
+// formatDateForDB ist bereits aus crawler-utils importiert
 
 // Extrahiere nur NEUE Episode-Links (crawlt nur bis zum letzten bekannten Datum)
 async function getNewEpisodeLinks(

@@ -21,7 +21,7 @@ interface InsertTvShowPoliticianData {
   party_name?: string;
 }
 
-interface GuestDetails {
+export interface GuestDetails {
   name: string;
   isPolitician: boolean;
   politicianId: number | null;
