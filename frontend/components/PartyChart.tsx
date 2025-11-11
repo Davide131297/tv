@@ -75,7 +75,7 @@ export default function PartyChart({
         <CardDescription>
           Verteilung der Politiker nach Parteien
         </CardDescription>
-        <div className="flex justify-between mt-3">
+        <div className="flex flex-col md:flex-row justify-between mt-3 gap-5 md:gap-0">
           <div className="flex gap-2 items-center">
             <p>Jahr</p>
             <NativeSelect
@@ -93,7 +93,7 @@ export default function PartyChart({
                 ))}
             </NativeSelect>
           </div>
-          <div className="flex items-center gap-2 ml-6">
+          <div className="flex items-center gap-2 ml-0 md:ml-6">
             <Switch
               id="union-switch"
               checked={unionMode}
