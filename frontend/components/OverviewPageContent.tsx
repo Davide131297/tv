@@ -44,12 +44,6 @@ function OverviewPageContent() {
   }, [searchParams]);
 
   const fetchData = useCallback(async () => {
-    console.log(
-      "Fetching data for show:",
-      selectedShow,
-      "and year:",
-      selectedYear
-    );
     try {
       setLoading(true);
       const url =

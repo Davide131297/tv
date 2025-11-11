@@ -8,48 +8,21 @@ import {
   insertEpisodePoliticalAreas,
   insertMultipleTvShowPoliticians,
 } from "../lib/utils.js";
+import {
+  parseISODateFromUrl,
+  acceptCookieBanner,
+  gentleScroll,
+  seemsLikePersonName,
+  isModeratorOrHost,
+  GuestWithRole,
+  DE_MONTHS,
+} from "../lib/crawler-utils.js";
 import { Page } from "puppeteer";
-
-interface GuestWithRole {
-  name: string;
-  role?: string;
-}
 
 const LIST_URL = "https://www.zdf.de/talk/maybrit-illner-128";
 
-// Extrahiere Datum aus URL (ähnlich wie bei Lanz)
-function parseISODateFromUrl(url: string): string | null {
-  const DE_MONTHS: Record<string, string> = {
-    januar: "01",
-    februar: "02",
-    märz: "03",
-    maerz: "03",
-    april: "04",
-    mai: "05",
-    juni: "06",
-    juli: "07",
-    august: "08",
-    september: "09",
-    oktober: "10",
-    november: "11",
-    dezember: "12",
-  };
-
-  const m = url.match(/vom-(\d{1,2})-([a-zäöü]+)-(\d{4})/i);
-  if (!m) return null;
-
-  //eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_, d, mon, y] = m;
-  const key = mon
-    .normalize("NFD")
-    .replace(/\u0308/g, "")
-    .toLowerCase();
-  const mm = DE_MONTHS[key];
-  if (!mm) return null;
-
-  const dd = d.padStart(2, "0");
-  return `${y}-${mm}-${dd}`;
-}
+// Extrahiere Datum aus URL (verwendet gemeinsame Funktion aus crawler-utils)
+// parseISODateFromUrl ist bereits importiert
 
 // Filtere nur neue Episoden (neuere als das letzte Datum in der DB)
 function filterNewEpisodes(
@@ -90,14 +63,7 @@ async function getLatestEpisodeLinks(
   await page.goto(LIST_URL, { waitUntil: "networkidle2" });
 
   // Cookie-Banner akzeptieren falls vorhanden
-  try {
-    await page.waitForSelector('[data-testid="cmp-accept-all"]');
-    await page.click('[data-testid="cmp-accept-all"]');
-    console.log("Cookie-Banner akzeptiert");
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-  } catch {
-    console.log("Kein Cookie-Banner gefunden oder bereits akzeptiert");
-  }
+  await acceptCookieBanner(page);
 
   // Hole Maybrit Illner Episode-Links
   const urls = await page.$$eval(
@@ -174,20 +140,7 @@ async function extractGuestsFromEpisode(
   await page.waitForSelector("main").catch(() => {});
 
   // Sanft scrollen für Lazy-Content
-  await page
-    .evaluate(async () => {
-      await new Promise<void>((res) => {
-        let y = 0;
-        const i = setInterval(() => {
-          window.scrollBy(0, 500);
-          if ((y += 500) > document.body.scrollHeight) {
-            clearInterval(i);
-            res();
-          }
-        }, 50);
-      });
-    })
-    .catch(() => {});
+  await gentleScroll(page);
 
   // Primär: Suche nach der Gäste-Liste in <li> Elementen
   let guestsWithRoles: GuestWithRole[] = await page
@@ -347,32 +300,10 @@ async function extractGuestsFromEpisode(
     }
   }
 
-  // Name-Filter (bereits vorhanden)
-  function seemsLikePersonName(name: string): boolean {
-    if (!/\S+\s+\S+/.test(name)) return false;
-    const re =
-      /^[\p{Lu}][\p{L}\-]+(?:\s+(?:von|van|de|da|del|der|den|du|le|la|zu|zur|zum))?(?:\s+[\p{Lu}][\p{L}\-]+)+$/u;
-    return re.test(name);
-  }
-
-  // Filtere Moderatoren/Hosts aus
-  function isModeratorOrHost(name: string): boolean {
-    const moderators = [
-      "Maybrit Illner",
-      "Illner",
-      "Maybrit",
-      // Weitere bekannte Moderatoren können hier hinzugefügt werden
-    ];
-
-    return moderators.some((mod) =>
-      name.toLowerCase().includes(mod.toLowerCase())
-    );
-  }
-
-  // Filter und Duplikat-Entfernung
+  // Filter und Duplikat-Entfernung (using imported isModeratorOrHost)
   const filteredGuests = guestsWithRoles
     .filter((guest) => seemsLikePersonName(guest.name))
-    .filter((guest) => !isModeratorOrHost(guest.name)); // Moderatorin ausfiltern
+    .filter((guest) => !isModeratorOrHost(guest.name, "Maybrit Illner")); // Moderatorin ausfiltern
 
   const uniqueGuests = filteredGuests.reduce(
     (acc: GuestWithRole[], current) => {

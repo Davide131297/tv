@@ -7,26 +7,20 @@ import {
   getLatestEpisodeDate,
   checkPoliticianOverride,
   insertMultipleShowLinks,
+  insertEpisodePoliticalAreas,
 } from "@/lib/supabase-server-utils";
-import { supabase } from "@/lib/supabase";
 import { getPoliticalArea } from "@/lib/utils";
-
-type GuestDetails = {
-  name: string;
-  isPolitician: boolean;
-  politicianId: number | null;
-  politicianName?: string;
-  party?: number;
-  partyName?: string;
-};
-
-interface GuestWithRole {
-  name: string;
-  role?: string;
-}
+import {
+  parseISODateFromUrl,
+  acceptCookieBanner,
+  gentleScroll,
+  seemsLikePersonName,
+  isModeratorOrHost,
+  GuestWithRole,
+  GuestDetails,
+} from "@/lib/crawler-utils";
 
 const currentYear = new Date().getFullYear();
-
 const LIST_URL = `https://www.zdf.de/talk/maybrit-illner-128?staffel=${currentYear}`;
 
 // Extrahiere Episodenbeschreibung und bestimme politische Themenbereiche
@@ -72,46 +66,6 @@ async function extractEpisodeDescription(
   } catch (error) {
     console.warn(`Fehler beim Extrahieren der Episode-Beschreibung:`, error);
     return null;
-  }
-}
-
-// Hilfsfunktion zum Speichern der politischen Themenbereiche
-async function insertEpisodePoliticalAreas(
-  showName: string,
-  episodeDate: string,
-  politicalAreaIds: number[]
-): Promise<number> {
-  if (!politicalAreaIds.length) return 0;
-
-  try {
-    const insertData = politicalAreaIds.map((areaId) => ({
-      show_name: showName,
-      episode_date: episodeDate,
-      political_area_id: areaId,
-    }));
-
-    const { error } = await supabase
-      .from("tv_show_episode_political_areas")
-      .upsert(insertData, {
-        onConflict: "show_name,episode_date,political_area_id",
-        ignoreDuplicates: true,
-      });
-
-    if (error) {
-      console.error(
-        "Fehler beim Speichern der politischen Themenbereiche:",
-        error
-      );
-      return 0;
-    }
-
-    return insertData.length;
-  } catch (error) {
-    console.error(
-      "Fehler beim Speichern der politischen Themenbereiche:",
-      error
-    );
-    return 0;
   }
 }
 
@@ -282,16 +236,7 @@ async function getLatestEpisodeLinks(
   await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 60000 });
 
   // Cookie-Banner akzeptieren falls vorhanden
-  try {
-    await page.waitForSelector('[data-testid="cmp-accept-all"]', {
-      timeout: 5000,
-    });
-    await page.click('[data-testid="cmp-accept-all"]');
-    console.log("Cookie-Banner akzeptiert");
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-  } catch {
-    console.log("Kein Cookie-Banner gefunden oder bereits akzeptiert");
-  }
+  await acceptCookieBanner(page);
 
   // Hole Maybrit Illner Episode-Links
   const urls = await page.$$eval(
@@ -315,16 +260,7 @@ async function getAllEpisodeLinks(page: Page): Promise<string[]> {
   await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 60000 });
 
   // Cookie-Banner akzeptieren falls vorhanden
-  try {
-    await page.waitForSelector('[data-testid="cmp-accept-all"]', {
-      timeout: 5000,
-    });
-    await page.click('[data-testid="cmp-accept-all"]');
-    console.log("Cookie-Banner akzeptiert");
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-  } catch {
-    console.log("Kein Cookie-Banner gefunden oder bereits akzeptiert");
-  }
+  await acceptCookieBanner(page);
 
   const allUrls = new Set<string>();
   let previousCount = 0;
@@ -402,41 +338,8 @@ async function getAllEpisodeLinks(page: Page): Promise<string[]> {
   return urlsWithDates.map((ep) => ep.url);
 }
 
-// Extrahiere Datum aus URL (ähnlich wie bei Lanz)
-function parseISODateFromUrl(url: string): string | null {
-  const DE_MONTHS: Record<string, string> = {
-    januar: "01",
-    februar: "02",
-    märz: "03",
-    maerz: "03",
-    april: "04",
-    mai: "05",
-    juni: "06",
-    juli: "07",
-    august: "08",
-    september: "09",
-    oktober: "10",
-    november: "11",
-    dezember: "12",
-  };
-
-  const m = url.match(/vom-(\d{1,2})-([a-zäöü]+)-(\d{4})/i);
-  if (!m) return null;
-
-  //eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_, d, mon, y] = m;
-  const key = mon
-    .normalize("NFD")
-    .replace(/\u0308/g, "")
-    .toLowerCase();
-  const mm = DE_MONTHS[key];
-  if (!mm) return null;
-
-  const dd = d.padStart(2, "0");
-  return `${y}-${mm}-${dd}`;
-}
-
 // Filtere nur neue Episoden (neuere als das letzte Datum in der DB)
+// Note: This is specific to this crawler since it works with URLs directly
 function filterNewEpisodes(
   episodeUrls: string[],
   latestDbDate: string | null
@@ -465,28 +368,6 @@ function filterNewEpisodes(
   return newEpisodes.sort((a, b) => b.date.localeCompare(a.date)); // Neueste zuerst
 }
 
-// Name-Filter (bereits vorhanden)
-function seemsLikePersonName(name: string): boolean {
-  if (!/\S+\s+\S+/.test(name)) return false;
-  const re =
-    /^[\p{Lu}][\p{L}\-]+(?:\s+(?:von|van|de|da|del|der|den|du|le|la|zu|zur|zum))?(?:\s+[\p{Lu}][\p{L}\-]+)+$/u;
-  return re.test(name);
-}
-
-// Filtere Moderatoren/Hosts aus
-function isModeratorOrHost(name: string): boolean {
-  const moderators = [
-    "Maybrit Illner",
-    "Illner",
-    "Maybrit",
-    // Weitere bekannte Moderatoren können hier hinzugefügt werden
-  ];
-
-  return moderators.some((mod) =>
-    name.toLowerCase().includes(mod.toLowerCase())
-  );
-}
-
 // Extrahiere Gäste aus einer Maybrit Illner Episode
 async function extractGuestsFromEpisode(
   page: Page,
@@ -501,20 +382,7 @@ async function extractGuestsFromEpisode(
   await page.waitForSelector("main", { timeout: 15000 }).catch(() => {});
 
   // Sanft scrollen für Lazy-Content
-  await page
-    .evaluate(async () => {
-      await new Promise<void>((res) => {
-        let y = 0;
-        const i = setInterval(() => {
-          window.scrollBy(0, 500);
-          if ((y += 500) > document.body.scrollHeight) {
-            clearInterval(i);
-            res();
-          }
-        }, 50);
-      });
-    })
-    .catch(() => {});
+  await gentleScroll(page);
 
   // Primär: Suche nach der Gäste-Liste in <li> Elementen
   let guestsWithRoles: GuestWithRole[] = await page
@@ -674,10 +542,10 @@ async function extractGuestsFromEpisode(
     }
   }
 
-  // Filter und Duplikat-Entfernung
+  // Filter und Duplikat-Entfernung (using imported functions)
   const filteredGuests = guestsWithRoles
     .filter((guest) => seemsLikePersonName(guest.name))
-    .filter((guest) => !isModeratorOrHost(guest.name)); // Moderatorin ausfiltern
+    .filter((guest) => !isModeratorOrHost(guest.name, "Maybrit Illner")); // Moderatorin ausfiltern
 
   const uniqueGuests = filteredGuests.reduce(
     (acc: GuestWithRole[], current) => {
