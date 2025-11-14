@@ -12,8 +12,7 @@ export async function GET(request: NextRequest) {
     const showName = searchParams.get("show");
     const year =
       searchParams.get("year") || new Date().getFullYear().toString();
-
-    console.log("API Request - Show:", showName, "Year:", year);
+    const tv_channel = searchParams.get("tv_channel");
 
     // Base query without year filters; add year filters only if a specific year is requested
     let query = supabase
@@ -31,6 +30,11 @@ export async function GET(request: NextRequest) {
     // Filter nach Show
     if (showName && showName !== "all") {
       query = query.eq("show_name", showName);
+    }
+
+    // Filter nach TV-Sender
+    if (tv_channel && tv_channel !== "all") {
+      query = query.eq("tv_channel", tv_channel);
     }
 
     const { data, error } = await query;

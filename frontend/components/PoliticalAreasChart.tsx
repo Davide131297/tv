@@ -32,6 +32,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import ChannelOptionsButtons from "./ChannelOptionsButtons";
 
 // Color scheme for political areas
 const POLITICAL_AREA_COLORS: Record<number, string> = {
@@ -295,8 +296,10 @@ export default function PoliticalAreasChart({
         <CardDescription className="hidden">
           Verteilung der politischen Themenbereiche
         </CardDescription>
-        <div className="flex gap-2 items-center mt-2.5">
-          <p>Jahr</p>
+        <div>
+          <label className="text-sm font-medium mb-2 block">
+            Jahr auswählen:
+          </label>
           <NativeSelect
             value={selectedYear}
             onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
@@ -312,6 +315,7 @@ export default function PoliticalAreasChart({
               ))}
           </NativeSelect>
         </div>
+        <ChannelOptionsButtons />
       </CardHeader>
       <CardContent>
         <div className="flex flex-col gap-8">

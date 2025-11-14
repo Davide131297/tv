@@ -10,8 +10,8 @@ export default function Footer() {
       <div className="text-center text-gray-500 text-sm py-4 px-4">
         <p>
           Daten basierend auf Markus Lanz, Maybritt Illner, Caren Miosga,
-          Maischberger, Hart aber fair, Phoenix Runde, Phoenix Persönlich und
-          Pinar Atalay (2024 - {currentYear})
+          Maischberger, Hart aber fair, Phoenix Runde, Phoenix Persönlich, Pinar
+          Atalay und Blome & Pfeffer (2024 - {currentYear})
         </p>
         <p>
           und der API von{" "}
