@@ -7,6 +7,7 @@ import type { PartyStats } from "@/types";
 import { SHOW_OPTIONS } from "@/types";
 import { FETCH_HEADERS } from "@/lib/utils";
 import ShowOptionsButtons from "./ShowOptionsButtons";
+import { TV_CHANNEL } from "@/lib/utils";
 
 export default function PartiesPageContent() {
   const router = useRouter();
@@ -42,6 +43,15 @@ export default function PartiesPageContent() {
     return searchParams.get("union") === "true";
   }, [searchParams]);
 
+  // selectedChannel früher ableiten, damit fetchData die aktuelle Auswahl nutzt
+  const selectedChannel = useMemo(() => {
+    const channelParam = searchParams.get("tv_channel");
+    if (channelParam && TV_CHANNEL.includes(channelParam)) {
+      return channelParam;
+    }
+    return "";
+  }, [searchParams]);
+
   const updateUrlParams = useCallback(
     (updates: { show?: string; union?: boolean; year?: string }) => {
       const params = new URLSearchParams(searchParams.toString());
@@ -50,6 +60,7 @@ export default function PartiesPageContent() {
         if (updates.show === "all") {
           params.delete("show");
         } else {
+          params.delete("tv_channel");
           params.set("show", updates.show);
         }
       }
@@ -92,13 +103,21 @@ export default function PartiesPageContent() {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const url =
-        selectedShow === "all"
-          ? "/api/politics?type=party-stats&year=" +
-            encodeURIComponent(selectedYear)
-          : `/api/politics?type=party-stats&show=${encodeURIComponent(
-              selectedShow
-            )}&year=${encodeURIComponent(selectedYear)}`;
+
+      const params = new URLSearchParams();
+      if (selectedShow && selectedShow !== "all") {
+        params.append("show", selectedShow);
+      }
+      if (selectedYear) {
+        params.append("year", selectedYear);
+      }
+      if (selectedChannel) {
+        params.append("tv_channel", selectedChannel);
+      }
+
+      const queryString = params.toString();
+
+      const url = `/api/politics?type=party-stats&${queryString}`;
 
       const response = await fetch(url, {
         method: "GET",
@@ -119,7 +138,7 @@ export default function PartiesPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [selectedShow, selectedYear]);
+  }, [selectedShow, selectedYear, selectedChannel]);
 
   useEffect(() => {
     fetchData();
@@ -127,7 +146,7 @@ export default function PartiesPageContent() {
     if (search && search !== selectedYear) {
       setSelectedYear(search);
     }
-  }, [fetchData, searchParams, selectedYear]);
+  }, [fetchData, searchParams, selectedYear, selectedChannel]);
 
   if (loading) {
     return (
@@ -184,6 +203,7 @@ export default function PartiesPageContent() {
         <ShowOptionsButtons
           onShowChange={handleShowChange}
           selectedShow={selectedShow}
+          selectedChannel={selectedChannel}
         />
       </div>
 

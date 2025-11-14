@@ -23,6 +23,8 @@ export const POLITICAL_AREA = [
   { id: 7, label: "Kultur, Identität und Erinnerungspolitik" },
 ];
 
+export const TV_CHANNEL = ["Das Erste", "ZDF", "Phoenix", "NTV"];
+
 // Rate-Limiting für AI-Requests
 let aiRequestCount = 0;
 let lastRequestTime = 0;
