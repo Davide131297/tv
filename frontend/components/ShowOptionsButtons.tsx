@@ -83,7 +83,8 @@ export default function ShowOptionsButtons({
       {shows.map((option) => {
         const showChannel = getShowChannel(option.value);
         const activeClass =
-          selectedShow === option.value
+          selectedShow === option.value &&
+          (!selectedChannel || option.value !== "all")
             ? option.btnColor
             : selectedChannel &&
               selectedShow === "all" &&

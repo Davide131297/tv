@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import PartyTimelineChart from "@/components/PartyTimelineChart";
 import ShowOptionsButtons from "@/components/ShowOptionsButtons";
 import { SHOW_OPTIONS } from "@/types";
 import { TV_CHANNEL } from "@/lib/utils";
+import { useUrlUpdater } from "@/hooks/useUrlUpdater";
+import { useYearList } from "@/hooks/useYearList";
+import { useSelectedShow } from "@/hooks/useSelectedShow";
+import { useSelectedChannel } from "@/hooks/useSelectedChannel";
 
 interface MonthlyPartyStats {
   month: string;
@@ -20,33 +24,19 @@ interface ApiResponse {
 }
 
 export default function PartyTimelinePageContent() {
-  const router = useRouter();
+  const updateUrl = useUrlUpdater();
   const searchParams = useSearchParams();
+  const years = useYearList(2024);
+  const selectedShow = useSelectedShow(searchParams, SHOW_OPTIONS);
+  const selectedChannel = useSelectedChannel(searchParams, TV_CHANNEL);
   const currentYear = new Date().getFullYear();
-  // Initialize selectedYear from the URL if present to avoid an initial fetch with the wrong year
+  const [data, setData] = useState<MonthlyPartyStats[]>([]);
+  const [parties, setParties] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState<string>(
     () => searchParams.get("year") || String(currentYear)
   );
-
-  // generate years from 2024 up to current year (descending order)
-  const years = useMemo(() => {
-    const start = 2024;
-    const end = new Date().getFullYear();
-    const list: string[] = [];
-    for (let y = end; y >= start; y--) list.push(String(y));
-    return list;
-  }, []);
-
-  const selectedShow = useMemo(() => {
-    const showParam = searchParams.get("show");
-    if (
-      showParam &&
-      SHOW_OPTIONS.some((option) => option.value === showParam)
-    ) {
-      return showParam;
-    }
-    return "all";
-  }, [searchParams]);
 
   const unionMode = useMemo(() => {
     return searchParams.get("union") === "true";
@@ -57,84 +47,21 @@ export default function PartyTimelinePageContent() {
     return partiesParam ? partiesParam.split(",") : [];
   }, [searchParams]);
 
-  const [data, setData] = useState<MonthlyPartyStats[]>([]);
-  const [parties, setParties] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const selectedChannel = useMemo(() => {
-    const channelParam = searchParams.get("tv_channel");
-    if (channelParam && TV_CHANNEL.includes(channelParam)) {
-      return channelParam;
-    }
-    return "";
-  }, [searchParams]);
-
-  const updateUrlParams = useCallback(
-    (updates: {
-      show?: string;
-      year?: string;
-      union?: boolean;
-      parties?: string[];
-    }) => {
-      const params = new URLSearchParams(searchParams.toString());
-
-      if (updates.show !== undefined) {
-        if (updates.show === "all") {
-          params.delete("show");
-        } else {
-          params.delete("tv_channel");
-          params.set("show", updates.show);
-        }
-      }
-
-      if (updates.year !== undefined) {
-        if (updates.year) {
-          params.set("year", updates.year);
-        } else {
-          params.delete("year");
-        }
-      }
-
-      if (updates.union !== undefined) {
-        if (updates.union) {
-          params.set("union", "true");
-        } else {
-          params.delete("union");
-        }
-      }
-
-      if (updates.parties !== undefined) {
-        if (updates.parties.length === 0) {
-          params.delete("parteien");
-        } else {
-          params.set("parteien", updates.parties.join(","));
-        }
-      }
-
-      const newUrl = params.toString()
-        ? `/parteien-zeitverlauf?${params.toString()}`
-        : "/parteien-zeitverlauf";
-      router.push(newUrl, { scroll: false });
-    },
-    [searchParams, router]
-  );
-
   const handleShowChange = (show: string) => {
-    updateUrlParams({ show });
+    updateUrl({ show });
   };
 
   const handleYearChange = (year: string) => {
     setSelectedYear(year);
-    updateUrlParams({ year });
+    updateUrl({ year });
   };
 
   const handleUnionModeChange = (union: boolean) => {
-    updateUrlParams({ union });
+    updateUrl({ union });
   };
 
   const handleSelectedPartiesChange = (parties: string[]) => {
-    updateUrlParams({ parties });
+    updateUrl({ parties });
   };
 
   useEffect(() => {

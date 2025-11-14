@@ -5,10 +5,12 @@ import {
   insertEpisodePoliticalAreas,
 } from "@/lib/supabase-server-utils";
 import { createBrowser, setupSimplePage } from "@/lib/browser-config";
-import { getLatestEpisodeDate } from "@/lib/supabase-server-utils";
+import {
+  getLatestEpisodeDate,
+  splitFirstLast,
+} from "@/lib/supabase-server-utils";
 import {
   parseISODateFromUrl,
-  toISOFromDDMMYYYY,
   extractDateISO,
   seemsLikePersonName,
   acceptCookieBanner,
@@ -217,11 +219,6 @@ async function collectEpisodeLinks(page: Page) {
 }
 
 // ---------------- Politiker-Check ----------------
-
-function splitFirstLast(name: string) {
-  const parts = name.split(/\s+/).filter(Boolean);
-  return { first: parts[0] ?? "", last: parts.slice(1).join(" ").trim() };
-}
 
 async function checkPolitician(
   name: string,

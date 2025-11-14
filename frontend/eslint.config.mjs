@@ -1,7 +1,6 @@
-import { defineConfig } from "eslint/config";
-export default defineConfig([
+export default [
   {
     // Note: there should be no other properties in this object
     ignores: [".next/**"],
   },
-]);
+];

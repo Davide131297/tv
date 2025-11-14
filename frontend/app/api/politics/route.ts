@@ -57,11 +57,7 @@ export async function GET(request: NextRequest) {
 
         query = applyShowFilter(query, showName, year, tv_channel);
 
-        console.log("Final Query for party-stats:", query.toString());
-
         const { data, error } = await query;
-
-        console.log("Data fetched for party-stats:", data);
 
         if (error) {
           throw error;

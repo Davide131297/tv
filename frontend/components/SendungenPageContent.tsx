@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect, useCallback, useMemo, use } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import type { EpisodeData, Statistics } from "@/types";
 import { SHOW_OPTIONS_WITHOUT_ALL } from "@/types";
@@ -12,11 +12,14 @@ import {
   NativeSelectOption,
 } from "@/components/ui/native-select";
 import ColorBox from "./ui/color-box";
-import { getShowButtonColor } from "./ShowOptionsButtons";
+import ShowOptionsButtons, { getShowButtonColor } from "./ShowOptionsButtons";
+import { useSelectedShow } from "@/hooks/useSelectedShow";
+import { useYearList } from "@/hooks/useYearList";
+import { useUrlUpdater } from "@/hooks/useUrlUpdater";
 
 export default function SendungenPageContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
+  const updateUrl = useUrlUpdater();
   const [episodes, setEpisodes] = useState<EpisodeData[]>([]);
   const [statistics, setStatistics] = useState<Statistics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -24,41 +27,20 @@ export default function SendungenPageContent() {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState<string>(String(currentYear));
 
-  // generate years from 2024 up to current year (descending order)
-  const years = useMemo(() => {
-    const start = 2024;
-    const end = new Date().getFullYear();
-    const list: string[] = [];
-    for (let y = end; y >= start; y--) list.push(String(y));
-    return list;
-  }, []);
-
-  // Derive selectedShow from URL parameters
-  const selectedShow = useMemo(() => {
-    const showParam = searchParams.get("show");
-    if (
-      showParam &&
-      SHOW_OPTIONS_WITHOUT_ALL.some((option) => option.value === showParam)
-    ) {
-      return showParam;
-    }
-    return "Markus Lanz";
-  }, [searchParams]);
+  const years = useYearList(2024);
+  const selectedShow = useSelectedShow(
+    searchParams,
+    SHOW_OPTIONS_WITHOUT_ALL,
+    "Markus Lanz"
+  );
 
   const handleShowChange = (showValue: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("show", showValue);
-
-    const newUrl = `?${params.toString()}`;
-    router.push(newUrl, { scroll: false });
+    updateUrl({ show: showValue });
   };
 
   const handleYearChange = (yearValue: string) => {
     setSelectedYear(yearValue);
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("year", yearValue);
-    const newUrl = `?${params.toString()}`;
-    router.push(newUrl, { scroll: false });
+    updateUrl({ year: yearValue });
   };
 
   const fetchData = useCallback(async () => {
@@ -183,32 +165,11 @@ export default function SendungenPageContent() {
 
         <div className="flex flex-col md:flex-row md:justify-between gap-4 md:gap-0">
           {/* Show Auswahl */}
-          <div className="flex flex-wrap gap-2">
-            {SHOW_OPTIONS_WITHOUT_ALL.map((option) => {
-              const getButtonColors = (
-                showValue: string,
-                isSelected: boolean
-              ) => {
-                if (!isSelected)
-                  return "bg-gray-100 text-gray-700 hover:bg-gray-200";
-
-                return getShowButtonColor(showValue);
-              };
-
-              return (
-                <Button
-                  key={option.value}
-                  onClick={() => handleShowChange(option.value)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${getButtonColors(
-                    option.value,
-                    selectedShow === option.value
-                  )}`}
-                >
-                  {option.label}
-                </Button>
-              );
-            })}
-          </div>
+          <ShowOptionsButtons
+            selectedShow={selectedShow}
+            onShowChange={handleShowChange}
+            withAll={false}
+          />
 
           {/* Jahr Auswahl */}
           <div className="flex gap-2 items-center">

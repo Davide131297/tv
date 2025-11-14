@@ -8,6 +8,7 @@ import {
   checkPoliticianOverride,
   insertMultipleShowLinks,
   insertEpisodePoliticalAreas,
+  splitFirstLast,
 } from "@/lib/supabase-server-utils";
 import { createBrowser, setupSimplePage } from "@/lib/browser-config";
 import { getPoliticalArea } from "@/lib/utils";
@@ -176,12 +177,6 @@ function extractGuestsFallback(teaserText: string): string[] {
 
   console.log(`   ✅ Fallback extrahierte ${guests.length} Gäste:`, guests);
   return guests;
-}
-
-// Hilfsfunktion: Name in Vor- und Nachname aufteilen
-function splitFirstLast(name: string) {
-  const parts = name.split(/\s+/).filter(Boolean);
-  return { first: parts[0] ?? "", last: parts.slice(1).join(" ").trim() };
 }
 
 // Hilfsfunktion zur Disambiguierung basierend auf Partei-Info
