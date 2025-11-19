@@ -23,6 +23,7 @@ import {
   NativeSelect,
   NativeSelectOption,
 } from "@/components/ui/native-select";
+import ChannelOptionsButtons from "./ChannelOptionsButtons";
 
 interface MonthlyPartyStats {
   month: string;
@@ -166,26 +167,29 @@ export default function PartyTimelineChart({
       </CardHeader>
       <CardContent>
         <div className="flex flex-col md:flex-row gap-2 justify-between mb-4">
-          {/* Year Filter */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">
-              Jahr auswählen:
-            </label>
-            {/* Use either selectedYear prop or fallback to year prop for robustness */}
-            <NativeSelect
-              value={yearValue}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                handleYearChange?.(e.target.value)
-              }
-            >
-              <NativeSelectOption value="all">Insgesamt</NativeSelectOption>
-              {years &&
-                years.map((y) => (
-                  <NativeSelectOption key={y} value={y}>
-                    {y}
-                  </NativeSelectOption>
-                ))}
-            </NativeSelect>
+          <div className="flex flex-col md:flex-row gap-2.5 md:gap-10">
+            {/* Year Filter */}
+            <div>
+              <label className="text-sm font-medium mb-2 block">
+                Jahr auswählen:
+              </label>
+              {/* Use either selectedYear prop or fallback to year prop for robustness */}
+              <NativeSelect
+                value={yearValue}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                  handleYearChange?.(e.target.value)
+                }
+              >
+                <NativeSelectOption value="all">Insgesamt</NativeSelectOption>
+                {years &&
+                  years.map((y) => (
+                    <NativeSelectOption key={y} value={y}>
+                      {y}
+                    </NativeSelectOption>
+                  ))}
+              </NativeSelect>
+            </div>
+            <ChannelOptionsButtons />
           </div>
           {/* Union Mode Switch */}
           <div className="mb-4 flex items-center gap-2">

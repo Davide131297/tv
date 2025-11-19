@@ -18,6 +18,7 @@ import {
   NativeSelect,
   NativeSelectOption,
 } from "@/components/ui/native-select";
+import ChannelOptionsButtons from "./ChannelOptionsButtons";
 
 export default function PartyChart({
   data,
@@ -75,25 +76,28 @@ export default function PartyChart({
         <CardDescription>
           Verteilung der Politiker nach Parteien
         </CardDescription>
-        <div className="flex justify-between mt-3">
-          <div className="flex gap-2 items-center">
-            <p>Jahr</p>
-            <NativeSelect
-              value={selectedYear}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                handleYearChange && handleYearChange(e.target.value)
-              }
-            >
-              <NativeSelectOption value="all">Insgesamt</NativeSelectOption>
-              {years &&
-                years.map((y) => (
-                  <NativeSelectOption key={y} value={y}>
-                    {y}
-                  </NativeSelectOption>
-                ))}
-            </NativeSelect>
+        <div className="flex flex-col md:flex-row justify-between mt-3 gap-5 md:gap-0">
+          <div className="flex flex-col md:flex-row gap-2.5 md:gap-10">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Jahr:</label>
+              <NativeSelect
+                value={selectedYear}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                  handleYearChange && handleYearChange(e.target.value)
+                }
+              >
+                <NativeSelectOption value="all">Insgesamt</NativeSelectOption>
+                {years &&
+                  years.map((y) => (
+                    <NativeSelectOption key={y} value={y}>
+                      {y}
+                    </NativeSelectOption>
+                  ))}
+              </NativeSelect>
+            </div>
+            <ChannelOptionsButtons />
           </div>
-          <div className="flex items-center gap-2 ml-6">
+          <div className="flex items-center gap-2 ml-0 md:ml-6">
             <Switch
               id="union-switch"
               checked={unionMode}

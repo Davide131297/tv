@@ -2,6 +2,7 @@ import { EpisodeData } from "@/types";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import PoliticianModal from "./PoliticianModal";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
 type LastShowTableProps = {
   episodes: EpisodeData[];
@@ -208,13 +209,20 @@ export default function LastShowTable({ episodes }: LastShowTableProps) {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {episode.episode_url ? (
-                      <Link
-                        href={episode.episode_url}
-                        target="_blank"
-                        className="inline-flex items-center text-blue-600 hover:text-blue-800"
-                      >
-                        🔗 Episode öffnen
-                      </Link>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Link
+                            href={episode.episode_url}
+                            target="_blank"
+                            className="inline-flex items-center text-blue-600 hover:text-blue-800"
+                          >
+                            🔗 Episode öffnen
+                          </Link>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Link öffnen</p>
+                        </TooltipContent>
+                      </Tooltip>
                     ) : (
                       <span className="text-gray-400">Nicht verfügbar</span>
                     )}

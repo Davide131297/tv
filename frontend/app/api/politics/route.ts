@@ -16,7 +16,8 @@ function applyShowFilter(
   //eslint-disable-next-line @typescript-eslint/no-explicit-any
   query: any,
   showName: string | null,
-  year?: string | null
+  year?: string | null,
+  tv_channel?: string | null
 ) {
   // 1️⃣ Erst nach showName filtern
   if (showName !== null) {
@@ -29,6 +30,9 @@ function applyShowFilter(
     query = query.gte("episode_date", startDate).lte("episode_date", endDate);
   }
 
+  if (tv_channel) {
+    query = query.eq("tv_channel", tv_channel);
+  }
   return query;
 }
 
@@ -36,22 +40,28 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type") || "party-stats";
+    const showName = searchParams.get("show");
+    const year = searchParams.get("year");
+    const tv_channel = searchParams.get("tv_channel");
+    const limit = parseInt(searchParams.get("limit") || "0");
+    const offset = parseInt(searchParams.get("offset") || "0");
 
     switch (type) {
       case "party-stats": {
         // Statistiken pro Partei
-        const showName = searchParams.get("show");
-        const year = searchParams.get("year");
-
         let query = supabase
           .from("tv_show_politicians")
           .select("party_name")
           .not("party_name", "is", null)
           .neq("party_name", "");
 
-        query = applyShowFilter(query, showName, year);
+        query = applyShowFilter(query, showName, year, tv_channel);
+
+        console.log("Final Query for party-stats:", query.toString());
 
         const { data, error } = await query;
+
+        console.log("Data fetched for party-stats:", data);
 
         if (error) {
           throw error;
@@ -77,7 +87,6 @@ export async function GET(request: NextRequest) {
 
       case "episodes": {
         // Episoden mit Politiker-Anzahl
-        const showName = searchParams.get("show") || "Markus Lanz";
 
         const { data, error } = await supabase
           .from("tv_show_politicians")
@@ -111,11 +120,6 @@ export async function GET(request: NextRequest) {
       }
 
       case "episodes-with-politicians": {
-        // Episoden mit Politiker-Namen und Episode-URLs
-        const showName = searchParams.get("show") || "Markus Lanz";
-        const limit = parseInt(searchParams.get("limit") || "0"); // 0 = alle
-        const year = searchParams.get("year");
-
         // Erste Abfrage: Hole alle Politiker-Daten
         let politiciansQuery = supabase
           .from("tv_show_politicians")
@@ -213,13 +217,9 @@ export async function GET(request: NextRequest) {
       }
 
       case "summary": {
-        // Gesamt-Statistiken
-        const showName = searchParams.get("show");
-        const year = searchParams.get("year");
-
         let query = supabase.from("tv_show_politicians").select("*");
 
-        query = applyShowFilter(query, showName, year);
+        query = applyShowFilter(query, showName, year, tv_channel);
 
         const { data: allData, error } = await query;
 
@@ -253,12 +253,6 @@ export async function GET(request: NextRequest) {
       }
 
       case "detailed-appearances": {
-        // Detaillierte Auftritte mit Politiker-Infos
-        const limit = parseInt(searchParams.get("limit") || "50");
-        const offset = parseInt(searchParams.get("offset") || "0");
-        const showName = searchParams.get("show");
-        const year = searchParams.get("year");
-
         let query = supabase
           .from("tv_show_politicians")
           .select(
@@ -268,7 +262,7 @@ export async function GET(request: NextRequest) {
           .order("id", { ascending: false })
           .range(offset, offset + limit - 1);
 
-        query = applyShowFilter(query, showName, year);
+        query = applyShowFilter(query, showName, year, tv_channel);
 
         const { data, error } = await query;
         if (error) {
@@ -304,7 +298,7 @@ export async function GET(request: NextRequest) {
         let countQuery = supabase
           .from("tv_show_politicians")
           .select("*", { count: "exact", head: true });
-        countQuery = applyShowFilter(query, showName);
+        countQuery = applyShowFilter(query, showName, year, tv_channel);
         const { count: totalCount } = await countQuery;
 
         return NextResponse.json({
@@ -319,13 +313,9 @@ export async function GET(request: NextRequest) {
       }
 
       case "episode-statistics": {
-        // Episoden-Statistiken für eine bestimmte Show
-        const showName = searchParams.get("show") || "Markus Lanz";
-        const year = searchParams.get("year");
-
         let query = supabase.from("tv_show_politicians").select("episode_date");
 
-        query = applyShowFilter(query, showName, year);
+        query = applyShowFilter(query, showName, year, tv_channel);
 
         const { data, error } = await query;
 
@@ -440,16 +430,11 @@ export async function GET(request: NextRequest) {
       }
 
       case "politician-rankings": {
-        // Politiker-Rankings nach Anzahl Auftritte
-        const showName = searchParams.get("show");
-        const year = searchParams.get("year");
-        const limit = parseInt(searchParams.get("limit") || "100");
-
         let query = supabase
           .from("tv_show_politicians")
           .select("politician_name, party_name, show_name, episode_date");
 
-        query = applyShowFilter(query, showName, year);
+        query = applyShowFilter(query, showName, year, tv_channel);
 
         const { data, error } = await query;
 

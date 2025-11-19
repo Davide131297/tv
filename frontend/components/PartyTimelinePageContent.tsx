@@ -4,8 +4,8 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import PartyTimelineChart from "@/components/PartyTimelineChart";
 import ShowOptionsButtons from "@/components/ShowOptionsButtons";
-import { Button } from "@/components/ui/button";
 import { SHOW_OPTIONS } from "@/types";
+import { TV_CHANNEL } from "@/lib/utils";
 
 interface MonthlyPartyStats {
   month: string;
@@ -62,6 +62,14 @@ export default function PartyTimelinePageContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const selectedChannel = useMemo(() => {
+    const channelParam = searchParams.get("tv_channel");
+    if (channelParam && TV_CHANNEL.includes(channelParam)) {
+      return channelParam;
+    }
+    return "";
+  }, [searchParams]);
+
   const updateUrlParams = useCallback(
     (updates: {
       show?: string;
@@ -75,6 +83,7 @@ export default function PartyTimelinePageContent() {
         if (updates.show === "all") {
           params.delete("show");
         } else {
+          params.delete("tv_channel");
           params.set("show", updates.show);
         }
       }
@@ -134,11 +143,20 @@ export default function PartyTimelinePageContent() {
         setIsLoading(true);
         setError(null);
 
-        const response = await fetch(
-          `/api/party-timeline?show=${selectedShow}&year=${encodeURIComponent(
-            selectedYear
-          )}`
-        );
+        const params = new URLSearchParams();
+        if (selectedShow && selectedShow !== "all") {
+          params.append("show", selectedShow);
+        }
+        if (selectedYear) {
+          params.append("year", selectedYear);
+        }
+        if (selectedChannel) {
+          params.append("tv_channel", selectedChannel);
+        }
+
+        const queryString = params.toString();
+
+        const response = await fetch(`/api/party-timeline?${queryString}`);
 
         if (!response.ok) {
           throw new Error("Fehler beim Laden der Daten");
@@ -183,6 +201,7 @@ export default function PartyTimelinePageContent() {
           <ShowOptionsButtons
             onShowChange={handleShowChange}
             selectedShow={selectedShow}
+            selectedChannel={selectedChannel}
           />
         </div>
       </div>
