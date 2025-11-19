@@ -61,8 +61,6 @@ export async function GET(request: NextRequest) {
 
         const { data, error } = await query;
 
-        console.log("Data fetched for party-stats:", data);
-
         if (error) {
           throw error;
         }

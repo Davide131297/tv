@@ -82,7 +82,7 @@ app.get("/", (req, res) => {
   res.send("Hello World!");
 });
 
-app.post("/api/chat", handleChatRequest);
+// app.post("/api/chat", handleChatRequest);
 
 // app.post("/api/crawl-lanz", async (req, res) => {
 //   console.log("Starte Lanz Crawl...");

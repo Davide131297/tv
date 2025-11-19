@@ -16,7 +16,7 @@ export default function ChatBot() {
     {
       role: "assistant",
       content:
-        "Hallo! Ich bin der KI-Assistent für Polittalk-Watcher.\n\n&nbsp;\n\nIch habe Zugriff auf alle aktuellen Daten aus der Datenbank. Du kannst mir z.B. folgende Fragen stellen:\n\n&nbsp;\n\n• Welche Partei hatte die meisten Auftritte?\n\n&nbsp;\n\n• Welche Politiker waren am häufigsten zu Gast?\n\n&nbsp;\n\n• Was waren die letzten Sendungen?\n\n&nbsp;\n\n• Welche politischen Themen werden am meisten diskutiert?\n\n&nbsp;\n\n• Wie viele Auftritte gibt es insgesamt?\n\n&nbsp;\n\nDeine Nachrichten werden nicht gespeichert. Die Zuverlässigkeit der Antworten kann wie bei jeder KI variieren und sogar von den Statistiken dieser Seite abweichen. Für genauere Informationen siehe dir die Statistiken selber an.\n\n&nbsp;\n\nWie kann ich dir helfen?",
+        "Hallo! Ich bin der KI-Assistent für Polittalk-Watcher.\n\n&nbsp;\n\n**Deine Nachrichten werden nicht gespeichert**. Die Zuverlässigkeit der Antworten kann wie bei jeder KI variieren und sogar von den Statistiken dieser Seite abweichen. Für genauere Informationen siehe dir die Statistiken selber an.\n\n&nbsp;\n\nWie kann ich dir helfen?",
     },
   ]);
   const [input, setInput] = useState("");
@@ -174,9 +174,9 @@ export default function ChatBot() {
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 z-50 w-96 h-[500px] bg-white dark:bg-gray-800 rounded-lg shadow-2xl flex flex-col border border-gray-200 dark:border-gray-700">
+        <div className="fixed z-50 bottom-0 right-0 left-0 top-0 md:bottom-24 md:right-6 md:left-auto md:top-auto w-full h-full md:w-96 md:h-[500px] bg-white dark:bg-gray-800 rounded-none md:rounded-lg shadow-2xl flex flex-col border border-gray-200 dark:border-gray-700">
           {/* Header */}
-          <div className="bg-blue-600 text-white p-4 rounded-t-lg flex items-center justify-between">
+          <div className="bg-blue-600 text-white p-4 flex items-center justify-between md:rounded-t-lg">
             <div className="flex items-center gap-2">
               <Sparkles size={20} />
               <h3 className="font-semibold">KI-Assistent</h3>
