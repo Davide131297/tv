@@ -12,6 +12,7 @@
     "watch": "tsc --watch"
   },
   "dependencies": {
+    "@google/genai": "^1.30.0",
     "@huggingface/inference": "^4.9.0",
     "@sparticuz/chromium": "^141.0.0",
     "@supabase/supabase-js": "^2.75.0",
