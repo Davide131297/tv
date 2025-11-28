@@ -17,14 +17,7 @@ Die API Middleware ist als globale Next.js Middleware implementiert und bietet z
 - Schutz vor übermäßigen Anfragen
 - IP-basierte Limits mit automatischer Bereinigung
 - **Crawl APIs**: 5 Anfragen pro Minute (3 für DELETE)
-- **Politics API**: 30 Anfragen pro Minute (höher, da read-only)
-
-### 📝 Logging
-
-- Umfassendes Request-Logging für alle geschützten APIs
-- IP-Adresse und User-Agent Tracking
-- Performance-Monitoring vorbereitet
-- Error-Tracking mit strukturierten Logs
+- **Politics API**: 30 Anfragen pro Minute
 
 ### ✅ Validation
 
@@ -36,7 +29,7 @@ Die API Middleware ist als globale Next.js Middleware implementiert und bietet z
 
 ## Implementierung
 
-Die Middleware ist als globale Next.js Middleware in `/middleware.ts` implementiert.
+Die Middleware ist als globale Next.js Middleware in `/proxy.ts` implementiert.
 
 ### Matcher-Konfiguration
 
@@ -48,7 +41,7 @@ export const config = {
 
 ### Geschützte Routen
 
-- **Crawl APIs**: `/api/crawl/illner`, `/api/crawl/lanz`, `/api/crawl/maischberger`, `/api/crawl/miosga`
+- **Crawl APIs**: `/api/crawl/*`
 - **Politics API**: `/api/politics`
 
 ## Authentifizierung
@@ -144,100 +137,3 @@ POLITICS_API_KEY=prod-politics-key-abc123
 | Crawl APIs (POST)   | 5                | Niedrig, da ressourcenintensiv                     |
 | Crawl APIs (DELETE) | 3                | Noch niedriger für kritische Operationen           |
 | Politics API (GET)  | 30               | Höher, da read-only und weniger ressourcenintensiv |
-
-## Security Best Practices
-
-### 1. **Separate API-Keys verwenden**
-
-- Verschiedene Keys für verschiedene Anwendungsbereiche
-- Ermöglicht granulare Zugriffskontrolle
-- Bei Kompromittierung eines Keys sind andere Bereiche geschützt
-
-### 2. **Sichere Key-Verwaltung**
-
-```bash
-# ❌ Nicht so:
-CRAWL_API_KEY=123456
-POLITICS_API_KEY=abcdef
-
-# ✅ Besser so:
-CRAWL_API_KEY=crawl_prod_xK8mN2pQ7vR4sT9wE3yU6iO1
-POLITICS_API_KEY=politics_prod_aB5cD8fG2hJ4kL7mN0pQ3rS6
-```
-
-### 3. **Umgebungsspezifische Konfiguration**
-
-- Entwicklung: `default-dev-key` für einfaches Testen
-- Staging: Separate Test-Keys
-- Produktion: Starke, einzigartige Keys
-
-### 4. **Monitoring & Logging**
-
-- Regelmäßige Überprüfung der Logs auf verdächtige Aktivitäten
-- Rate-Limit-Überschreitungen überwachen
-- Failed Auth-Attempts tracken
-
-## Entwicklung vs. Produktion
-
-### Entwicklung
-
-```typescript
-// Automatische Deaktivierung bei default-dev-key
-const requireAuth = !!(API_KEY && API_KEY !== "default-dev-key");
-```
-
-### Produktion
-
-```typescript
-// Aktiviert bei beliebigem anderen Wert
-const requireAuth = !!(API_KEY && API_KEY !== "default-dev-key");
-```
-
-## Performance & Monitoring
-
-- **Response-Zeit-Header**: `x-middleware-start-time` für Performance-Tracking
-- **Automatische Bereinigung**: Rate-Limit-Storage alle 5 Minuten bereinigt
-- **IP-basiertes Tracking**: Für Sicherheit und Debugging
-- **Strukturierte Logs**: Einfache Analyse und Alerting
-
-## Vorteile der Implementierung
-
-1. **🎯 Zentrale Verwaltung**: Eine Middleware für alle geschützten APIs
-2. **🚀 Performance**: Native Next.js Optimierungen
-3. **🔧 Flexibilität**: Verschiedene Konfigurationen pro API-Bereich
-4. **🛡️ Sicherheit**: Separate Keys für verschiedene Zugriffslevel
-5. **📊 Konsistenz**: Identisches Logging und Monitoring überall
-6. **🔍 Granularität**: Unterschiedliche Rate-Limits je nach API-Typ
-
-## Troubleshooting
-
-### Problem: "Unauthorized" trotz korrektem Key
-
-```bash
-# Prüfen Sie die Umgebungsvariable
-echo $CRAWL_API_KEY
-echo $POLITICS_API_KEY
-
-# Stellen Sie sicher, dass der Key nicht "default-dev-key" ist
-```
-
-### Problem: Rate Limit zu niedrig
-
-```typescript
-// In middleware.ts anpassen:
-maxRequestsPerWindow = 50; // Höheres Limit für Politics API
-```
-
-### Problem: Middleware läuft nicht
-
-```typescript
-// Matcher prüfen in middleware.ts:
-export const config = {
-  matcher: [
-    "/api/crawl/:path*",
-    "/api/politics", // ← Stellen Sie sicher, dass Ihre Route hier steht
-  ],
-};
-```
-
-Für weitere Hilfe siehe die [Next.js Middleware Dokumentation](https://nextjs.org/docs/app/building-your-application/routing/middleware).

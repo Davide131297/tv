@@ -1,4 +1,3 @@
-````markdown
 # TV Politik Dashboard - Frontend
 
 Interaktives Web-Dashboard zur Analyse der Politik-Landschaft in deutschen Talkshows mit React, Next.js und modernen UI-Komponenten.
@@ -12,6 +11,8 @@ Das TV Politik Dashboard visualisiert und analysiert Politiker-Auftritte in den 
 - **📰 Caren Miosga** (ARD)
 - **💬 Maischberger** (ARD)
 - **⚖️ Hart aber fair** (ARD)
+- **📺 Pinar Atalay** (RTL/NTV)
+- **🗣️ Phoenix Runde** (Phoenix)
 
 ### Features
 
@@ -199,7 +200,6 @@ npm run test
 Das Projekt verwendet ein modernes Design-System:
 
 - **TailwindCSS** - Utility-First CSS Framework
-- **Radix UI** - Headless UI-Komponenten
 - **Lucide React** - Icon-Bibliothek
 - **shadcn/ui** - Komponenten-Sammlung
 
@@ -290,6 +290,8 @@ POST / api / crawl / illner;
 POST / api / crawl / miosga;
 POST / api / crawl / maischberger;
 POST / api / crawl / haf;
+POST / api / crawl / atalay;
+POST / api / crawl / phoenix - runde;
 
 // Alle Crawler
 POST / api / crawl / all;
@@ -407,118 +409,12 @@ npm run build && npm run analyze
 
 ```typescript
 // middleware.ts - Rate Limiting & Auth
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   // API Key Validation
   // Rate Limiting
   // CORS Headers
 }
 ```
-
-### Umgebungsvariablen
-
-- **Keine Secrets** im Frontend-Code
-- **NEXT*PUBLIC*\*** für Client-zugängliche Vars
-- **Sichere API-Keys** nur serverseitig
-
-## 🐛 Troubleshooting
-
-### Häufige Probleme
-
-**Supabase-Verbindung fehlgeschlagen:**
-
-```bash
-# Prüfe Umgebungsvariablen
-echo $NEXT_PUBLIC_SUPABASE_URL
-echo $NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-# Prüfe Supabase-Status
-curl https://your-project.supabase.co/rest/v1/
-```
-
-**Charts laden nicht:**
-
-```bash
-# Überprüfe Browser-Konsole
-# Stelle sicher, dass Chart.js geladen ist
-# Prüfe API-Responses
-```
-
-**Build-Fehler:**
-
-```bash
-# Type-Check
-npm run ts-check
-
-# Linting
-npm run lint
-
-# Clear Next.js Cache
-rm -rf .next
-npm run build
-```
-
-## 📊 Monitoring & Analytics
-
-### Built-in Analytics
-
-```typescript
-// @vercel/analytics Integration
-import { Analytics } from "@vercel/analytics/react";
-
-export default function RootLayout() {
-  return (
-    <html>
-      <body>
-        {children}
-        <Analytics />
-      </body>
-    </html>
-  );
-}
-```
-
-### Performance-Monitoring
-
-- **Core Web Vitals** - Automatisches Tracking
-- **API Response Times** - Custom Metrics
-- **User Engagement** - Page Views, Interactions
-
-## 🔄 Updates & Maintenance
-
-### Dependency Updates
-
-```bash
-# Prüfe veraltete Pakete
-npm outdated
-
-# Update alle Pakete
-npm update
-
-# Major Version Updates
-npx npm-check-updates -u
-npm install
-```
-
-### Database Migrations
-
-Siehe [SUPABASE_MIGRATION.md](../SUPABASE_MIGRATION.md) für:
-
-- Schema-Updates
-- Daten-Migrationen
-- Backup-Strategien
-
-## 🤝 Beitrag & Entwicklung
-
-### Code-Standards
-
-- **TypeScript** für alle neuen Components
-- **ESLint + Prettier** für Code-Formatting
-- **Husky** für Pre-commit Hooks
-- **Conventional Commits** für Git-Messages
-
-## 📄 Lizenz
-
-MIT License - Für Details siehe Haupt-Repository.
 
 ---
 
@@ -530,4 +426,7 @@ MIT License - Für Details siehe Haupt-Repository.
 - **Next.js Dokumentation**: [https://nextjs.org/docs](https://nextjs.org/docs)
 - **TailwindCSS**: [https://tailwindcss.com](https://tailwindcss.com)
 - **Radix UI**: [https://www.radix-ui.com](https://www.radix-ui.com)
-````
+
+```
+
+```

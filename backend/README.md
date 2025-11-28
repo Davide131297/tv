@@ -1,4 +1,5 @@
-````markdown
+> **Backend ist veraltet und wird nicht mehr geupdated und verwendet**
+
 # TV Politik Dashboard - Backend
 
 Automatisiertes Web-Crawling-System für deutsche Talkshows mit Zeitsteuerung und API-Endpunkten.
@@ -12,6 +13,8 @@ Dieses Backend crawlt automatisch die Mediatheken deutscher Politik-Talkshows un
 - **Caren Miosga** (ARD)
 - **Maischberger** (ARD)
 - **Hart aber fair** (ARD)
+- **Pinar Atalay** (RTL/NTV)
+- **Phoenix Runde** (Phoenix)
 
 ## 📁 Projektstruktur
 
@@ -80,6 +83,8 @@ Das System läuft automatische Cron-Jobs:
 - **Illner**: Freitag um 2:00 Uhr
 - **Maischberger**: Mittwoch, Donnerstag um 2:00 Uhr
 - **Miosga**: Montag um 1:00 Uhr
+- **Pinar Atalay**: Dienstag um 2:00 Uhr (alle 14 Tage)
+- **Phoenix Runde**: Mittwoch, Donnerstag, Freitag um 3:00 Uhr
 
 ## 🔗 API Endpunkte
 
@@ -92,6 +97,8 @@ POST /api/crawl-haf           # Hart aber Fair
 POST /api/crawl-illner        # Maybrit Illner
 POST /api/crawl-maischberger  # Maischberger
 POST /api/crawl-miosga        # Caren Miosga
+POST /api/crawl-pinar-atalay  # Pinar Atalay
+POST /api/crawl-phoenix-runde # Phoenix Runde
 
 # Health Check
 GET /                         # "Hello World!"
@@ -209,11 +216,6 @@ Das System verwendet strukturiertes Logging:
 - Input-Sanitization für alle Crawler-Daten
 - Sichere Supabase RLS-Policies
 
-## 📄 Lizenz
-
-MIT License - siehe Frontend für Details.
-
 ---
 
 Für Frontend-Integration siehe [../frontend/README.md](../frontend/README.md)
-````
