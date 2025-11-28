@@ -19,7 +19,11 @@ export async function GET(request: NextRequest) {
       .from("tv_show_politicians")
       .select("party_name, episode_date")
       .not("party_name", "is", null)
-      .neq("party_name", "");
+      .neq("party_name", "")
+      .neq("show_name", "Phoenix Runde")
+      .neq("show_name", "Phoenix Persönlich")
+      .neq("show_name", "Pinar Atalay")
+      .neq("show_name", "Blome & Pfeffer");
 
     if (year !== "all") {
       query = query

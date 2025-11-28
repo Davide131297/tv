@@ -7,49 +7,19 @@ import {
   insertMultipleTvShowPoliticians,
 } from "../lib/utils.js";
 import { createBrowser, setupSimplePage } from "../lib/browser-configs.js";
+import {
+  parseISODateFromUrl,
+  toISOFromDDMMYYYY,
+  extractDateISO,
+  seemsLikePersonName,
+  acceptCookieBanner,
+  gentleScroll,
+  GuestWithRole,
+  EpisodeResult,
+} from "../lib/crawler-utils.js";
 import { Page } from "puppeteer";
 
-// ---------------- Types ----------------
-
-interface GuestDetails {
-  name: string;
-  isPolitician: boolean;
-  politicianId: number | null;
-  politicianName?: string;
-  party?: number;
-  partyName?: string;
-}
-
-interface GuestWithRole {
-  name: string;
-  role?: string; // z.B. "CDU-Politiker", "Journalistin", etc.
-}
-
-interface EpisodeResult {
-  episodeUrl: string;
-  date: string | null;
-  guests: string[];
-  guestsDetailed: GuestDetails[];
-  politicalAreaIds?: number[];
-}
-
 const LIST_URL = "https://www.zdf.de/talk/markus-lanz-114";
-
-const DE_MONTHS: Record<string, string> = {
-  januar: "01",
-  februar: "02",
-  märz: "03",
-  maerz: "03",
-  april: "04",
-  mai: "05",
-  juni: "06",
-  juli: "07",
-  august: "08",
-  september: "09",
-  oktober: "10",
-  november: "11",
-  dezember: "12",
-};
 
 // ---------------- Lade mehr / Episoden-Links ----------------
 
@@ -241,104 +211,6 @@ async function collectEpisodeLinks(page: Page) {
   return urls;
 }
 
-// ---------------- Name-Filter / Heuristik ----------------
-
-function seemsLikePersonName(name: string) {
-  if (!/\S+\s+\S+/.test(name)) return false; // mind. zwei Wörter
-  const re =
-    /^[\p{Lu}][\p{L}\-]+(?:\s+(?:von|van|de|da|del|der|den|du|le|la|zu|zur|zum))?(?:\s+[\p{Lu}][\p{L}\-]+)+$/u;
-  return re.test(name);
-}
-
-// ---------------- Datum-Helfer ----------------
-
-function toISOFromDDMMYYYY(d: string) {
-  const m = d.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
-  if (!m) return null;
-  //eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_, dd, mm, yyyy] = m;
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-function parseISODateFromUrl(url: string): string | null {
-  const m = url.match(/vom-(\d{1,2})-([a-zäöü]+)-(\d{4})/i);
-  if (!m) return null;
-  //eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_, d, mon, y] = m;
-  const key = mon
-    .normalize("NFD")
-    .replace(/\u0308/g, "")
-    .toLowerCase();
-  const mm = DE_MONTHS[key];
-  if (!mm) return null;
-  const dd = d.padStart(2, "0");
-  return `${y}-${mm}-${dd}`;
-}
-
-async function extractDateISO(
-  page: Page,
-  episodeUrl: string
-): Promise<string | null> {
-  // 1) JSON-LD
-  const ldDates: string[] = await page
-    .$$eval('script[type="application/ld+json"]', (nodes) => {
-      const fields = [
-        "uploadDate",
-        "datePublished",
-        "dateCreated",
-        "startDate",
-        "endDate",
-      ];
-      const out: string[] = [];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      function collect(obj: any) {
-        if (!obj || typeof obj !== "object") return;
-        for (const k of fields) {
-          const v = obj[k];
-          if (typeof v === "string") out.push(v);
-        }
-        if (Array.isArray(obj)) obj.forEach(collect);
-        else Object.values(obj).forEach((v) => collect(v));
-      }
-      nodes.forEach((n) => {
-        try {
-          const txt = n.textContent || "";
-          if (!txt.trim()) return;
-          collect(JSON.parse(txt));
-        } catch {}
-      });
-      return out;
-    })
-    .catch(() => []);
-
-  for (const cand of ldDates) {
-    const iso = cand.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
-    if (iso) return iso;
-    const de = cand.match(/\b\d{2}\.\d{2}\.\d{4}\b/)?.[0];
-    if (de) {
-      const conv = toISOFromDDMMYYYY(de);
-      if (conv) return conv;
-    }
-  }
-
-  // 2) DD.MM.YYYY im Text
-  const textDate = await page
-    .$eval("main", (el) => {
-      const t = el.textContent || "";
-      const m = t.match(/\b\d{2}\.\d{2}\.\d{4}\b/);
-      return m ? m[0] : null;
-    })
-    .catch(() => null);
-
-  if (textDate) {
-    const iso = toISOFromDDMMYYYY(textDate);
-    if (iso) return iso;
-  }
-
-  // 3) URL-Fallback
-  return parseISODateFromUrl(episodeUrl);
-}
-
 // ---------------- Gäste aus Episode ----------------
 
 async function extractGuestsFromEpisode(
@@ -351,21 +223,8 @@ async function extractGuestsFromEpisode(
   });
   await page.waitForSelector("main").catch(() => {});
 
-  // sanft scrollen, um Lazy-Content zu triggern
-  await page
-    .evaluate(async () => {
-      await new Promise<void>((res) => {
-        let y = 0;
-        const i = setInterval(() => {
-          window.scrollBy(0, 500);
-          if ((y += 500) > document.body.scrollHeight) {
-            clearInterval(i);
-            res();
-          }
-        }, 50);
-      });
-    })
-    .catch(() => {});
+  // Sanft scrollen, um Lazy-Content zu triggern
+  await gentleScroll(page);
 
   // Primär: typische Gäste-Sektion - jetzt mit Rollen
   let guestsWithRoles: GuestWithRole[] = await page
@@ -512,14 +371,7 @@ export default async function CrawlLanz() {
     await page.goto(LIST_URL, { waitUntil: "networkidle2" });
 
     // Cookie-Banner akzeptieren falls vorhanden
-    try {
-      await page.waitForSelector('[data-testid="cmp-accept-all"]');
-      await page.click('[data-testid="cmp-accept-all"]');
-      console.log("Cookie-Banner akzeptiert");
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-    } catch {
-      console.log("Kein Cookie-Banner gefunden oder bereits akzeptiert");
-    }
+    await acceptCookieBanner(page);
 
     await clickLoadMoreUntilDone(page, latestEpisodeDate);
 

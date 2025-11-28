@@ -16,6 +16,8 @@ import {
   NativeSelectOption,
 } from "@/components/ui/native-select";
 import PoliticianModal from "./PoliticianModal";
+import { useYearList } from "@/hooks/useYearList";
+import { format } from "date-fns";
 
 interface PoliticianRanking {
   politician_name: string;
@@ -88,15 +90,7 @@ export default function PoliticianRankings() {
   >(null);
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState<string>(String(currentYear));
-
-  // generate years from 2024 up to current year (descending order)
-  const years = useMemo(() => {
-    const start = 2024;
-    const end = new Date().getFullYear();
-    const list: string[] = [];
-    for (let y = end; y >= start; y--) list.push(String(y));
-    return list;
-  }, []);
+  const years = useYearList(2024);
 
   const fetchRankings = useCallback(
     async (showFilter: string = "", yearFilter: string = "") => {
@@ -152,14 +146,6 @@ export default function PoliticianRankings() {
   useEffect(() => {
     fetchRankings(selectedShow, selectedYear);
   }, [selectedShow, selectedYear, fetchRankings]);
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("de-DE", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
 
   const getPartyColorClass = (partyName: string) => {
     return BADGE_PARTY_COLORS[partyName] || BADGE_PARTY_COLORS["Unbekannt"];
@@ -219,7 +205,7 @@ export default function PoliticianRankings() {
         </div>
         <div className="flex items-center gap-4">
           <div className="flex gap-2 items-center">
-            <p>Jahr</p>
+            <label>Jahr</label>
             <NativeSelect
               value={selectedYear}
               onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
@@ -235,18 +221,21 @@ export default function PoliticianRankings() {
                 ))}
             </NativeSelect>
           </div>
-          <NativeSelect
-            value={selectedShow}
-            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-              setSelectedShow(e.target.value)
-            }
-          >
-            {SHOW_OPTIONS.map((option) => (
-              <NativeSelectOption key={option.value} value={option.value}>
-                {option.label}
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
+          <div className="flex gap-2 items-center">
+            <label>Show</label>
+            <NativeSelect
+              value={selectedShow}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                setSelectedShow(e.target.value)
+              }
+            >
+              {SHOW_OPTIONS.map((option) => (
+                <NativeSelectOption key={option.value} value={option.value}>
+                  {option.label}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+          </div>
         </div>
       </div>
 
@@ -334,7 +323,9 @@ export default function PoliticianRankings() {
                               </Badge>
                             )}
                           </div>
-                          <div>{formatDate(politician.latest_appearance)}</div>
+                          <div>
+                            {format(politician.latest_appearance, "dd.MM.yyyy")}
+                          </div>
                         </div>
 
                         {/* Mobile Show Namen */}
@@ -410,7 +401,10 @@ export default function PoliticianRankings() {
                           <div className="text-right text-sm text-gray-500">
                             <div>Letzter Auftritt:</div>
                             <div className="font-medium">
-                              {formatDate(politician.latest_appearance)}
+                              {format(
+                                politician.latest_appearance,
+                                "dd.MM.yyyy"
+                              )}
                             </div>
                           </div>
                         </div>

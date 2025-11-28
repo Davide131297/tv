@@ -30,6 +30,10 @@ export async function GET(request: NextRequest) {
           .select("episode_url")
           .eq("show_name", row.show_name)
           .eq("episode_date", row.episode_date)
+          .neq("show_name", "Phoenix Runde")
+          .neq("show_name", "Phoenix Persönlich")
+          .neq("show_name", "Pinar Atalay")
+          .neq("show_name", "Blome & Pfeffer")
           .single();
 
         if (linkError && linkError.code !== "PGRST116")

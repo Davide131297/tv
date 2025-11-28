@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, use } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import PoliticalAreasChart from "@/components/PoliticalAreasChart";
 import type { PoliticalAreaStats } from "@/types";
 import { SHOW_OPTIONS } from "@/types";
@@ -9,10 +9,17 @@ import { FETCH_HEADERS } from "@/lib/utils";
 import ShowOptionsButtons from "@/components/ShowOptionsButtons";
 import PoliticalAreasTable from "./PoliticalAreasTable";
 import { TV_CHANNEL } from "@/lib/utils";
+import { useUrlUpdater } from "@/hooks/useUrlUpdater";
+import { useYearList } from "@/hooks/useYearList";
+import { useSelectedShow } from "@/hooks/useSelectedShow";
+import { useSelectedChannel } from "@/hooks/useSelectedChannel";
 
 export default function PoliticalAreasPageContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
+  const updateUrl = useUrlUpdater();
+  const years = useYearList(2024);
+  const selectedShow = useSelectedShow(searchParams, SHOW_OPTIONS);
+  const selectedChannel = useSelectedChannel(searchParams, TV_CHANNEL);
   const [politicalAreaStats, setPoliticalAreaStats] = useState<
     PoliticalAreaStats[]
   >([]);
@@ -20,75 +27,17 @@ export default function PoliticalAreasPageContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const currentYear = new Date().getFullYear();
-  // Initialize selectedYear from URL params so first fetch uses correct year
   const [selectedYear, setSelectedYear] = useState<string>(
     () => searchParams.get("year") || String(currentYear)
   );
 
-  // generate years from 2024 up to current year (descending order)
-  const years = useMemo(() => {
-    const start = 2024;
-    const end = new Date().getFullYear();
-    const list: string[] = [];
-    for (let y = end; y >= start; y--) list.push(String(y));
-    return list;
-  }, []);
-
-  // Derive state from URL parameters
-  const selectedShow = useMemo(() => {
-    const showParam = searchParams.get("show");
-    if (
-      showParam &&
-      SHOW_OPTIONS.some((option) => option.value === showParam)
-    ) {
-      return showParam;
-    }
-    return "all";
-  }, [searchParams]);
-
-  const selectedChannel = useMemo(() => {
-    const channelParam = searchParams.get("tv_channel");
-    if (channelParam && TV_CHANNEL.includes(channelParam)) {
-      return channelParam;
-    }
-    return "";
-  }, [searchParams]);
-
-  const updateUrlParams = useCallback(
-    (updates: { show?: string; year?: string }) => {
-      const params = new URLSearchParams(searchParams.toString());
-
-      if (updates.show !== undefined) {
-        if (updates.show === "all") {
-          params.delete("show");
-        } else {
-          params.delete("tv_channel");
-          params.set("show", updates.show);
-        }
-      }
-      if (updates.year !== undefined) {
-        if (updates.year) {
-          params.set("year", updates.year);
-        } else {
-          params.delete("year");
-        }
-      }
-
-      const newUrl = params.toString()
-        ? `?${params.toString()}`
-        : "/politische-themen";
-      router.push(newUrl, { scroll: false });
-    },
-    [searchParams, router]
-  );
-
   const handleShowChange = (showValue: string) => {
-    updateUrlParams({ show: showValue });
+    updateUrl({ show: showValue });
   };
 
   const handleYearChange = (yearValue: string) => {
     setSelectedYear(yearValue);
-    updateUrlParams({ year: yearValue });
+    updateUrl({ year: yearValue });
   };
 
   const fetchData = useCallback(async () => {

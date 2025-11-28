@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import type { SummaryData } from "@/types";
 import { SHOW_OPTIONS } from "@/types";
 import { FETCH_HEADERS } from "@/lib/utils";
@@ -12,36 +11,19 @@ import {
   NativeSelectOption,
 } from "@/components/ui/native-select";
 import ColorBox from "./ui/color-box";
+import { useYearList } from "@/hooks/useYearList";
+import { useSelectedShow } from "@/hooks/useSelectedShow";
 
 function OverviewPageContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const years = useYearList(2024);
+  const selectedShow = useSelectedShow(searchParams, SHOW_OPTIONS);
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState<string>(String(currentYear));
-
-  // generate years from 2024 up to current year (descending order)
-  const years = useMemo(() => {
-    const start = 2024;
-    const end = new Date().getFullYear();
-    const list: string[] = [];
-    for (let y = end; y >= start; y--) list.push(String(y));
-    return list;
-  }, []);
-
-  // Derive selectedShow directly from URL parameters
-  const selectedShow = useMemo(() => {
-    const showParam = searchParams.get("show");
-    if (
-      showParam &&
-      SHOW_OPTIONS.some((option) => option.value === showParam)
-    ) {
-      return showParam;
-    }
-    return "all";
-  }, [searchParams]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -84,7 +66,6 @@ function OverviewPageContent() {
   }, [selectedShow, selectedYear, fetchData, searchParams]);
 
   const handleShowChange = (showValue: string) => {
-    // Update URL parameters
     const params = new URLSearchParams(searchParams.toString());
     if (showValue === "all") {
       params.delete("show");

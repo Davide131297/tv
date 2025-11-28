@@ -29,7 +29,12 @@ export async function GET(request: NextRequest) {
     if (showName && showName !== "all") {
       query = query.eq("show_name", showName);
     } else {
-      query = query.neq("show_name", "Pinar Atalay");
+      query = query
+        .neq("show_name", "Pinar Atalay")
+        .neq("show_name", "Phoenix Runde")
+        .neq("show_name", "Phoenix Persönlich")
+        .neq("show_name", "Pinar Atalay")
+        .neq("show_name", "Blome & Pfeffer");
     }
 
     // Only apply year filtering when a year param is provided and not equal to "all"

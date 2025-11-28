@@ -10,6 +10,7 @@ import {
   checkPoliticianOverride,
   insertMultipleShowLinks,
   insertEpisodePoliticalAreas,
+  splitFirstLast,
 } from "@/lib/supabase-server-utils";
 import axios from "axios";
 import { Page } from "puppeteer";
@@ -274,12 +275,6 @@ function extractGuestsFallback(teaserText: string): string[] {
     uniqueGuests
   );
   return uniqueGuests;
-}
-
-// Hilfsfunktion: Name in Vor- und Nachname aufteilen
-function splitFirstLast(name: string) {
-  const parts = name.split(/\s+/).filter(Boolean);
-  return { first: parts[0] ?? "", last: parts.slice(1).join(" ").trim() };
 }
 
 // Hilfsfunktion zur Disambiguierung basierend auf Beschreibung/Rolle

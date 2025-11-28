@@ -33,6 +33,12 @@ function applyShowFilter(
   if (tv_channel) {
     query = query.eq("tv_channel", tv_channel);
   }
+
+  query = query
+    .neq("show_name", "Phoenix Runde")
+    .neq("show_name", "Phoenix Persönlich")
+    .neq("show_name", "Pinar Atalay")
+    .neq("show_name", "Blome & Pfeffer");
   return query;
 }
 
@@ -48,7 +54,6 @@ export async function GET(request: NextRequest) {
 
     switch (type) {
       case "party-stats": {
-        // Statistiken pro Partei
         let query = supabase
           .from("tv_show_politicians")
           .select("party_name")
@@ -57,22 +62,20 @@ export async function GET(request: NextRequest) {
 
         query = applyShowFilter(query, showName, year, tv_channel);
 
-        console.log("Final Query for party-stats:", query.toString());
-
         const { data, error } = await query;
 
         if (error) {
           throw error;
         }
 
-        // Gruppiere und zähle die Parteien
-        const partyCount = data.reduce((acc: Record<string, number>, row) => {
-          const party = row.party_name as string;
-          acc[party] = (acc[party] || 0) + 1;
-          return acc;
-        }, {});
+        // Gruppiere und zähle (optimiert mit Map statt Object)
+        const partyCount = new Map<string, number>();
+        data.forEach((row) => {
+          const party = row.party_name;
+          partyCount.set(party, (partyCount.get(party) || 0) + 1);
+        });
 
-        const results: PartyStats[] = Object.entries(partyCount)
+        const results: PartyStats[] = Array.from(partyCount.entries())
           .map(([party_name, count]) => ({ party_name, count }))
           .sort((a, b) => b.count - a.count);
 
@@ -84,27 +87,27 @@ export async function GET(request: NextRequest) {
       }
 
       case "episodes": {
-        // Episoden mit Politiker-Anzahl
-
-        const { data, error } = await supabase
+        let query = supabase
           .from("tv_show_politicians")
           .select("episode_date")
           .eq("show_name", showName)
           .order("episode_date", { ascending: false })
           .limit(50);
 
+        const { data, error } = await query;
+
         if (error) {
           throw error;
         }
 
-        // Gruppiere nach episode_date und zähle
-        const episodeCount = data.reduce((acc: Record<string, number>, row) => {
+        // Gruppiere und zähle mit Map
+        const episodeCount = new Map<string, number>();
+        data.forEach((row) => {
           const date = row.episode_date;
-          acc[date] = (acc[date] || 0) + 1;
-          return acc;
-        }, {});
+          episodeCount.set(date, (episodeCount.get(date) || 0) + 1);
+        });
 
-        const results: EpisodeData[] = Object.entries(episodeCount)
+        const results: EpisodeData[] = Array.from(episodeCount.entries())
           .map(([episode_date, politician_count]) => ({
             episode_date,
             politician_count,
@@ -321,34 +324,29 @@ export async function GET(request: NextRequest) {
           throw error;
         }
 
-        // Gruppiere nach Episode
-        const episodeCount = data.reduce((acc: Record<string, number>, row) => {
+        // Gruppiere mit Map
+        const episodeCount = new Map<string, number>();
+        data.forEach((row) => {
           const date = row.episode_date;
-          acc[date] = (acc[date] || 0) + 1;
-          return acc;
-        }, {});
+          episodeCount.set(date, (episodeCount.get(date) || 0) + 1);
+        });
 
-        const episodeStats = Object.entries(episodeCount).map(
+        const episodeStats = Array.from(episodeCount.entries()).map(
           ([episode_date, politician_count]) => ({
             episode_date,
             politician_count,
           })
         );
 
+        const totalAppearances = data.length;
+
         const statistics = {
           total_episodes: episodeStats.length,
-          total_appearances: data.length,
+          total_appearances: totalAppearances,
           episodes_with_politicians: episodeStats.length,
           average_politicians_per_episode:
             episodeStats.length > 0
-              ? parseFloat(
-                  (
-                    episodeStats.reduce(
-                      (sum, ep) => sum + ep.politician_count,
-                      0
-                    ) / episodeStats.length
-                  ).toFixed(2)
-                )
+              ? parseFloat((totalAppearances / episodeStats.length).toFixed(2))
               : 0,
           max_politicians_in_episode:
             episodeStats.length > 0
@@ -363,7 +361,6 @@ export async function GET(request: NextRequest) {
       }
 
       case "shows": {
-        // Liste der verfügbaren Shows
         const { data, error } = await supabase
           .from("tv_show_politicians")
           .select("show_name, episode_date");
@@ -372,54 +369,48 @@ export async function GET(request: NextRequest) {
           throw error;
         }
 
-        // Gruppiere nach Show
-        const showStats = data.reduce(
-          (
-            acc: Record<
-              string,
-              {
-                show_name: string;
-                appearances: number;
-                episodes: Set<string>;
-                first_episode: string;
-                latest_episode: string;
-              }
-            >,
-            row
-          ) => {
-            const show = row.show_name;
-            if (!acc[show]) {
-              acc[show] = {
-                show_name: show,
-                appearances: 0,
-                episodes: new Set(),
-                first_episode: row.episode_date,
-                latest_episode: row.episode_date,
-              };
-            }
+        const showMap = new Map<
+          string,
+          {
+            appearances: number;
+            episodes: Set<string>;
+            first_episode: string;
+            latest_episode: string;
+          }
+        >();
 
-            acc[show].appearances++;
-            acc[show].episodes.add(row.episode_date);
+        data.forEach((row) => {
+          const show = row.show_name;
+          if (!showMap.has(show)) {
+            showMap.set(show, {
+              appearances: 0,
+              episodes: new Set(),
+              first_episode: row.episode_date,
+              latest_episode: row.episode_date,
+            });
+          }
 
-            if (row.episode_date < acc[show].first_episode) {
-              acc[show].first_episode = row.episode_date;
-            }
-            if (row.episode_date > acc[show].latest_episode) {
-              acc[show].latest_episode = row.episode_date;
-            }
+          const stats = showMap.get(show)!;
+          stats.appearances++;
+          stats.episodes.add(row.episode_date);
 
-            return acc;
-          },
-          {}
+          if (row.episode_date < stats.first_episode) {
+            stats.first_episode = row.episode_date;
+          }
+          if (row.episode_date > stats.latest_episode) {
+            stats.latest_episode = row.episode_date;
+          }
+        });
+
+        const results = Array.from(showMap.entries()).map(
+          ([show_name, stats]) => ({
+            show_name,
+            appearances: stats.appearances,
+            episodes: stats.episodes.size,
+            first_episode: stats.first_episode,
+            latest_episode: stats.latest_episode,
+          })
         );
-
-        const results = Object.values(showStats).map((show) => ({
-          show_name: show.show_name,
-          appearances: show.appearances,
-          episodes: show.episodes.size,
-          first_episode: show.first_episode,
-          latest_episode: show.latest_episode,
-        }));
 
         return NextResponse.json({
           success: true,
@@ -440,58 +431,50 @@ export async function GET(request: NextRequest) {
           throw error;
         }
 
-        // Gruppiere nach Politiker und zähle Auftritte
-        const politicianStats = data.reduce(
-          (
-            acc: Record<
-              string,
-              {
-                politician_name: string;
-                party_name: string | null;
-                total_appearances: number;
-                shows: Set<string>;
-                latest_appearance: string;
-                first_appearance: string;
-              }
-            >,
-            row
-          ) => {
-            const politician = row.politician_name;
-            if (!acc[politician]) {
-              acc[politician] = {
-                politician_name: politician,
-                party_name: row.party_name,
-                total_appearances: 0,
-                shows: new Set(),
-                latest_appearance: row.episode_date,
-                first_appearance: row.episode_date,
-              };
-            }
+        const politicianMap = new Map<
+          string,
+          {
+            party_name: string | null;
+            total_appearances: number;
+            shows: Set<string>;
+            latest_appearance: string;
+            first_appearance: string;
+          }
+        >();
 
-            acc[politician].total_appearances++;
-            acc[politician].shows.add(row.show_name);
+        data.forEach((row: any) => {
+          const politician = row.politician_name;
+          if (!politicianMap.has(politician)) {
+            politicianMap.set(politician, {
+              party_name: row.party_name,
+              total_appearances: 0,
+              shows: new Set(),
+              latest_appearance: row.episode_date,
+              first_appearance: row.episode_date,
+            });
+          }
 
-            if (row.episode_date > acc[politician].latest_appearance) {
-              acc[politician].latest_appearance = row.episode_date;
-            }
-            if (row.episode_date < acc[politician].first_appearance) {
-              acc[politician].first_appearance = row.episode_date;
-            }
+          const stats = politicianMap.get(politician)!;
+          stats.total_appearances++;
+          stats.shows.add(row.show_name);
 
-            return acc;
-          },
-          {}
-        );
+          if (row.episode_date > stats.latest_appearance) {
+            stats.latest_appearance = row.episode_date;
+          }
+          if (row.episode_date < stats.first_appearance) {
+            stats.first_appearance = row.episode_date;
+          }
+        });
 
-        const results = Object.values(politicianStats)
-          .map((politician) => ({
-            politician_name: politician.politician_name,
-            party_name: politician.party_name || "Unbekannt",
-            total_appearances: politician.total_appearances,
-            shows_appeared_on: politician.shows.size,
-            show_names: Array.from(politician.shows),
-            latest_appearance: politician.latest_appearance,
-            first_appearance: politician.first_appearance,
+        const results = Array.from(politicianMap.entries())
+          .map(([politician_name, stats]) => ({
+            politician_name,
+            party_name: stats.party_name || "Unbekannt",
+            total_appearances: stats.total_appearances,
+            shows_appeared_on: stats.shows.size,
+            show_names: Array.from(stats.shows),
+            latest_appearance: stats.latest_appearance,
+            first_appearance: stats.first_appearance,
           }))
           .sort((a, b) => b.total_appearances - a.total_appearances)
           .slice(0, limit);
@@ -500,7 +483,7 @@ export async function GET(request: NextRequest) {
           success: true,
           data: results,
           metadata: {
-            total_politicians: Object.keys(politicianStats).length,
+            total_politicians: politicianMap.size,
             show_filter: showName || "Alle Shows",
             limit: limit,
           },

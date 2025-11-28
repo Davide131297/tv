@@ -4,6 +4,7 @@ import {
   checkPoliticianOverride,
   insertMultipleShowLinks,
   insertEpisodePoliticalAreas,
+  splitFirstLast,
 } from "@/lib/supabase-server-utils";
 import { Page } from "puppeteer";
 import { createBrowser, setupSimplePage } from "@/lib/browser-config";
@@ -272,12 +273,6 @@ async function extractEpisodeDetails(
     console.error(`Fehler beim Extrahieren der Episode-Details:`, error);
     return null;
   }
-}
-
-// Hilfsfunktion: Name in Vor- und Nachname aufteilen
-function splitFirstLast(name: string) {
-  const parts = name.split(/\s+/).filter(Boolean);
-  return { first: parts[0] ?? "", last: parts.slice(1).join(" ").trim() };
 }
 
 // Hilfsfunktion zur Disambiguierung basierend auf ZDF-Rolle
