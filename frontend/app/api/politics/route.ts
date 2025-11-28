@@ -33,6 +33,12 @@ function applyShowFilter(
   if (tv_channel) {
     query = query.eq("tv_channel", tv_channel);
   }
+
+  query = query
+    .neq("show_name", "Phoenix Runde")
+    .neq("show_name", "Phoenix Persönlich")
+    .neq("show_name", "Pinar Atalay")
+    .neq("show_name", "Blome & Pfeffer");
   return query;
 }
 

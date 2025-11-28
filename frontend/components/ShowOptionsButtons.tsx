@@ -7,13 +7,13 @@ export function getChannelButtonColor(channelValue: string) {
       return "bg-blue-100 text-blue-800 hover:bg-blue-200";
     case "ZDF":
       return "bg-yellow-100 text-yellow-800 hover:bg-yellow-200";
-    case "Phoenix":
-      return "bg-cyan-100 text-cyan-800 hover:bg-cyan-200";
-    case "RTL":
-    case "NTV":
-      return "bg-red-100 text-red-800 hover:bg-red-200";
-    case "Pro 7":
-      return "bg-purple-100 text-purple-800 hover:bg-purple-200";
+    // case "Phoenix":
+    //   return "bg-cyan-100 text-cyan-800 hover:bg-cyan-200";
+    // case "RTL":
+    // case "NTV":
+    //   return "bg-red-100 text-red-800 hover:bg-red-200";
+    // case "Pro 7":
+    //   return "bg-purple-100 text-purple-800 hover:bg-purple-200";
     default:
       return "bg-gray-100 text-gray-700 hover:bg-gray-200";
   }
@@ -33,12 +33,12 @@ export function getShowButtonColor(showValue: string) {
       return "bg-teal-100 text-teal-800 hover:bg-teal-200";
     case "Hart aber fair":
       return "bg-blue-100 text-blue-800 hover:bg-blue-200";
-    case "Phoenix Runde":
-    case "Phoenix Persönlich":
-      return "bg-cyan-100 text-cyan-800 hover:bg-cyan-200";
-    case "Pinar Atalay":
-    case "Blome & Pfeffer":
-      return "bg-rose-100 text-pink-800 hover:bg-rose-200";
+    // case "Phoenix Runde":
+    // case "Phoenix Persönlich":
+    //   return "bg-cyan-100 text-cyan-800 hover:bg-cyan-200";
+    // case "Pinar Atalay":
+    // case "Blome & Pfeffer":
+    //   return "bg-rose-100 text-pink-800 hover:bg-rose-200";
     default:
       return "bg-gray-100 text-gray-700 hover:bg-gray-200";
   }
@@ -54,12 +54,12 @@ function getShowChannel(showName: string) {
     case "Hart aber fair":
     case "Caren Miosga":
       return "Das Erste";
-    case "Phoenix Runde":
-    case "Phoenix Persönlich":
-      return "Phoenix";
-    case "Pinar Atalay":
-    case "Blome & Pfeffer":
-      return "NTV";
+    // case "Phoenix Runde":
+    // case "Phoenix Persönlich":
+    //   return "Phoenix";
+    // case "Pinar Atalay":
+    // case "Blome & Pfeffer":
+    //   return "NTV";
     default:
       return "";
   }

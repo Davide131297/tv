@@ -17,7 +17,11 @@ export async function GET(request: NextRequest) {
       .from("tv_show_politicians")
       .select("*", { count: "exact" })
       .range(offset, offset + limit - 1)
-      .order("episode_date", { ascending: false });
+      .order("episode_date", { ascending: false })
+      .neq("show_name", "Phoenix Runde")
+      .neq("show_name", "Phoenix Persönlich")
+      .neq("show_name", "Pinar Atalay")
+      .neq("show_name", "Blome & Pfeffer");
 
     if (error) {
       console.error("Database error:", error);
