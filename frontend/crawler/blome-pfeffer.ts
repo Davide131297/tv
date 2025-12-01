@@ -6,7 +6,7 @@ import {
   checkPolitician,
   insertEpisodePoliticalAreas,
 } from "@/lib/supabase-server-utils";
-import { getPoliticalArea, extractGuestsWithAI } from "@/lib/utils";
+import { getPoliticalArea, extractGuestsWithAI } from "@/lib/ai-utils";
 
 const LIST_URL = "https://plus.rtl.de/podcast/blome-pfeffer-sbtnrvt7l97b3";
 

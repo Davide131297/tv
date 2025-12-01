@@ -6,7 +6,7 @@ import {
   checkPolitician,
   insertEpisodePoliticalAreas,
 } from "@/lib/supabase-server-utils";
-import { getPoliticalArea, extractGuestsWithAI } from "@/lib/utils";
+import { getPoliticalArea, extractGuestsWithAI } from "@/lib/ai-utils";
 
 const LIST_URL =
   "https://www.phoenix.de/sendungen/gespraeche/phoenix-persoenlich-s-121511.html";

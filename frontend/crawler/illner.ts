@@ -10,7 +10,7 @@ import {
   insertEpisodePoliticalAreas,
   splitFirstLast,
 } from "@/lib/supabase-server-utils";
-import { getPoliticalArea } from "@/lib/utils";
+import { getPoliticalArea } from "@/lib/ai-utils";
 import {
   parseISODateFromUrl,
   acceptCookieBanner,

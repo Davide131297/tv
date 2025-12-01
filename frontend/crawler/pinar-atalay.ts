@@ -6,7 +6,7 @@ import {
   checkPolitician,
   insertEpisodePoliticalAreas,
 } from "@/lib/supabase-server-utils";
-import { getPoliticalArea, extractGuestsWithAI } from "@/lib/utils";
+import { getPoliticalArea, extractGuestsWithAI } from "@/lib/ai-utils";
 
 const LIST_URL = "https://plus.rtl.de/video-tv/shows/pinar-atalay-1041381";
 

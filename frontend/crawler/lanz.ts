@@ -22,7 +22,7 @@ import {
 import { Page } from "puppeteer";
 import axios from "axios";
 import type { AbgeordnetenwatchPolitician } from "@/types";
-import { getPoliticalArea } from "@/lib/utils";
+import { getPoliticalArea } from "@/lib/ai-utils";
 
 const currentYear = new Date().getFullYear();
 const LIST_URL = `https://www.zdf.de/talk/markus-lanz-114?staffel=${currentYear}`;

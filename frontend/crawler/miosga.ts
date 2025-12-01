@@ -14,8 +14,7 @@ import {
 } from "@/lib/supabase-server-utils";
 import axios from "axios";
 import { Page } from "puppeteer";
-import { InferenceClient } from "@huggingface/inference";
-import { getPoliticalArea } from "@/lib/utils";
+import { extractGuestsWithAI, getPoliticalArea } from "@/lib/ai-utils";
 
 const LIST_URL =
   "https://www.ardaudiothek.de/sendung/caren-miosga/urn:ard:show:d6e5ba24e1508004/";
@@ -40,98 +39,6 @@ async function waitForRateLimit(): Promise<void> {
 
   lastRequestTime = Date.now();
   aiRequestCount++;
-}
-
-// Hilfsfunktion: AI-Extraktion der Gäste aus dem Teasertext mit Retry-Logic
-async function extractGuestsWithAI(
-  teaserText: string,
-  retryCount = 0
-): Promise<string[]> {
-  const token = process.env.NEXT_PUBLIC_HF_ACCESS_TOKEN;
-  if (!token) {
-    console.error("❌ HF_ACCESS_TOKEN fehlt in .env");
-    return extractGuestsFallback(teaserText);
-  }
-
-  // Nach 150 Requests direkt zum Fallback wechseln
-  if (aiRequestCount >= 150) {
-    console.log("⚠️  AI Rate Limit erreicht, verwende nur noch Fallback");
-    return extractGuestsFallback(teaserText);
-  }
-
-  await waitForRateLimit();
-
-  const hf = new InferenceClient(token);
-
-  // Prompt ähnlich wie in test-ai-connection.ts
-  const prompt = `Text: ${teaserText}
-Gib mir die Namen der Gäste im Text ausschließlich als JSON Array mit Strings zurück. Keine Erklärungen, kein Codeblock, nichts davor oder danach.`;
-
-  try {
-    console.log(`🤖 Extrahiere Gäste mit AI (Request ${aiRequestCount}/20)...`);
-
-    const chat = await hf.chatCompletion({
-      model: MODEL,
-      messages: [
-        {
-          role: "system",
-          content:
-            'Du extrahierst ausschließlich Personennamen und antwortest nur mit einem gültigen JSON Array von Strings (z.B. ["Name1","Name2",...]). Keine zusätzlichen Zeichen.',
-        },
-        { role: "user", content: prompt },
-      ],
-      max_tokens: 150,
-      temperature: 0.0,
-      provider: "publicai",
-    });
-
-    const content = chat.choices?.[0]?.message?.content?.trim() ?? "";
-
-    // Versuch das erste JSON-Array zu parsen
-    const arrayMatch = content.match(/\[[\s\S]*\]/);
-    if (arrayMatch) {
-      try {
-        const parsed = JSON.parse(arrayMatch[0]);
-        if (
-          Array.isArray(parsed) &&
-          parsed.every((x) => typeof x === "string")
-        ) {
-          console.log(`   ✅ AI extrahierte ${parsed.length} Gäste:`, parsed);
-          return parsed;
-        }
-      } catch {
-        // ignorieren, fallback unten
-      }
-    }
-
-    console.log("⚠️  AI-Extraktion unerwartetes Format, verwende Fallback");
-    return extractGuestsFallback(teaserText);
-  } catch (error: unknown) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unbekannter Fehler";
-    console.error(
-      `❌ AI-Extraktion fehlgeschlagen (Versuch ${
-        retryCount + 1
-      }/${MAX_RETRIES}): ${errorMessage}`
-    );
-
-    // Retry bei bestimmten Fehlern
-    if (
-      retryCount < MAX_RETRIES - 1 &&
-      (errorMessage.includes("rate") ||
-        errorMessage.includes("timeout") ||
-        errorMessage.includes("503") ||
-        errorMessage.includes("502"))
-    ) {
-      const backoffDelay = Math.pow(2, retryCount) * 2000; // Exponential backoff: 2s, 4s, 8s
-      console.log(`   🔄 Retry in ${backoffDelay}ms...`);
-      await new Promise((resolve) => setTimeout(resolve, backoffDelay));
-      return extractGuestsWithAI(teaserText, retryCount + 1);
-    }
-
-    console.log("🔄 Verwende Fallback-Gästeextraktion...");
-    return extractGuestsFallback(teaserText);
-  }
 }
 
 function extractGuestsFallback(teaserText: string): string[] {

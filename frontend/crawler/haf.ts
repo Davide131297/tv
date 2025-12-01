@@ -11,7 +11,7 @@ import { createBrowser, setupSimplePage } from "@/lib/browser-config";
 import { GuestDetails } from "@/types";
 import axios from "axios";
 import { AbgeordnetenwatchPolitician } from "@/types";
-import { getPoliticalArea } from "@/lib/utils";
+import { getPoliticalArea } from "@/lib/ai-utils";
 
 interface EpisodeLink {
   url: string;
