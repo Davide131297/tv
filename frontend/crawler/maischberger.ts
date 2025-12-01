@@ -33,8 +33,6 @@ const BASE_URL = "https://www.daserste.de";
 const LIST_URL =
   "https://www.daserste.de/information/talk/maischberger/sendung/index.html";
 
-const MODEL = process.env.NEXT_PUBLIC_AI_MODEL_NAME;
-
 // Hilfsfunktion: Hole detaillierte Beschreibung von der Episodenseite
 async function getEpisodeDetailedDescription(
   page: Page,

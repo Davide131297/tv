@@ -18,7 +18,11 @@ export async function GET(request: NextRequest) {
     const { data: appearances, error } = await supabase
       .from("tv_show_politicians")
       .select("show_name, episode_date")
-      .eq("politician_id", id);
+      .eq("politician_id", id)
+      .neq("show_name", "Phoenix Runde")
+      .neq("show_name", "Phoenix Persönlich")
+      .neq("show_name", "Pinar Atalay")
+      .neq("show_name", "Blome & Pfeffer");
 
     if (error) throw error;
 

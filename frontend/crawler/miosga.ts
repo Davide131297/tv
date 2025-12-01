@@ -19,8 +19,6 @@ import { extractGuestsWithAI, getPoliticalArea } from "@/lib/ai-utils";
 const LIST_URL =
   "https://www.ardaudiothek.de/sendung/caren-miosga/urn:ard:show:d6e5ba24e1508004/";
 
-const MODEL = process.env.NEXT_PUBLIC_AI_MODEL_NAME;
-
 // Rate-Limiting und Retry-Logik für AI-Requests
 let aiRequestCount = 0;
 let lastRequestTime = 0;
