@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Eye } from "lucide-react";
 import { FETCH_HEADERS } from "@/lib/utils";
@@ -81,6 +82,9 @@ const Skeleton = ({ className = "" }: { className?: string }) => {
 };
 
 export default function PoliticianRankings() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [rankings, setRankings] = useState<PoliticianRanking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -91,6 +95,34 @@ export default function PoliticianRankings() {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState<string>(String(currentYear));
   const years = useYearList(2024);
+
+  // Update URL without page reload
+  const updateUrl = (updates: { [key: string]: string | undefined }) => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === undefined || value === "" || value === "all") {
+        params.delete(key);
+      } else {
+        params.set(key, value);
+      }
+    });
+
+    const newUrl = params.toString()
+      ? `${pathname}?${params.toString()}`
+      : pathname;
+    router.replace(newUrl, { scroll: false });
+  };
+
+  const handleShowChange = (show: string) => {
+    setSelectedShow(show);
+    updateUrl({ show: show === "all" ? undefined : show });
+  };
+
+  const handleYearChange = (year: string) => {
+    setSelectedYear(year);
+    updateUrl({ year: year === "all" ? undefined : year });
+  };
 
   const fetchRankings = useCallback(
     async (showFilter: string = "", yearFilter: string = "") => {
@@ -159,34 +191,8 @@ export default function PoliticianRankings() {
     return "bg-gray-100 text-gray-600 border-gray-200";
   };
 
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:gap-4 items-start sm:items-center justify-between">
-          <Skeleton className="h-6 sm:h-8 w-48 sm:w-64" />
-          <Skeleton className="h-8 sm:h-10 w-full sm:w-48" />
-        </div>
-        <div className="grid gap-3">
-          {[...Array(10)].map((_, i) => (
-            <Skeleton key={i} className="h-16 sm:h-20 w-full" />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <Card>
-        <CardContent className="pt-6">
-          <p className="text-red-600">{error}</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-4 sm:space-y-6 relative">
       {/* Header und Filter */}
       <div className="flex flex-col gap-3 sm:flex-row sm:gap-4 items-start sm:items-center justify-between">
         <div>
@@ -209,7 +215,7 @@ export default function PoliticianRankings() {
             <NativeSelect
               value={selectedYear}
               onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                setSelectedYear(e.target.value)
+                handleYearChange(e.target.value)
               }
             >
               <NativeSelectOption value="all">Insgesamt</NativeSelectOption>
@@ -226,7 +232,7 @@ export default function PoliticianRankings() {
             <NativeSelect
               value={selectedShow}
               onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                setSelectedShow(e.target.value)
+                handleShowChange(e.target.value)
               }
             >
               {SHOW_OPTIONS.map((option) => (
@@ -239,8 +245,24 @@ export default function PoliticianRankings() {
         </div>
       </div>
 
+      {error && (
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-red-600">{error}</p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Rankings Liste */}
-      <div className="space-y-2 sm:space-y-3">
+      <div className="space-y-2 sm:space-y-3 relative">
+        {loading && (
+          <div className="absolute inset-0 bg-white/75 flex items-center justify-center z-10 rounded-lg min-h-[400px]">
+            <div className="flex items-center gap-2">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              <span className="text-sm text-gray-600">Lade Daten...</span>
+            </div>
+          </div>
+        )}
         {rankings.length === 0 ? (
           <Card>
             <CardContent className="pt-4 sm:pt-6">

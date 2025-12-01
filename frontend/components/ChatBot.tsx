@@ -260,8 +260,7 @@ export default function ChatBot() {
           {/* Input */}
           <div className="p-4 border-t border-gray-200 dark:border-gray-700">
             <div className="flex gap-2">
-              <input
-                type="text"
+              <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyPress}

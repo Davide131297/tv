@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
   useReactTable,
   getCoreRowModel,
@@ -37,7 +37,6 @@ import {
 import PoliticianModal from "./PoliticianModal";
 import { useYearList } from "@/hooks/useYearList";
 import { useSelectedShow } from "@/hooks/useSelectedShow";
-import { useUrlUpdater } from "@/hooks/useUrlUpdater";
 
 const columnHelper = createColumnHelper<PoliticianAppearance>();
 
@@ -58,9 +57,9 @@ function normalizeUrl(raw?: string | null) {
 
 export default function PoliticianTable() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const years = useYearList(2024);
-  const updateUrl = useUrlUpdater();
   const selectedShow = useSelectedShow(searchParams, SHOW_OPTIONS);
   const [data, setData] = useState<PoliticianAppearance[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,6 +72,35 @@ export default function PoliticianTable() {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState<string>(String(currentYear));
 
+  const [localShow, setLocalShow] = useState<string>(selectedShow);
+
+  // Sync localShow with URL on mount/navigation
+  useEffect(() => {
+    setLocalShow(selectedShow);
+  }, [selectedShow]);
+
+  // Update URL without page reload
+  const updateUrl = (updates: {
+    [key: string]: string | boolean | undefined;
+  }) => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === undefined || value === false || value === "") {
+        params.delete(key);
+      } else if (typeof value === "boolean") {
+        params.set(key, String(value));
+      } else {
+        params.set(key, value);
+      }
+    });
+
+    const newUrl = params.toString()
+      ? `${pathname}?${params.toString()}`
+      : pathname;
+    router.replace(newUrl, { scroll: false });
+  };
+
   const globalFilter = useMemo(() => {
     return searchParams.get("search") || "";
   }, [searchParams]);
@@ -84,6 +112,7 @@ export default function PoliticianTable() {
   }, [searchParams]);
 
   const handleShowChange = (showValue: string) => {
+    setLocalShow(showValue);
     updateUrl({ show: showValue });
   };
 
@@ -111,11 +140,11 @@ export default function PoliticianTable() {
     try {
       setLoading(true);
       const url =
-        selectedShow === "all"
+        localShow === "all"
           ? "/api/politics?type=detailed-appearances&limit=1000&year=" +
             encodeURIComponent(selectedYear)
           : `/api/politics?type=detailed-appearances&limit=1000&show=${encodeURIComponent(
-              selectedShow
+              localShow
             )}&year=${encodeURIComponent(selectedYear)}`;
 
       const response = await fetch(url, {
@@ -132,15 +161,18 @@ export default function PoliticianTable() {
     } finally {
       setLoading(false);
     }
-  }, [selectedShow, selectedYear]);
+  }, [localShow, selectedYear]);
 
   useEffect(() => {
     fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
     const search = searchParams.get("year");
     if (search && search !== selectedYear) {
       setSelectedYear(search);
     }
-  }, [fetchData, searchParams, selectedYear]);
+  }, [searchParams, selectedYear]);
 
   const paginationStyle =
     "px-2 sm:px-3 py-1 text-xs sm:text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-700";
@@ -271,19 +303,18 @@ export default function PoliticianTable() {
     globalFilterFn: "includesString",
   });
 
-  if (loading) {
-    return (
-      <div className="bg-white rounded-lg shadow-lg p-8">
-        <div className="flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="ml-2">Lade Politiker-Daten...</span>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+    <div className="bg-white rounded-lg shadow-lg overflow-hidden relative">
+      {loading && (
+        <div className="absolute inset-0 bg-white/75 flex items-center justify-center z-10 rounded-lg">
+          <div className="flex items-center gap-2">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <span className="text-sm text-gray-600">
+              Lade Politiker-Daten...
+            </span>
+          </div>
+        </div>
+      )}
       {/* Header mit Suche */}
       <div className="p-4 sm:p-6 border-b border-gray-200">
         <div className="flex flex-col gap-4">
@@ -320,7 +351,7 @@ export default function PoliticianTable() {
             {/* Show Filter */}
             <ShowOptionsButtons
               onShowChange={handleShowChange}
-              selectedShow={selectedShow}
+              selectedShow={localShow}
             />
 
             {/* Globale Suche */}

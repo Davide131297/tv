@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, use } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import PoliticalAreasChart from "@/components/PoliticalAreasChart";
 import type { PoliticalAreaStats } from "@/types";
 import { SHOW_OPTIONS } from "@/types";
@@ -9,14 +9,14 @@ import { FETCH_HEADERS } from "@/lib/utils";
 import ShowOptionsButtons from "@/components/ShowOptionsButtons";
 import PoliticalAreasTable from "./PoliticalAreasTable";
 import { TV_CHANNEL } from "@/lib/utils";
-import { useUrlUpdater } from "@/hooks/useUrlUpdater";
 import { useYearList } from "@/hooks/useYearList";
 import { useSelectedShow } from "@/hooks/useSelectedShow";
 import { useSelectedChannel } from "@/hooks/useSelectedChannel";
 
 export default function PoliticalAreasPageContent() {
   const searchParams = useSearchParams();
-  const updateUrl = useUrlUpdater();
+  const router = useRouter();
+  const pathname = usePathname();
   const years = useYearList(2024);
   const selectedShow = useSelectedShow(searchParams, SHOW_OPTIONS);
   const selectedChannel = useSelectedChannel(searchParams, TV_CHANNEL);
@@ -31,7 +31,37 @@ export default function PoliticalAreasPageContent() {
     () => searchParams.get("year") || String(currentYear)
   );
 
+  const [localShow, setLocalShow] = useState<string>(selectedShow);
+
+  // Sync localShow with URL on mount/navigation
+  useEffect(() => {
+    setLocalShow(selectedShow);
+  }, [selectedShow]);
+
+  // Update URL without page reload
+  const updateUrl = (updates: {
+    [key: string]: string | boolean | undefined;
+  }) => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === undefined || value === false || value === "") {
+        params.delete(key);
+      } else if (typeof value === "boolean") {
+        params.set(key, String(value));
+      } else {
+        params.set(key, value);
+      }
+    });
+
+    const newUrl = params.toString()
+      ? `${pathname}?${params.toString()}`
+      : pathname;
+    router.replace(newUrl, { scroll: false });
+  };
+
   const handleShowChange = (showValue: string) => {
+    setLocalShow(showValue);
     updateUrl({ show: showValue });
   };
 
@@ -46,8 +76,8 @@ export default function PoliticalAreasPageContent() {
 
       // Direkt die Query-Parameter hier zusammenbauen (kein useMemo erforderlich)
       const params = new URLSearchParams();
-      if (selectedShow && selectedShow !== "all") {
-        params.append("show", selectedShow);
+      if (localShow && localShow !== "all") {
+        params.append("show", localShow);
       }
       if (selectedYear) {
         params.append("year", selectedYear);
@@ -80,32 +110,11 @@ export default function PoliticalAreasPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [selectedShow, selectedYear, selectedChannel]);
+  }, [localShow, selectedYear, selectedChannel]);
 
   useEffect(() => {
     fetchData();
-  }, [fetchData, searchParams, selectedYear, selectedChannel]);
-
-  if (loading) {
-    return (
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="flex items-center justify-center p-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="ml-2">Lade Daten...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
-          {error}
-        </div>
-      </div>
-    );
-  }
+  }, [fetchData]);
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -120,22 +129,37 @@ export default function PoliticalAreasPageContent() {
         {/* Show Auswahl */}
         <ShowOptionsButtons
           onShowChange={handleShowChange}
-          selectedShow={selectedShow}
+          selectedShow={localShow}
           selectedChannel={selectedChannel}
         />
       </div>
 
-      {selectedShow === "Pinar Atalay" ? (
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 mb-6">
+          {error}
+        </div>
+      )}
+
+      {localShow === "Pinar Atalay" ? (
         <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800">
           Die Darstellung der politischen Themenbereiche für die Show{" "}
           <strong>Pinar Atalay</strong> ist derzeit nicht verfügbar.
         </div>
       ) : (
-        <>
+        <div className="relative">
+          {loading && (
+            <div className="absolute inset-0 bg-white/75 flex items-center justify-center z-10 rounded-lg min-h-[400px]">
+              <div className="flex items-center gap-2">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                <span className="text-sm text-gray-600">Lade Daten...</span>
+              </div>
+            </div>
+          )}
+
           <PoliticalAreasChart
             data={politicalAreaStats}
             rows={politicalAreaRows}
-            selectedShow={selectedShow}
+            selectedShow={localShow}
             selectedYear={selectedYear}
             years={years}
             handleYearChange={handleYearChange}
@@ -143,7 +167,7 @@ export default function PoliticalAreasPageContent() {
 
           {/* Themen-Details Tabelle */}
           <PoliticalAreasTable politicalAreaStats={politicalAreaStats} />
-        </>
+        </div>
       )}
     </div>
   );

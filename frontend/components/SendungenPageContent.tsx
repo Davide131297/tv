@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, use } from "react";
-import { useSearchParams } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect, useCallback } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import type { EpisodeData, Statistics } from "@/types";
 import { SHOW_OPTIONS_WITHOUT_ALL } from "@/types";
 import { FETCH_HEADERS } from "@/lib/utils";
@@ -12,14 +11,14 @@ import {
   NativeSelectOption,
 } from "@/components/ui/native-select";
 import ColorBox from "./ui/color-box";
-import ShowOptionsButtons, { getShowButtonColor } from "./ShowOptionsButtons";
+import ShowOptionsButtons from "./ShowOptionsButtons";
 import { useSelectedShow } from "@/hooks/useSelectedShow";
 import { useYearList } from "@/hooks/useYearList";
-import { useUrlUpdater } from "@/hooks/useUrlUpdater";
 
 export default function SendungenPageContent() {
   const searchParams = useSearchParams();
-  const updateUrl = useUrlUpdater();
+  const router = useRouter();
+  const pathname = usePathname();
   const [episodes, setEpisodes] = useState<EpisodeData[]>([]);
   const [statistics, setStatistics] = useState<Statistics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,7 +33,37 @@ export default function SendungenPageContent() {
     "Markus Lanz"
   );
 
+  const [localShow, setLocalShow] = useState<string>(selectedShow);
+
+  // Sync localShow with URL on mount/navigation
+  useEffect(() => {
+    setLocalShow(selectedShow);
+  }, [selectedShow]);
+
+  // Update URL without page reload
+  const updateUrl = (updates: {
+    [key: string]: string | boolean | undefined;
+  }) => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === undefined || value === false || value === "") {
+        params.delete(key);
+      } else if (typeof value === "boolean") {
+        params.set(key, String(value));
+      } else {
+        params.set(key, value);
+      }
+    });
+
+    const newUrl = params.toString()
+      ? `${pathname}?${params.toString()}`
+      : pathname;
+    router.replace(newUrl, { scroll: false });
+  };
+
   const handleShowChange = (showValue: string) => {
+    setLocalShow(showValue);
     updateUrl({ show: showValue });
   };
 
@@ -50,7 +79,7 @@ export default function SendungenPageContent() {
       // Hole Episoden-Daten
       const episodesResponse = await fetch(
         `/api/politics?type=episodes-with-politicians&show=${encodeURIComponent(
-          selectedShow
+          localShow
         )}&year=${encodeURIComponent(selectedYear)}`,
         {
           method: "GET",
@@ -70,7 +99,7 @@ export default function SendungenPageContent() {
       // Hole Statistiken separat für die gesamte Datenbank
       const statsResponse = await fetch(
         `/api/politics?type=episode-statistics&show=${encodeURIComponent(
-          selectedShow
+          localShow
         )}&year=${encodeURIComponent(selectedYear)}`,
         {
           method: "GET",
@@ -90,36 +119,18 @@ export default function SendungenPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [selectedShow, selectedYear]);
+  }, [localShow, selectedYear]);
 
   useEffect(() => {
     fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
     const search = searchParams.get("year");
     if (search && search !== selectedYear) {
       setSelectedYear(search);
     }
-  }, [fetchData, searchParams, selectedYear]);
-
-  if (loading) {
-    return (
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="flex items-center justify-center p-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="ml-2">Lade Daten...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
-          {error}
-        </div>
-      </div>
-    );
-  }
+  }, [searchParams, selectedYear]);
 
   const statisticsData = statistics
     ? {
@@ -166,7 +177,7 @@ export default function SendungenPageContent() {
         <div className="flex flex-col md:flex-row md:justify-between gap-4 md:gap-0">
           {/* Show Auswahl */}
           <ShowOptionsButtons
-            selectedShow={selectedShow}
+            selectedShow={localShow}
             onShowChange={handleShowChange}
             withAll={false}
           />
@@ -194,43 +205,60 @@ export default function SendungenPageContent() {
         {/* Show-spezifische Überschrift */}
         <div className="mt-4">
           <h2 className="text-xl font-semibold text-gray-800">
-            📊 Aktuelle Ansicht: {selectedShow}
+            📊 Aktuelle Ansicht: {localShow}
           </h2>
         </div>
       </div>
 
-      {/* Statistiken */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6 mb-8">
-        <ColorBox
-          color="blue"
-          number={statisticsData.totalEpisodes}
-          text="Gesamt-Sendungen"
-        />
-        <ColorBox
-          color="red"
-          number={statisticsData.totalAppearances}
-          text="Politiker-Auftritte"
-        />
-        <ColorBox
-          color="green"
-          number={statisticsData.episodesWithPoliticians}
-          text="Mit Politik-Gästen"
-        />
-        <ColorBox
-          color="purple"
-          number={statisticsData.averagePoliticiansPerEpisode}
-          text="Politiker pro Sendung"
-          withSymbol
-        />
-        <ColorBox
-          color="orange"
-          number={statisticsData.maxPoliticiansInEpisode}
-          text="Max. Politiker/Sendung"
-        />
-      </div>
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 mb-6">
+          {error}
+        </div>
+      )}
 
-      {/* Sendungsliste */}
-      <LastShowTable episodes={episodes} />
+      <div className="relative">
+        {loading && (
+          <div className="absolute inset-0 bg-white/75 flex items-center justify-center z-10 rounded-lg min-h-[400px]">
+            <div className="flex items-center gap-2">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              <span className="text-sm text-gray-600">Lade Daten...</span>
+            </div>
+          </div>
+        )}
+
+        {/* Statistiken */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6 mb-8">
+          <ColorBox
+            color="blue"
+            number={statisticsData.totalEpisodes}
+            text="Gesamt-Sendungen"
+          />
+          <ColorBox
+            color="red"
+            number={statisticsData.totalAppearances}
+            text="Politiker-Auftritte"
+          />
+          <ColorBox
+            color="green"
+            number={statisticsData.episodesWithPoliticians}
+            text="Mit Politik-Gästen"
+          />
+          <ColorBox
+            color="purple"
+            number={statisticsData.averagePoliticiansPerEpisode}
+            text="Politiker pro Sendung"
+            withSymbol
+          />
+          <ColorBox
+            color="orange"
+            number={statisticsData.maxPoliticiansInEpisode}
+            text="Max. Politiker/Sendung"
+          />
+        </div>
+
+        {/* Sendungsliste */}
+        <LastShowTable episodes={episodes} />
+      </div>
     </div>
   );
 }

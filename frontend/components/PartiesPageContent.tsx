@@ -1,20 +1,21 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import PartyChart from "@/components/PartyChart";
 import type { PartyStats } from "@/types";
 import { SHOW_OPTIONS } from "@/types";
 import { FETCH_HEADERS } from "@/lib/utils";
 import ShowOptionsButtons from "./ShowOptionsButtons";
 import { TV_CHANNEL } from "@/lib/utils";
-import { useUrlUpdater } from "@/hooks/useUrlUpdater";
 import { useYearList } from "@/hooks/useYearList";
 import { useSelectedShow } from "@/hooks/useSelectedShow";
 import { useSelectedChannel } from "@/hooks/useSelectedChannel";
 
 export default function PartiesPageContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const [partyStats, setPartyStats] = useState<PartyStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,17 +24,46 @@ export default function PartiesPageContent() {
   const years = useYearList(2024);
   const selectedShow = useSelectedShow(searchParams, SHOW_OPTIONS);
   const selectedChannel = useSelectedChannel(searchParams, TV_CHANNEL);
-  const updateUrl = useUrlUpdater();
 
-  const unionMode = useMemo(() => {
-    return searchParams.get("union") === "true";
-  }, [searchParams]);
+  const [localShow, setLocalShow] = useState<string>(selectedShow);
+  const [localUnionMode, setLocalUnionMode] = useState<boolean>(
+    searchParams.get("union") === "true"
+  );
+
+  // Sync localShow with URL on mount/navigation
+  useEffect(() => {
+    setLocalShow(selectedShow);
+  }, [selectedShow]);
+
+  // Update URL without page reload
+  const updateUrl = (updates: {
+    [key: string]: string | boolean | undefined;
+  }) => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === undefined || value === false || value === "") {
+        params.delete(key);
+      } else if (typeof value === "boolean") {
+        params.set(key, String(value));
+      } else {
+        params.set(key, value);
+      }
+    });
+
+    const newUrl = params.toString()
+      ? `${pathname}?${params.toString()}`
+      : pathname;
+    router.replace(newUrl, { scroll: false });
+  };
 
   const handleShowChange = (showValue: string) => {
+    setLocalShow(showValue);
     updateUrl({ show: showValue });
   };
 
   const handleUnionModeChange = (unionValue: boolean) => {
+    setLocalUnionMode(unionValue);
     updateUrl({ union: unionValue });
   };
 
@@ -47,8 +77,8 @@ export default function PartiesPageContent() {
       setLoading(true);
 
       const params = new URLSearchParams();
-      if (selectedShow && selectedShow !== "all") {
-        params.append("show", selectedShow);
+      if (localShow && localShow !== "all") {
+        params.append("show", localShow);
       }
       if (selectedYear) {
         params.append("year", selectedYear);
@@ -80,40 +110,22 @@ export default function PartiesPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [selectedShow, selectedYear, selectedChannel]);
+  }, [localShow, selectedYear, selectedChannel]);
 
   useEffect(() => {
     fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
     const search = searchParams.get("year");
     if (search && search !== selectedYear) {
       setSelectedYear(search);
     }
-  }, [fetchData, searchParams, selectedYear, selectedChannel]);
-
-  if (loading) {
-    return (
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="flex items-center justify-center p-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="ml-2">Lade Daten...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
-          {error}
-        </div>
-      </div>
-    );
-  }
+  }, [searchParams, selectedYear]);
 
   // Hilfsfunktion: CDU & CSU zu Union zusammenfassen
   const getUnionStats = (stats: PartyStats[]) => {
-    if (!unionMode) return stats;
+    if (!localUnionMode) return stats;
     let unionCount = 0;
     const filtered = stats.filter((p) => {
       if (p.party_name === "CDU" || p.party_name === "CSU") {
@@ -144,24 +156,48 @@ export default function PartiesPageContent() {
         {/* Show Auswahl */}
         <ShowOptionsButtons
           onShowChange={handleShowChange}
-          selectedShow={selectedShow}
+          selectedShow={localShow}
           selectedChannel={selectedChannel}
         />
       </div>
 
-      <PartyChart
-        data={displayedStats}
-        selectedShow={selectedShow}
-        selectedYear={selectedYear}
-        years={years}
-        handleYearChange={handleYearChange}
-        unionMode={unionMode}
-        onUnionChange={handleUnionModeChange}
-      />
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 mb-6">
+          {error}
+        </div>
+      )}
+
+      <div className="relative">
+        {loading && (
+          <div className="absolute inset-0 bg-white/75 flex items-center justify-center z-10 rounded-lg">
+            <div className="flex items-center gap-2">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              <span className="text-sm text-gray-600">Lade Daten...</span>
+            </div>
+          </div>
+        )}
+        <PartyChart
+          data={displayedStats}
+          selectedShow={localShow}
+          selectedYear={selectedYear}
+          years={years}
+          handleYearChange={handleYearChange}
+          unionMode={localUnionMode}
+          onUnionChange={handleUnionModeChange}
+        />
+      </div>
 
       {/* Partei-Details Tabelle */}
       {displayedStats.length > 0 && (
-        <div className="mt-8 bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="mt-8 bg-white rounded-lg shadow-md overflow-hidden relative">
+          {loading && (
+            <div className="absolute inset-0 bg-white/75 flex items-center justify-center z-10 rounded-lg">
+              <div className="flex items-center gap-2">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                <span className="text-sm text-gray-600">Lade Daten...</span>
+              </div>
+            </div>
+          )}
           <div className="p-4 sm:p-6 border-b border-gray-200">
             <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
               Detaillierte Aufschlüsselung

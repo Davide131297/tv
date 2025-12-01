@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import PartyTimelineChart from "@/components/PartyTimelineChart";
 import ShowOptionsButtons from "@/components/ShowOptionsButtons";
 import { SHOW_OPTIONS } from "@/types";
 import { TV_CHANNEL } from "@/lib/utils";
-import { useUrlUpdater } from "@/hooks/useUrlUpdater";
 import { useYearList } from "@/hooks/useYearList";
 import { useSelectedShow } from "@/hooks/useSelectedShow";
 import { useSelectedChannel } from "@/hooks/useSelectedChannel";
@@ -24,8 +23,9 @@ interface ApiResponse {
 }
 
 export default function PartyTimelinePageContent() {
-  const updateUrl = useUrlUpdater();
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const years = useYearList(2024);
   const selectedShow = useSelectedShow(searchParams, SHOW_OPTIONS);
   const selectedChannel = useSelectedChannel(searchParams, TV_CHANNEL);
@@ -38,16 +38,52 @@ export default function PartyTimelinePageContent() {
     () => searchParams.get("year") || String(currentYear)
   );
 
-  const unionMode = useMemo(() => {
-    return searchParams.get("union") === "true";
-  }, [searchParams]);
+  const [localShow, setLocalShow] = useState<string>(selectedShow);
+  const [localUnionMode, setLocalUnionMode] = useState<boolean>(
+    searchParams.get("union") === "true"
+  );
+  const [localSelectedParties, setLocalSelectedParties] = useState<string[]>(
+    () => {
+      const partiesParam = searchParams.get("parteien");
+      return partiesParam ? partiesParam.split(",") : [];
+    }
+  );
 
-  const selectedParties = useMemo(() => {
-    const partiesParam = searchParams.get("parteien");
-    return partiesParam ? partiesParam.split(",") : [];
-  }, [searchParams]);
+  // Sync localShow with URL on mount/navigation
+  useEffect(() => {
+    setLocalShow(selectedShow);
+  }, [selectedShow]);
+
+  // Update URL without page reload
+  const updateUrl = (updates: {
+    [key: string]: string | boolean | string[] | undefined;
+  }) => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === undefined || value === false || value === "") {
+        params.delete(key);
+      } else if (Array.isArray(value)) {
+        if (value.length > 0) {
+          params.set(key, value.join(","));
+        } else {
+          params.delete(key);
+        }
+      } else if (typeof value === "boolean") {
+        params.set(key, String(value));
+      } else {
+        params.set(key, value);
+      }
+    });
+
+    const newUrl = params.toString()
+      ? `${pathname}?${params.toString()}`
+      : pathname;
+    router.replace(newUrl, { scroll: false });
+  };
 
   const handleShowChange = (show: string) => {
+    setLocalShow(show);
     updateUrl({ show });
   };
 
@@ -57,11 +93,13 @@ export default function PartyTimelinePageContent() {
   };
 
   const handleUnionModeChange = (union: boolean) => {
+    setLocalUnionMode(union);
     updateUrl({ union });
   };
 
   const handleSelectedPartiesChange = (parties: string[]) => {
-    updateUrl({ parties });
+    setLocalSelectedParties(parties);
+    updateUrl({ parteien: parties });
   };
 
   useEffect(() => {
@@ -71,8 +109,8 @@ export default function PartyTimelinePageContent() {
         setError(null);
 
         const params = new URLSearchParams();
-        if (selectedShow && selectedShow !== "all") {
-          params.append("show", selectedShow);
+        if (localShow && localShow !== "all") {
+          params.append("show", localShow);
         }
         if (selectedYear) {
           params.append("year", selectedYear);
@@ -108,7 +146,7 @@ export default function PartyTimelinePageContent() {
     }
 
     fetchData();
-  }, [selectedShow, selectedYear, searchParams]);
+  }, [localShow, selectedYear, selectedChannel]);
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -127,17 +165,11 @@ export default function PartyTimelinePageContent() {
           </label>
           <ShowOptionsButtons
             onShowChange={handleShowChange}
-            selectedShow={selectedShow}
+            selectedShow={localShow}
             selectedChannel={selectedChannel}
           />
         </div>
       </div>
-
-      {isLoading && (
-        <div className="flex justify-center items-center py-12">
-          <div className="text-lg text-muted-foreground">Lade Daten...</div>
-        </div>
-      )}
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md mb-6">
@@ -145,27 +177,38 @@ export default function PartyTimelinePageContent() {
         </div>
       )}
 
-      {!isLoading && !error && data.length > 0 && (
+      <div className="relative">
+        {isLoading && (
+          <div className="absolute inset-0 bg-white/75 flex items-center justify-center z-10 rounded-lg min-h-[400px]">
+            <div className="flex items-center gap-2">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              <span className="text-sm text-gray-600">Lade Daten...</span>
+            </div>
+          </div>
+        )}
+
         <PartyTimelineChart
           data={data}
           parties={parties}
-          selectedShow={selectedShow}
+          selectedShow={localShow}
           year={selectedYear}
-          unionMode={unionMode}
-          selectedParties={selectedParties}
+          unionMode={localUnionMode}
+          selectedParties={localSelectedParties}
           onUnionModeChange={handleUnionModeChange}
           onSelectedPartiesChange={handleSelectedPartiesChange}
           selectedYear={selectedYear}
           handleYearChange={handleYearChange}
           years={years}
         />
-      )}
 
-      {!isLoading && !error && data.length === 0 && (
-        <div className="text-center py-12 text-muted-foreground">
-          Keine Daten für das ausgewählte Jahr verfügbar.
-        </div>
-      )}
+        {!isLoading && data.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center py-12 text-muted-foreground">
+              Keine Daten für das ausgewählte Jahr verfügbar.
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
