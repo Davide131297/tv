@@ -24,6 +24,7 @@ export default function DatenschutzPage() {
             Die verantwortliche Stelle für die Datenverarbeitung auf dieser
             Website ist:
           </p>
+
           <div className="bg-gray-50 p-4 rounded-lg mb-4">
             <p className="font-medium">Davide Chiffi</p>
             <p>Kalk-Mülheimer Straße 177</p>
@@ -40,6 +41,7 @@ export default function DatenschutzPage() {
               </a>
             </p>
           </div>
+
           <p className="mb-4">
             Die folgenden Hinweise geben einen einfachen Überblick darüber, was
             mit Ihren personenbezogenen Daten passiert, wenn Sie diese Website
@@ -89,7 +91,7 @@ export default function DatenschutzPage() {
             >
               https://vercel.com
             </Link>
-            . Datenschutzerklärung:
+            . Datenschutzerklärung:{" "}
             <Link
               className="text-blue-500 underline hover:text-blue-700"
               href="https://vercel.com/legal/privacy-policy"
@@ -104,24 +106,27 @@ export default function DatenschutzPage() {
           <h2 className="text-2xl font-semibold mb-4">3. KI-Chatfunktion</h2>
           <p className="mb-4">
             Unsere Website bietet eine Chatfunktion, die KI-generierte Antworten
-            bereitstellt. Die Chatnachrichten werden über unsere eigenen Server
-            (gehostet bei Vercel) verarbeitet und anschließend an einen
-            Sprachmodell-Dienst von Hugging Face weitergeleitet.
+            bereitstellt. Die Chatnachrichten werden auf unseren Servern
+            (gehostet bei Vercel) verarbeitet und anschließend an die Google
+            Gemini API (Google LLC) weitergeleitet, um die Antworten zu
+            erzeugen.
           </p>
           <p className="mb-4">
             Bei der Nutzung der Chatfunktion werden die von Ihnen eingegebenen
-            Nachrichten verarbeitet, um Ihnen eine Antwort zu generieren. Diese
-            Daten werden nicht dauerhaft gespeichert und dienen ausschließlich
-            der Bereitstellung der Chat-Funktionalität.
+            Nachrichten verarbeitet, um eine Antwort zu generieren. Diese Daten
+            werden nicht dauerhaft auf unseren Servern gespeichert und dienen
+            ausschließlich der Bereitstellung der Chat-Funktionalität. Soweit
+            Daten an Google übermittelt werden, gelten die Datenschutz-
+            bestimmungen des jeweiligen Anbieters.
           </p>
           <p className="mb-4">
-            Weitere Informationen zur Datenverarbeitung durch Hugging Face
-            finden Sie unter:{" "}
+            Weitere Informationen zur Datenverarbeitung durch Google finden Sie
+            unter:{" "}
             <Link
               className="text-blue-500 underline hover:text-blue-700"
-              href="https://huggingface.co/privacy"
+              href="https://policies.google.com/privacy"
             >
-              https://huggingface.co/privacy
+              https://policies.google.com/privacy
             </Link>
           </p>
         </section>
