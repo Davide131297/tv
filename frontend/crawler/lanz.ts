@@ -1,14 +1,11 @@
 import {
-  checkPoliticianOverride,
   insertMultipleTvShowPoliticians,
   insertMultipleShowLinks,
   insertEpisodePoliticalAreas,
+  checkPolitician,
+  getLatestEpisodeDate,
 } from "@/lib/supabase-server-utils";
 import { createBrowser, setupSimplePage } from "@/lib/browser-config";
-import {
-  getLatestEpisodeDate,
-  splitFirstLast,
-} from "@/lib/supabase-server-utils";
 import {
   parseISODateFromUrl,
   extractDateISO,
@@ -20,8 +17,6 @@ import {
   EpisodeResult,
 } from "@/lib/crawler-utils";
 import { Page } from "puppeteer";
-import axios from "axios";
-import type { AbgeordnetenwatchPolitician } from "@/types";
 import { getPoliticalArea } from "@/lib/ai-utils";
 
 const currentYear = new Date().getFullYear();
@@ -216,134 +211,6 @@ async function collectEpisodeLinks(page: Page) {
     (as) => Array.from(new Set(as.map((a) => (a as HTMLAnchorElement).href)))
   );
   return urls;
-}
-
-// ---------------- Politiker-Check ----------------
-
-async function checkPolitician(
-  name: string,
-  role?: string
-): Promise<GuestDetails> {
-  // Prüfe zuerst Override-Cases
-  const override = checkPoliticianOverride(name);
-  if (override) {
-    return override;
-  }
-
-  const { first, last } = splitFirstLast(name);
-  if (!first || !last) {
-    return {
-      name,
-      isPolitician: false,
-      politicianId: null,
-    };
-  }
-
-  const url = `https://www.abgeordnetenwatch.de/api/v2/politicians?first_name=${encodeURIComponent(
-    first
-  )}&last_name=${encodeURIComponent(last)}`;
-
-  try {
-    const { data } = await axios.get(url, { timeout: 10000 });
-    const politicians: AbgeordnetenwatchPolitician[] = data?.data || [];
-
-    if (politicians.length === 0) {
-      return {
-        name,
-        isPolitician: false,
-        politicianId: null,
-      };
-    }
-
-    if (politicians.length === 1) {
-      // Nur ein Treffer - verwende ihn direkt
-      const hit = politicians[0];
-      return {
-        name,
-        isPolitician: true,
-        politicianId: hit.id,
-        politicianName: hit.label || name,
-        party: hit.party?.id,
-        partyName: hit.party?.label,
-      };
-    }
-
-    // Mehrere Treffer - versuche Disambiguierung über ZDF-Rolle
-    if (role && politicians.length > 1) {
-      console.log(
-        `🔍 Disambiguierung für ${name}: ${politicians.length} Treffer gefunden, Rolle: "${role}"`
-      );
-
-      const selectedPolitician = disambiguateByRole(politicians, role);
-      if (selectedPolitician) {
-        console.log(
-          `✅ Politiker ausgewählt: ${selectedPolitician.label} (${selectedPolitician.party?.label})`
-        );
-        return {
-          name,
-          isPolitician: true,
-          politicianId: selectedPolitician.id,
-          politicianName: selectedPolitician.label || name,
-          party: selectedPolitician.party?.id,
-          partyName: selectedPolitician.party?.label,
-        };
-      }
-    }
-
-    // Fallback: ersten Treffer verwenden
-    console.log(
-      `⚠️  Keine eindeutige Zuordnung für ${name}, verwende ersten Treffer`
-    );
-    const hit = politicians[0];
-    return {
-      name,
-      isPolitician: true,
-      politicianId: hit.id,
-      politicianName: hit.label || name,
-      party: hit.party?.id,
-      partyName: hit.party?.label,
-    };
-  } catch {
-    return {
-      name,
-      isPolitician: false,
-      politicianId: null,
-    };
-  }
-}
-
-// Hilfsfunktion zur Disambiguierung basierend auf ZDF-Rolle
-function disambiguateByRole(
-  politicians: AbgeordnetenwatchPolitician[],
-  role: string
-): AbgeordnetenwatchPolitician | null {
-  const roleUpper = role.toUpperCase();
-
-  // Partei-Mappings für die Disambiguierung
-  const partyMappings: Record<string, string[]> = {
-    CDU: ["CDU", "CHRISTLICH DEMOKRATISCHE UNION"],
-    CSU: ["CSU", "CHRISTLICH-SOZIALE UNION"],
-    SPD: ["SPD", "SOZIALDEMOKRATISCHE PARTEI"],
-    FDP: ["FDP", "FREIE DEMOKRATISCHE PARTEI"],
-    GRÜNE: ["BÜNDNIS 90/DIE GRÜNEN", "DIE GRÜNEN"],
-    LINKE: ["DIE LINKE"],
-    AFD: ["AFD", "ALTERNATIVE FÜR DEUTSCHLAND"],
-    PARTEI: ["DIE PARTEI"],
-  };
-
-  for (const [shortName, fullNames] of Object.entries(partyMappings)) {
-    if (roleUpper.includes(shortName)) {
-      // Suche Politiker mit passender Partei
-      for (const politician of politicians) {
-        const partyLabel = politician.party?.label?.toUpperCase() || "";
-        if (fullNames.some((name) => partyLabel.includes(name))) {
-          return politician;
-        }
-      }
-    }
-  }
-
-  return null;
 }
 
 // ---------------- Gäste aus Episode ----------------

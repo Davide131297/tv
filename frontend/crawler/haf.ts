@@ -1,16 +1,12 @@
 import {
   getLatestEpisodeDate,
   insertMultipleTvShowPoliticians,
-  checkPoliticianOverride,
   insertMultipleShowLinks,
   insertEpisodePoliticalAreas,
-  splitFirstLast,
+  checkPolitician,
 } from "@/lib/supabase-server-utils";
 import { Page } from "puppeteer";
 import { createBrowser, setupSimplePage } from "@/lib/browser-config";
-import { GuestDetails } from "@/types";
-import axios from "axios";
-import { AbgeordnetenwatchPolitician } from "@/types";
 import { getPoliticalArea } from "@/lib/ai-utils";
 
 interface EpisodeLink {
@@ -272,157 +268,6 @@ async function extractEpisodeDetails(
   } catch (error) {
     console.error(`Fehler beim Extrahieren der Episode-Details:`, error);
     return null;
-  }
-}
-
-// Hilfsfunktion zur Disambiguierung basierend auf ZDF-Rolle
-function disambiguateByRole(
-  politicians: AbgeordnetenwatchPolitician[],
-  role: string
-): AbgeordnetenwatchPolitician | null {
-  const roleUpper = role.toUpperCase();
-
-  // Partei-Mappings für die Disambiguierung
-  const partyMappings: Record<string, string[]> = {
-    CDU: ["CDU", "CHRISTLICH DEMOKRATISCHE UNION"],
-    CSU: ["CSU", "CHRISTLICH-SOZIALE UNION"],
-    SPD: ["SPD", "SOZIALDEMOKRATISCHE PARTEI"],
-    FDP: ["FDP", "FREIE DEMOKRATISCHE PARTEI"],
-    GRÜNE: ["BÜNDNIS 90/DIE GRÜNEN", "DIE GRÜNEN"],
-    LINKE: ["DIE LINKE"],
-    AFD: ["AFD", "ALTERNATIVE FÜR DEUTSCHLAND"],
-  };
-
-  // Positionen für die Disambiguierung
-  const positionMappings: Record<string, string[]> = {
-    BUNDESKANZLER: ["BUNDESKANZLER", "KANZLER"],
-    MINISTERPRÄSIDENT: [
-      "MINISTERPRÄSIDENT",
-      "REGIERUNGSCHEF",
-      "LANDESVORSITZENDE",
-    ],
-    MINISTER: ["MINISTER", "BUNDESMINISTER", "STAATSSEKRETÄR"],
-    BUNDESTAG: ["BUNDESTAG", "MDB", "ABGEORDNETE"],
-    LANDTAG: ["LANDTAG", "MDL", "LANDESABGEORDNETE"],
-  };
-
-  // 1. Versuche Partei-Match
-  for (const [party, variants] of Object.entries(partyMappings)) {
-    if (variants.some((variant) => roleUpper.includes(variant))) {
-      const partyMatch = politicians.find(
-        (p) => p.party && p.party.label.toUpperCase().includes(party)
-      );
-      if (partyMatch) {
-        console.log(`✅ Partei-Match gefunden: ${party}`);
-        return partyMatch;
-      }
-    }
-  }
-
-  // 2. Versuche Position-Match
-  for (const [position, variants] of Object.entries(positionMappings)) {
-    if (variants.some((variant) => roleUpper.includes(variant))) {
-      // Für spezifische Positionen, nimm den ersten Treffer
-      if (["BUNDESKANZLER", "MINISTERPRÄSIDENT"].includes(position)) {
-        console.log(`✅ Position-Match gefunden: ${position}`);
-        return politicians[0];
-      }
-    }
-  }
-
-  return null;
-}
-
-// Politiker-Prüfung mit Disambiguierung
-async function checkPolitician(
-  name: string,
-  role?: string
-): Promise<GuestDetails> {
-  // Prüfe zuerst Override-Cases
-  const override = checkPoliticianOverride(name);
-  if (override) {
-    return override;
-  }
-
-  const { first, last } = splitFirstLast(name);
-  if (!first || !last) {
-    return {
-      name,
-      isPolitician: false,
-      politicianId: null,
-    };
-  }
-
-  const url = `https://www.abgeordnetenwatch.de/api/v2/politicians?first_name=${encodeURIComponent(
-    first
-  )}&last_name=${encodeURIComponent(last)}`;
-
-  try {
-    const { data } = await axios.get(url, { timeout: 10000 });
-    const politicians: AbgeordnetenwatchPolitician[] = data?.data || [];
-
-    if (politicians.length === 0) {
-      return {
-        name,
-        isPolitician: false,
-        politicianId: null,
-      };
-    }
-
-    if (politicians.length === 1) {
-      // Nur ein Treffer - verwende ihn direkt
-      const hit = politicians[0];
-      return {
-        name,
-        isPolitician: true,
-        politicianId: hit.id,
-        politicianName: hit.label || name,
-        party: hit.party?.id,
-        partyName: hit.party?.label,
-      };
-    }
-
-    // Mehrere Treffer - versuche Disambiguierung über ZDF-Rolle
-    if (role && politicians.length > 1) {
-      console.log(
-        `🔍 Disambiguierung für ${name}: ${politicians.length} Treffer gefunden, Rolle: "${role}"`
-      );
-
-      const selectedPolitician = disambiguateByRole(politicians, role);
-      if (selectedPolitician) {
-        console.log(
-          `✅ Politiker ausgewählt: ${selectedPolitician.label} (${selectedPolitician.party?.label})`
-        );
-        return {
-          name,
-          isPolitician: true,
-          politicianId: selectedPolitician.id,
-          politicianName: selectedPolitician.label || name,
-          party: selectedPolitician.party?.id,
-          partyName: selectedPolitician.party?.label,
-        };
-      }
-    }
-
-    // Fallback: ersten Treffer verwenden
-    console.log(
-      `⚠️  Keine eindeutige Zuordnung für ${name}, verwende ersten Treffer`
-    );
-    const hit = politicians[0];
-    return {
-      name,
-      isPolitician: true,
-      politicianId: hit.id,
-      politicianName: hit.label || name,
-      party: hit.party?.id,
-      partyName: hit.party?.label,
-    };
-  } catch {
-    return {
-      name,
-      isPolitician: false,
-      politicianId: null,
-    };
   }
 }
 
