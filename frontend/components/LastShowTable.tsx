@@ -3,6 +3,8 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import PoliticianModal from "./PoliticianModal";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { format } from "date-fns";
+import { de } from "date-fns/locale/de";
 
 type LastShowTableProps = {
   episodes: EpisodeData[];
@@ -51,10 +53,8 @@ export default function LastShowTable({ episodes }: LastShowTableProps) {
         <div className="divide-y divide-gray-200">
           {episodes.map((episode) => {
             const date = new Date(episode.episode_date);
-            const formattedDate = date.toLocaleDateString("de-DE");
-            const weekday = date.toLocaleDateString("de-DE", {
-              weekday: "long",
-            });
+            const formattedDate = format(date, "dd.MM.yyyy");
+            const weekday = format(date, "eeee", { locale: de });
 
             return (
               <div
@@ -152,10 +152,8 @@ export default function LastShowTable({ episodes }: LastShowTableProps) {
           <tbody className="bg-white divide-y divide-gray-200">
             {episodes.map((episode, index) => {
               const date = new Date(episode.episode_date);
-              const formattedDate = date.toLocaleDateString("de-DE");
-              const weekday = date.toLocaleDateString("de-DE", {
-                weekday: "long",
-              });
+              const formattedDate = format(date, "dd.MM.yyyy");
+              const weekday = format(date, "eeee", { locale: de });
 
               return (
                 <tr
