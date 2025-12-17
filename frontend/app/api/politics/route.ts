@@ -12,6 +12,17 @@ interface EpisodeData {
   politician_count: number;
 }
 
+interface MonthlyPoint {
+  month: string; // "01".."12"
+  count: number;
+}
+
+interface ComboStat {
+  politician_name: string;
+  party_name: string;
+  count: number;
+}
+
 function applyShowFilter(
   //eslint-disable-next-line @typescript-eslint/no-explicit-any
   query: any,
@@ -360,10 +371,102 @@ export async function GET(request: NextRequest) {
         });
       }
 
+      case "activity-monthly": {
+        let query = supabase.from("tv_show_politicians").select("episode_date");
+
+        query = applyShowFilter(query, showName, year, tv_channel);
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        const monthCount = new Map<string, number>();
+        data.forEach((row) => {
+          const d = new Date(row.episode_date);
+          if (Number.isNaN(d.getTime())) return;
+          const m = String(d.getMonth() + 1).padStart(2, "0");
+          monthCount.set(m, (monthCount.get(m) || 0) + 1);
+        });
+
+        const results: MonthlyPoint[] = Array.from({ length: 12 }, (_, i) => {
+          const m = String(i + 1).padStart(2, "0");
+          return { month: m, count: monthCount.get(m) || 0 };
+        });
+
+        return NextResponse.json({
+          success: true,
+          data: results,
+        });
+      }
+
+      case "party-monthly": {
+        const partiesParam = searchParams.get("parties");
+        const partiesFilter = partiesParam
+          ? partiesParam
+              .split(",")
+              .map((p) => p.trim())
+              .filter(Boolean)
+          : [];
+
+        let query = supabase
+          .from("tv_show_politicians")
+          .select("party_name, episode_date")
+          .not("party_name", "is", null)
+          .neq("party_name", "");
+
+        query = applyShowFilter(query, showName, year, tv_channel);
+
+        if (partiesFilter.length > 0) {
+          query = query.in("party_name", partiesFilter);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        const seriesNames = new Set<string>();
+        data.forEach((row) => {
+          if (row.party_name) seriesNames.add(row.party_name);
+        });
+
+        const months = Array.from({ length: 12 }, (_, i) =>
+          String(i + 1).padStart(2, "0")
+        );
+
+        const rows = months.map((m) => {
+          const base: Record<string, any> = { month: m };
+          seriesNames.forEach((name) => {
+            base[name] = 0;
+          });
+          return base;
+        });
+
+        const monthIndex = new Map(months.map((m, idx) => [m, idx]));
+
+        data.forEach((row) => {
+          const party = row.party_name;
+          if (!party) return;
+          const d = new Date(row.episode_date);
+          if (Number.isNaN(d.getTime())) return;
+          const m = String(d.getMonth() + 1).padStart(2, "0");
+          const idx = monthIndex.get(m);
+          if (idx === undefined) return;
+          rows[idx][party] = (rows[idx][party] || 0) + 1;
+        });
+
+        return NextResponse.json({
+          success: true,
+          metadata: { parties: Array.from(seriesNames) },
+          data: rows,
+        });
+      }
+
       case "shows": {
-        const { data, error } = await supabase
+        let query = supabase
           .from("tv_show_politicians")
           .select("show_name, episode_date");
+
+        query = applyShowFilter(query, showName, year, tv_channel);
+
+        const { data, error } = await query;
 
         if (error) {
           throw error;
@@ -411,6 +514,45 @@ export async function GET(request: NextRequest) {
             latest_episode: stats.latest_episode,
           })
         );
+
+        return NextResponse.json({
+          success: true,
+          data: results,
+        });
+      }
+
+      case "politician-party-combos": {
+        let query = supabase
+          .from("tv_show_politicians")
+          .select("politician_name, party_name, episode_date")
+          .not("politician_name", "is", null)
+          .neq("politician_name", "")
+          .not("party_name", "is", null)
+          .neq("party_name", "");
+
+        query = applyShowFilter(query, showName, year, tv_channel);
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        const comboMap = new Map<string, ComboStat>();
+        data.forEach((row: any) => {
+          const key = `${row.politician_name}||${row.party_name}`;
+          const existing = comboMap.get(key);
+          if (existing) {
+            existing.count += 1;
+          } else {
+            comboMap.set(key, {
+              politician_name: row.politician_name,
+              party_name: row.party_name,
+              count: 1,
+            });
+          }
+        });
+
+        const results = Array.from(comboMap.values())
+          .sort((a, b) => b.count - a.count)
+          .slice(0, limit > 0 ? limit : 10);
 
         return NextResponse.json({
           success: true,

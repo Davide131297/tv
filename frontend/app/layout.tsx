@@ -4,6 +4,7 @@ import "./globals.css";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import ChatBot from "@/components/ChatBot";
+import YearReview2025Modal from "@/components/YearReview2025Modal";
 import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
@@ -120,6 +121,7 @@ export default function RootLayout({
         <Navigation />
         <main className="grow">{children}</main>
         <Footer />
+        <YearReview2025Modal />
         <ChatBot />
         <Analytics />
       </body>
