@@ -320,6 +320,26 @@ const MONTH_LABELS: Record<string, string> = {
   "12": "Dez",
 };
 
+// Cookie to prevent automatic re-opening after the modal was shown once
+const COOKIE_NAME = "year-review-2025-seen";
+const COOKIE_MAX_AGE_DAYS = 365;
+
+function getCookie(name: string) {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie
+    .split("; ")
+    .find((c) => c.startsWith(name + "="));
+  return match ? decodeURIComponent(match.split("=")[1]) : null;
+}
+
+function setCookie(name: string, value: string, days: number) {
+  if (typeof document === "undefined") return;
+  const maxAge = days * 24 * 60 * 60;
+  document.cookie = `${name}=${encodeURIComponent(
+    value
+  )}; path=/; max-age=${maxAge}; SameSite=Lax`;
+}
+
 export default function YearReview2025Modal() {
   const [open, setOpen] = useState(false);
   const hasAutoOpened = useRef(false);
@@ -487,8 +507,21 @@ export default function YearReview2025Modal() {
     if (hasAutoOpened.current) return;
     if (loading) return;
     hasAutoOpened.current = true;
-    setOpen(true);
+    const seen = getCookie(COOKIE_NAME);
+    if (!seen) {
+      setOpen(true);
+    }
   }, [loading]);
+
+  // Whenever the modal is opened, set the cookie so it won't auto-open again
+  useEffect(() => {
+    if (!open) return;
+    try {
+      setCookie(COOKIE_NAME, "1", COOKIE_MAX_AGE_DAYS);
+    } catch (e) {
+      // ignore
+    }
+  }, [open]);
 
   useEffect(() => {
     function onOpen() {
