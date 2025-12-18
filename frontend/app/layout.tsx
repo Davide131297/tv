@@ -3,7 +3,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
-import ChatBot from "@/components/ChatBot";
 import YearReview2025Modal from "@/components/YearReview2025Modal";
 import { Analytics } from "@vercel/analytics/next";
 
@@ -122,7 +121,6 @@ export default function RootLayout({
         <main className="grow">{children}</main>
         <Footer />
         <YearReview2025Modal />
-        <ChatBot />
         <Analytics />
       </body>
     </html>
