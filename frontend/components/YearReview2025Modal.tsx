@@ -997,12 +997,20 @@ export default function YearReview2025Modal() {
           >
             Zurück
           </Button>
-          <Button
-            onClick={() => setPageIndex((p) => Math.min(pageCount - 1, p + 1))}
-            disabled={!canGoNext}
-          >
-            Weiter
-          </Button>
+          {pageCount !== pageIndex + 1 ? (
+            <Button
+              onClick={() =>
+                setPageIndex((p) => Math.min(pageCount - 1, p + 1))
+              }
+              disabled={!canGoNext}
+            >
+              Weiter
+            </Button>
+          ) : (
+            <Button variant="destructive" onClick={() => setOpen(false)}>
+              Schließen
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
