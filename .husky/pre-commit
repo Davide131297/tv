@@ -1,1 +1,2 @@
-npm run test-frontend
+yarn lint
+yarn ts-check
