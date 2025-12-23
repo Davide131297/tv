@@ -41,7 +41,7 @@ export default function Footer() {
           </Link>
           <YearReview2025Button />
         </div>
-        <div className="mt-3 flex gap-2.5 justify-center items-center">
+        {/* <div className="mt-3 flex gap-2.5 justify-center items-center">
           <p className="mb-2">Zur Unterstützung des Projekts:</p>
           <form
             action="https://www.paypal.com/donate"
@@ -67,7 +67,7 @@ export default function Footer() {
               height="1"
             />
           </form>
-        </div>
+        </div> */}
       </div>
     </footer>
   );
