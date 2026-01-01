@@ -23,7 +23,12 @@ function OverviewPageContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const currentYear = new Date().getFullYear();
-  const [selectedYear, setSelectedYear] = useState<string>(String(currentYear));
+
+  // Initialisiere selectedYear aus URL-Parameter oder verwende aktuelles Jahr
+  const yearFromUrl = searchParams.get("year");
+  const [selectedYear, setSelectedYear] = useState<string>(
+    yearFromUrl || String(currentYear)
+  );
 
   const fetchData = useCallback(async () => {
     try {
@@ -58,12 +63,18 @@ function OverviewPageContent() {
   }, [selectedShow, selectedYear]);
 
   useEffect(() => {
-    fetchData();
-    const search = searchParams.get("year");
-    if (search && search !== selectedYear) {
-      setSelectedYear(search);
+    // Synchronisiere selectedYear mit URL-Parameter
+    const yearParam = searchParams.get("year");
+    const yearToUse = yearParam || String(currentYear);
+
+    if (yearToUse !== selectedYear) {
+      setSelectedYear(yearToUse);
     }
-  }, [selectedShow, selectedYear, fetchData, searchParams]);
+  }, [searchParams, currentYear, selectedYear]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleShowChange = (showValue: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -184,9 +195,9 @@ function OverviewPageContent() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <div className="text-center">
                 <div className="text-2xl font-bold text-gray-900 mb-1">
-                  {(summary.total_appearances / summary.total_episodes).toFixed(
-                    1
-                  )}
+                  {(
+                    (summary.total_appearances / summary.total_episodes) || 0
+                  ).toFixed(1)}
                 </div>
                 <div className="text-sm text-gray-600">
                   Politiker pro Sendung
@@ -195,7 +206,7 @@ function OverviewPageContent() {
               <div className="text-center">
                 <div className="text-2xl font-bold text-gray-900 mb-1">
                   {(
-                    summary.total_appearances / summary.unique_politicians
+                    (summary.total_appearances / summary.unique_politicians) || 0
                   ).toFixed(1)}
                 </div>
                 <div className="text-sm text-gray-600">
@@ -205,7 +216,7 @@ function OverviewPageContent() {
               <div className="text-center">
                 <div className="text-2xl font-bold text-gray-900 mb-1">
                   {(
-                    summary.unique_politicians / summary.parties_represented
+                    (summary.unique_politicians / summary.parties_represented) || 0
                   ).toFixed(1)}
                 </div>
                 <div className="text-sm text-gray-600">
