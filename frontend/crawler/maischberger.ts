@@ -91,11 +91,11 @@ async function getEpisodeDetails(
   }
 }
 
-// Hauptfunktion: Crawle nur NEUE Maischberger Episoden (inkrementell) - NUR 2025
+// Hauptfunktion: Crawle nur NEUE Maischberger Episoden (inkrementell) - ab 2025
 export async function crawlNewMaischbergerEpisodes(): Promise<void> {
   console.log("🚀 Starte inkrementellen Maischberger Crawler...");
   console.log(`📅 Datum: ${new Date().toISOString()}`);
-  console.log(`🎯 Filterung: Nur Episoden aus dem Jahr 2025`);
+  console.log(`🎯 Filterung: Episoden ab dem Jahr 2025`);
 
   // Hole das letzte Datum aus der DB
   const latestDbDate = await await getLatestEpisodeDate("Maischberger");
@@ -114,24 +114,24 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
       return;
     }
 
-    // Filtere nur Episoden aus 2025
-    const episodes2025 = newEpisodes.filter((episode) => {
+    // Filtere Episoden ab 2025
+    const recentEpisodes = newEpisodes.filter((episode) => {
       const year = parseInt(episode.date.split("-")[0]);
-      return year === 2025;
+      return year >= 2025;
     });
 
-    if (episodes2025.length === 0) {
-      console.log("✅ Keine neuen 2025 Episoden gefunden!");
+    if (recentEpisodes.length === 0) {
+      console.log("✅ Keine neuen Episoden ab 2025 gefunden!");
       return;
     }
 
     console.log(
-      `🆕 Gefunden: ${episodes2025.length} neue 2025 Episoden (von ${newEpisodes.length} gesamt)`
+      `🆕 Gefunden: ${recentEpisodes.length} neue Episoden ab 2025 (von ${newEpisodes.length} gesamt)`
     );
-    if (episodes2025.length > 0) {
+    if (recentEpisodes.length > 0) {
       console.log(
-        `📅 2025 Zeitraum: ${episodes2025[episodes2025.length - 1]?.date} bis ${
-          episodes2025[0]?.date
+        `📅 Zeitraum: ${recentEpisodes[recentEpisodes.length - 1]?.date} bis ${
+          recentEpisodes[0]?.date
         }`
       );
     }
@@ -142,7 +142,7 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
     let episodesWithErrors = 0;
 
     // Sammle Episode-URLs für Batch-Insert
-    const episodeLinksToInsert = episodes2025.map((episode) => ({
+    const episodeLinksToInsert = recentEpisodes.map((episode) => ({
       episodeUrl: episode.url,
       episodeDate: episode.date,
     }));
@@ -159,7 +159,7 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
     }
 
     // Verarbeite jede Episode (älteste zuerst für chronologische Reihenfolge)
-    const sortedEpisodes = episodes2025.sort(
+    const sortedEpisodes = recentEpisodes.sort(
       (a: MaischbergerEpisode, b: MaischbergerEpisode) =>
         a.date.localeCompare(b.date)
     );
@@ -169,9 +169,9 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
 
       try {
         console.log(
-          `\n🎬 [${i + 1}/${
-            sortedEpisodes.length
-          }] Verarbeite 2025 Episode vom ${episode.date}: ${episode.title}`
+          `\n🎬 [${i + 1}/${sortedEpisodes.length}] Verarbeite Episode vom ${
+            episode.date
+          }: ${episode.title}`
         );
 
         // Hole detaillierte Beschreibung und politische Themen von der Episodenseite
@@ -291,9 +291,11 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
       );
     }
 
-    console.log(`\n🎉 Inkrementeller Maischberger 2025 Crawl abgeschlossen!`);
     console.log(
-      `📊 2025 Episoden verarbeitet: ${episodesProcessed}/${sortedEpisodes.length}`
+      `\n🎉 Inkrementeller Maischberger Crawl (ab 2025) abgeschlossen!`
+    );
+    console.log(
+      `📊 Episoden verarbeitet: ${episodesProcessed}/${sortedEpisodes.length}`
     );
     console.log(`👥 Politiker in DB gespeichert: ${totalPoliticiansInserted}`);
     console.log(`📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
@@ -309,9 +311,9 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
   }
 }
 
-// Hauptfunktion: Crawle ALLE Maischberger Episoden für 2025 und speichere in DB (Vollständiger Crawl)
-export async function crawlMaischberger2025(): Promise<void> {
-  console.log("🚀 Starte VOLLSTÄNDIGEN Maischberger 2025 Crawler...");
+// Hauptfunktion: Crawle ALLE Maischberger Episoden ab 2025 und speichere in DB (Vollständiger Crawl)
+export async function crawlMaischbergerFull(): Promise<void> {
+  console.log("🚀 Starte VOLLSTÄNDIGEN Maischberger Crawler (ab 2025)...");
   console.log(`📅 Datum: ${new Date().toISOString()}`);
   console.log(`🎯 Ziel: Alle Episoden ab 21.01.2025 bis heute`);
 
@@ -321,19 +323,19 @@ export async function crawlMaischberger2025(): Promise<void> {
     const page = await setupSimplePage(browser);
 
     // Crawle ALLE verfügbaren Episoden bis 2025 erreicht ist
-    const all2025Episodes = await getAllMaischberger2025Episodes(page);
+    const allRecentEpisodes = await getAllMaischbergerEpisodes(page);
 
-    if (all2025Episodes.length === 0) {
-      console.log("❌ Keine 2025 Episoden gefunden");
+    if (allRecentEpisodes.length === 0) {
+      console.log("❌ Keine Episoden ab 2025 gefunden");
       return;
     }
 
-    console.log(`📺 Gefunden: ${all2025Episodes.length} Episoden aus 2025`);
-    if (all2025Episodes.length > 0) {
+    console.log(`📺 Gefunden: ${allRecentEpisodes.length} Episoden ab 2025`);
+    if (allRecentEpisodes.length > 0) {
       console.log(
         `📅 Zeitraum: ${
-          all2025Episodes[all2025Episodes.length - 1]?.date
-        } bis ${all2025Episodes[0]?.date}`
+          allRecentEpisodes[allRecentEpisodes.length - 1]?.date
+        } bis ${allRecentEpisodes[0]?.date}`
       );
     }
 
@@ -347,7 +349,7 @@ export async function crawlMaischberger2025(): Promise<void> {
       [];
 
     // Verarbeite jede Episode (älteste zuerst für chronologische Reihenfolge)
-    const sortedEpisodes = all2025Episodes.sort(
+    const sortedEpisodes = allRecentEpisodes.sort(
       (a: MaischbergerEpisode, b: MaischbergerEpisode) =>
         a.date.localeCompare(b.date)
     );
@@ -485,7 +487,9 @@ export async function crawlMaischberger2025(): Promise<void> {
       );
     }
 
-    console.log(`\n🎉 VOLLSTÄNDIGER Maischberger 2025 Crawl abgeschlossen!`);
+    console.log(
+      `\n🎉 VOLLSTÄNDIGER Maischberger Crawl (ab 2025) abgeschlossen!`
+    );
     console.log(
       `📊 Episoden verarbeitet: ${episodesProcessed}/${sortedEpisodes.length}`
     );
@@ -503,11 +507,11 @@ export async function crawlMaischberger2025(): Promise<void> {
   }
 }
 
-// Extrahiere ALLE Maischberger Episoden für 2025 (ab 21.01.2025)
-async function getAllMaischberger2025Episodes(
+// Extrahiere ALLE Maischberger Episoden ab 2025 (ab 21.01.2025)
+async function getAllMaischbergerEpisodes(
   page: Page
 ): Promise<MaischbergerEpisode[]> {
-  console.log("🔍 Lade ALLE Maischberger Episoden für 2025...");
+  console.log("🔍 Lade ALLE Maischberger Episoden ab 2025...");
 
   await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 60000 });
 
@@ -634,8 +638,8 @@ async function getAllMaischberger2025Episodes(
 
   console.log(`📺 Gesamt gefunden: ${episodes.length} Episoden`);
 
-  // Filtere 2025 Episoden (ab 21.01.2025)
-  const episodes2025 = episodes.filter((ep) => {
+  // Filtere Episoden ab 2025 (ab 21.01.2025)
+  const recentEpisodes = episodes.filter((ep) => {
     const episodeYear = parseInt(ep.date.split("-")[0]);
     if (episodeYear > 2025) return true; // Zukünftige Jahre
     if (episodeYear < 2025) return false; // Vor 2025
@@ -643,10 +647,10 @@ async function getAllMaischberger2025Episodes(
     return ep.date >= "2025-01-21";
   });
 
-  console.log(`📅 2025 Episoden (ab 21.01.): ${episodes2025.length}`);
+  console.log(`📅 Episoden ab 2025 (ab 21.01.): ${recentEpisodes.length}`);
 
   // Filtere Episoden mit "(mit Gebärdensprache)" aus dem Titel
-  const withoutSignLanguage = episodes2025.filter((ep) => {
+  const withoutSignLanguage = recentEpisodes.filter((ep) => {
     if (ep.title.toLowerCase().includes("gebärdensprache")) {
       console.log(
         `Episode übersprungen (Gebärdensprache-Version): ${ep.date} - ${ep.title}`
@@ -659,7 +663,7 @@ async function getAllMaischberger2025Episodes(
   console.log(`📋 Ohne Gebärdensprache: ${withoutSignLanguage.length}`);
 
   // Gruppiere nach Datum und wähle nur die längste Episode pro Tag (Hauptsendung)
-  const episodesByDate = new Map<string, (typeof episodes2025)[0]>();
+  const episodesByDate = new Map<string, (typeof recentEpisodes)[0]>();
 
   for (const ep of withoutSignLanguage) {
     const existing = episodesByDate.get(ep.date);

@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from "next/server";
 import {
-  crawlMaischberger2025,
+  crawlMaischbergerFull,
   crawlNewMaischbergerEpisodes,
   clearMaischbergerData,
 } from "@/crawler/maischberger";
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
         await crawlNewMaischbergerEpisodes();
         break;
       case "full":
-        await crawlMaischberger2025();
+        await crawlMaischbergerFull();
         break;
       default:
         await crawlNewMaischbergerEpisodes();
