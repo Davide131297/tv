@@ -19,8 +19,7 @@ import {
 import { Page } from "puppeteer";
 import { getPoliticalArea } from "@/lib/ai-utils";
 
-const currentYear = new Date().getFullYear();
-const LIST_URL = `https://www.zdf.de/talk/markus-lanz-114?staffel=${currentYear}`;
+const LIST_URL = `https://www.zdf.de/talk/markus-lanz-114?staffel=$%7BcurrentYear%7D`;
 
 // ---------------- Lade mehr / Episoden-Links ----------------
 
