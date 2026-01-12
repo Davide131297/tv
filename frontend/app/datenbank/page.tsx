@@ -3,6 +3,12 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Datenbank",
+  description:
+    "Vollständige Datenbank aller TV-Show-Politiker-Einträge. Durchsuchbares Archiv mit Feedback-Möglichkeit.",
+  openGraph: {
+    title: "Datenbank | Polittalk-Watcher",
+    description: "Durchsuchbare Datenbank aller erfassten Politiker-Auftritte.",
+  },
 };
 
 export default function DatabasePage() {

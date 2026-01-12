@@ -105,6 +105,20 @@ export const metadata: Metadata = {
       },
     ],
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "Polittalk-Watcher – Politische Talkshows im Faktencheck",
+    description:
+      "Interaktive Statistiken und Analysen zu Markus Lanz, Maybrit Illner, Caren Miosga, Maischberger und Phoenix Runde",
+    images: ["/transparent_logo.png"],
+  },
+  alternates: {
+    canonical: "https://polittalk-watcher.de",
+  },
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION,
+  },
+  category: "news",
 };
 
 export default function RootLayout({

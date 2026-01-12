@@ -4,6 +4,13 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Politiker",
+  description:
+    "Detaillierte Übersicht aller Politiker mit ihren Auftritten in deutschen TV-Talkshows. Statistiken zu Häufigkeit und Sendungen.",
+  openGraph: {
+    title: "Politiker-Übersicht | Polittalk-Watcher",
+    description:
+      "Alle Politiker und ihre Auftritte bei Lanz, Illner, Maischberger, Miosga.",
+  },
 };
 
 export default function PoliticiansPage() {
