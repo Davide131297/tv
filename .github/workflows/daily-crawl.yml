@@ -1,0 +1,26 @@
+# .github/workflows/daily-crawl.yml
+name: Daily TV Show Crawler
+
+on:
+  schedule:
+    # Jeden Tag um 6:00 Uhr UTC (7:00 CET Winter / 8:00 CEST Sommer)
+    - cron: "47 23 * * *"
+
+  # Optional: Manuelles Triggern für Tests
+  workflow_dispatch:
+
+jobs:
+  trigger-crawlers:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Lanz Crawler
+        run: |
+          curl -X POST https://polittalk-watcher.de/api/crawl/lanz \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.CRAWL_API_KEY }}" \
+            --fail --silent --show-error
+
+      - name: Check Response
+        if: failure()
+        run: echo "Crawler failed!"

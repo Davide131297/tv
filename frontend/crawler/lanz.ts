@@ -20,6 +20,7 @@ import { Page } from "puppeteer";
 import { getPoliticalArea } from "@/lib/ai-utils";
 
 const LIST_URL = `https://www.zdf.de/talk/markus-lanz-114?staffel=$%7BcurrentYear%7D`;
+export { LIST_URL };
 
 // ---------------- Lade mehr / Episoden-Links ----------------
 
@@ -204,7 +205,7 @@ async function clickLoadMoreUntilDone(
   console.log(`Laden beendet. Insgesamt ${finalCount} Episoden gefunden.`);
 }
 
-async function collectEpisodeLinks(page: Page) {
+export async function collectEpisodeLinks(page: Page) {
   const urls = await page.$$eval(
     'a[href^="/video/talk/markus-lanz-114/"]',
     (as) => Array.from(new Set(as.map((a) => (a as HTMLAnchorElement).href)))
@@ -311,9 +312,9 @@ async function extractGuestsFromEpisode(
 
 // ---------------- Episode Text Extraktion ----------------
 
-async function extractPoliticalAreaIds(
+export async function extractEpisodeDescription(
   page: Page
-): Promise<number[] | [] | null> {
+): Promise<string | null> {
   try {
     // Mehrere Selektoren versuchen für die Episode-Beschreibung
     const selectors = [
@@ -345,6 +346,18 @@ async function extractPoliticalAreaIds(
         break; // Beende die Schleife sofort
       }
     }
+    return description;
+  } catch (error) {
+    console.warn(`Fehler beim Extrahieren der Episode-Beschreibung:`, error);
+    return null;
+  }
+}
+
+async function extractPoliticalAreaIds(
+  page: Page
+): Promise<number[] | [] | null> {
+  try {
+    const description = await extractEpisodeDescription(page);
 
     if (description) {
       const politicalAreaIds = await getPoliticalArea(description);
@@ -423,8 +436,8 @@ export default async function CrawlLanz() {
     // Dedup nach Datum
     const byDate = new Map<string, EpisodeResult>();
 
-    // Verarbeite Episoden in kleinen Batches um nicht zu viele Browser-Tabs zu öffnen
-    const batchSize = 6;
+    // Verarbeite Episoden einzeln um RAM zu sparen (wichtig für 1GB VM)
+    const batchSize = 1;
     const results: EpisodeResult[] = [];
 
     for (let i = 0; i < filteredUrls.length; i += batchSize) {
