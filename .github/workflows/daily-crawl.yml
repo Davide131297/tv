@@ -4,7 +4,7 @@ name: Daily TV Show Crawler
 on:
   schedule:
     # Jeden Tag um 6:00 Uhr UTC (7:00 CET Winter / 8:00 CEST Sommer)
-    - cron: "47 23 * * *"
+    - cron: "51 23 * * *"
 
   # Optional: Manuelles Triggern für Tests
   workflow_dispatch:
@@ -16,7 +16,7 @@ jobs:
     steps:
       - name: Trigger Lanz Crawler
         run: |
-          curl -X POST https://polittalk-watcher.de/api/crawl/lanz \
+          curl -X POST https://tv-git-small-crawler-davide131297s-projects.vercel.app/api/crawl/lanz \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.CRAWL_API_KEY }}" \
             --fail --silent --show-error
