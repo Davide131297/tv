@@ -33,6 +33,7 @@ interface TvShowEntry {
   politician_id: number | null;
   party_id: number | null;
   created_at: string;
+  tv_channel: string | null;
 }
 
 interface DatabaseEntriesResponse {
@@ -339,6 +340,9 @@ export default function DatabaseEntries() {
                 <strong>Sendung:</strong> {selectedEntry.show_name}
               </div>
               <div>
+                <strong>Sender:</strong> {selectedEntry.tv_channel || "-"}
+              </div>
+              <div>
                 <strong>Datum:</strong>{" "}
                 {new Date(selectedEntry.episode_date).toLocaleDateString(
                   "de-DE"
@@ -445,6 +449,12 @@ export default function DatabaseEntries() {
                     </div>
                   </div>
                   <div>
+                    <span className="text-gray-500 font-medium">Sender:</span>
+                    <div className="text-gray-900">
+                      {entry.tv_channel || "-"}
+                    </div>
+                  </div>
+                  <div>
                     <span className="text-gray-500 font-medium">Datum:</span>
                     <div className="text-gray-900">
                       {new Date(entry.episode_date).toLocaleDateString("de-DE")}
@@ -482,6 +492,9 @@ export default function DatabaseEntries() {
                   Sendung
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Sender
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Datum
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -503,6 +516,9 @@ export default function DatabaseEntries() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {entry.show_name}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {entry.tv_channel || "-"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {new Date(entry.episode_date).toLocaleDateString("de-DE")}
