@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import Image from "next/image";
 
 export const metadata: Metadata = {
   title: "TV Politik Dashboard – Statistiken zu deutschen Polit-Talkshows",
@@ -46,10 +47,19 @@ export default function Home() {
       />
       <div className="max-w-7xl mx-auto p-6">
         {/* Hero Section */}
-        <div className="text-center py-16">
-          <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
-            📺 TV Politik Dashboard
-          </h1>
+        <div className="text-center">
+          <div className="flex flex-col md:flex-row items-center justify-center gap-2 md:gap-6 mb-6">
+            <Image
+              src="/transparent_logo.png"
+              alt="Polittalk-Watcher Logo"
+              width={200}
+              height={200}
+              className="size-36 md:size-52"
+            />
+            <h1 className="text-4xl md:text-6xl font-bold text-gray-900">
+              TV Politik Dashboard
+            </h1>
+          </div>
           <p className="text-xl md:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto">
             Entdecken Sie die Politik-Landschaft deutscher Talkshows mit
             interaktiven Statistiken und detaillierten Analysen zu
