@@ -189,7 +189,10 @@ export default function PartiesPageContent() {
 
       {/* Partei-Details Tabelle */}
       {displayedStats.length > 0 && (
-        <div className="mt-8 bg-white rounded-lg shadow-md overflow-hidden relative">
+        <div
+          className="mt-8 bg-white rounded-lg shadow-md overflow-hidden relative"
+          id="aufschluesselung"
+        >
           {loading && (
             <div className="absolute inset-0 bg-white/75 flex items-center justify-center z-10 rounded-lg">
               <div className="flex items-center gap-2">

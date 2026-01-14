@@ -246,6 +246,7 @@ export default function PoliticalAreasChart({
       <div
         style={{ backgroundColor: "#ffffff", opacity: 1, zIndex: 9999 }}
         className="px-3 py-2 border border-gray-200 rounded shadow-md text-xs"
+        id="auftritte"
       >
         {firstPayload && firstPayload.full_label ? (
           <div>

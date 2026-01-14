@@ -96,8 +96,11 @@ export default function TopicPartyHeatmap({
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden mt-8 flex flex-col">
-      <div className="p-4 md:p-6 border-b border-gray-100 bg-gradient-to-r from-white to-gray-50/50">
+    <div
+      className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden mt-8 flex flex-col"
+      id="themen-partei-matrix"
+    >
+      <div className="p-4 md:p-6 border-b border-gray-100 bg-linear-to-r from-white to-gray-50/50">
         <h2 className="text-xl font-bold text-gray-900 tracking-tight">
           Themen-Partei Matrix
         </h2>

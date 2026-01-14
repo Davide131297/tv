@@ -6,7 +6,10 @@ export default function PoliticalAreasTable({
   politicalAreaStats: PoliticalAreaStats[];
 }) {
   return politicalAreaStats.length > 0 ? (
-    <div className="mt-8 bg-white rounded-lg shadow-md overflow-hidden">
+    <div
+      className="mt-8 bg-white rounded-lg shadow-md overflow-hidden"
+      id="aufschluesselung"
+    >
       <div className="p-4 sm:p-6 border-b border-gray-200">
         <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
           Detaillierte Aufschlüsselung
