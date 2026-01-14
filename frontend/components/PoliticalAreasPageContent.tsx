@@ -12,6 +12,7 @@ import { TV_CHANNEL } from "@/lib/utils";
 import { useYearList } from "@/hooks/useYearList";
 import { useSelectedShow } from "@/hooks/useSelectedShow";
 import { useSelectedChannel } from "@/hooks/useSelectedChannel";
+import TopicPartyHeatmap from "@/components/TopicPartyHeatmap";
 
 export default function PoliticalAreasPageContent() {
   const searchParams = useSearchParams();
@@ -167,6 +168,12 @@ export default function PoliticalAreasPageContent() {
 
           {/* Themen-Details Tabelle */}
           <PoliticalAreasTable politicalAreaStats={politicalAreaStats} />
+
+          {/* Themen-Partei Matrix */}
+          <TopicPartyHeatmap
+            selectedShow={localShow}
+            selectedYear={selectedYear}
+          />
         </div>
       )}
     </div>

@@ -632,6 +632,110 @@ export async function GET(request: NextRequest) {
         });
       }
 
+      case "topic-party-matrix": {
+        // 1. Hole alle relevanten Topics (political_areas)
+        // Link-Tabelle
+        let topicQuery = supabase
+          .from("tv_show_episode_political_areas")
+          .select("show_name, episode_date, political_area_id");
+
+        topicQuery = applyShowFilter(topicQuery, showName, year, tv_channel);
+        const { data: topicData, error: topicError } = await topicQuery.limit(
+          10000
+        );
+
+        if (topicError) throw topicError;
+
+        // Hole Topic-Labels aus der DB
+        const { data: topicDefinitions, error: defError } = await supabase
+          .from("political_area")
+          .select("id, label");
+
+        if (defError) throw defError;
+
+        // 2. Hole alle relevanten Politiker/Parteien
+        let partyQuery = supabase
+          .from("tv_show_politicians")
+          .select("show_name, episode_date, party_name")
+          .not("party_name", "is", null)
+          .neq("party_name", "");
+
+        partyQuery = applyShowFilter(partyQuery, showName, year, tv_channel);
+        const { data: partyData, error: partyError } = await partyQuery.limit(
+          10000
+        );
+
+        if (partyError) throw partyError;
+
+        // 3. Verknüpfe Daten über Episode (Map für schnellen Zugriff)
+        // Map: "Show|Date" -> Set<TopicIDs>
+        const episodeTopics = new Map<string, number[]>();
+
+        topicData.forEach((row) => {
+          const key = `${row.show_name}|${row.episode_date}`;
+          if (!episodeTopics.has(key)) {
+            episodeTopics.set(key, []);
+          }
+          episodeTopics.get(key)!.push(row.political_area_id);
+        });
+
+        // 4. Aggregiere Matrix (Topic x Partei)
+        const matrix = new Map<string, number>(); // Key: "Party|TopicID" -> Count
+
+        partyData.forEach((row) => {
+          const key = `${row.show_name}|${row.episode_date}`;
+          const topics = episodeTopics.get(key);
+
+          if (topics && topics.length > 0) {
+            // Für JEDES Thema dieser Episode wird dem Politiker/der Partei ein "Punkt" gegeben
+            // Das bedeutet: War die SPD in einer Sendung über "Wirtschaft" und "Klima",
+            // bekommt sie +1 bei Wirtschaft und +1 bei Klima.
+            topics.forEach((topicId) => {
+              const matrixKey = `${row.party_name}|${topicId}`;
+              matrix.set(matrixKey, (matrix.get(matrixKey) || 0) + 1);
+            });
+          }
+        });
+
+        // 5. Formatiere Ergebnis
+        // Nutze dynamische Labels aus der DB
+        const TOPIC_MAPPING: Record<number, string> = {};
+        topicDefinitions.forEach((def) => {
+          if (def.label) TOPIC_MAPPING[def.id] = def.label;
+        });
+
+        const resultMatrix = Array.from(matrix.entries()).map(
+          ([key, count]) => {
+            const [party, topicIdStr] = key.split("|");
+            return {
+              party,
+              topicId: parseInt(topicIdStr),
+              count,
+            };
+          }
+        );
+
+        const topicsList = topicDefinitions
+          .map((def) => ({
+            id: def.id,
+            label: def.label || "Unbekannt",
+          }))
+          .sort((a, b) => a.id - b.id);
+
+        const partiesList = Array.from(
+          new Set(resultMatrix.map((r) => r.party))
+        ).sort();
+
+        return NextResponse.json({
+          success: true,
+          data: {
+            topics: topicsList,
+            parties: partiesList,
+            matrix: resultMatrix,
+          },
+        });
+      }
+
       default:
         return NextResponse.json(
           { success: false, error: "Unknown type parameter" },
