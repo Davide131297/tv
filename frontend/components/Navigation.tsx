@@ -70,6 +70,18 @@ export default function Navigation() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = React.useState(false);
 
+  // Lock body scroll when menu is open
+  React.useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen]);
+
   return (
     <header className="bg-white shadow-sm border-b sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -78,6 +90,7 @@ export default function Navigation() {
           <div className="flex items-center">
             <Link
               href="/"
+              onClick={() => setIsOpen(false)}
               className="flex items-center gap-2 text-2xl font-bold text-gray-900 hover:text-blue-600 transition-colors"
             >
               <Image
@@ -122,58 +135,68 @@ export default function Navigation() {
             </NavigationMenuList>
           </NavigationMenu>
 
-          {/* Mobile Navigation */}
-          <div className="xl:hidden">
-            <DropdownMenu onOpenChange={setIsOpen}>
-              <DropdownMenuTrigger className="p-2 rounded-md hover:bg-gray-100 transition-colors">
-                <div className="w-6 h-6 flex flex-col justify-center items-center">
-                  <span
-                    className={cn(
-                      "block h-0.5 w-6 bg-gray-600 transition-all duration-300 ease-in-out",
-                      isOpen ? "rotate-45 translate-y-1" : "-translate-y-1"
-                    )}
-                  />
-                  <span
-                    className={cn(
-                      "block h-0.5 w-6 bg-gray-600 transition-all duration-300 ease-in-out",
-                      isOpen ? "opacity-0" : "opacity-100"
-                    )}
-                  />
-                  <span
-                    className={cn(
-                      "block h-0.5 w-6 bg-gray-600 transition-all duration-300 ease-in-out",
-                      isOpen ? "-rotate-45 -translate-y-1" : "translate-y-1"
-                    )}
-                  />
-                </div>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56">
-                <DropdownMenuLabel>Navigation</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {navigationItems.map((item) => (
-                  <DropdownMenuItem key={item.href} asChild>
-                    <Link
-                      href={item.href}
-                      className={cn(
-                        "w-full cursor-pointer",
-                        pathname === item.href &&
-                          "bg-accent text-accent-foreground"
-                      )}
-                    >
-                      {item.title}
-                    </Link>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+          {/* Mobile Navigation Toggle */}
+          <div className="lg:hidden">
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="p-2 rounded-md hover:bg-gray-100 transition-colors focus:outline-none"
+              aria-label="Menü öffnen"
+            >
+              <div className="w-6 h-6 flex flex-col justify-center items-center">
+                <span
+                  className={cn(
+                    "block h-0.5 w-6 bg-gray-600 transition-all duration-300 ease-in-out",
+                    isOpen ? "rotate-45 translate-y-1" : "-translate-y-1"
+                  )}
+                />
+                <span
+                  className={cn(
+                    "block h-0.5 w-6 bg-gray-600 transition-all duration-300 ease-in-out",
+                    isOpen ? "opacity-0" : "opacity-100"
+                  )}
+                />
+                <span
+                  className={cn(
+                    "block h-0.5 w-6 bg-gray-600 transition-all duration-300 ease-in-out",
+                    isOpen ? "-rotate-45 -translate-y-1" : "translate-y-1"
+                  )}
+                />
+              </div>
+            </button>
           </div>
 
-          {/* Info - moved to be responsive */}
-          <div className="text-sm text-gray-500 hidden xl:block">
+          {/* Info Text - visible on Desktop */}
+          <div className="text-sm text-gray-500 hidden lg:block">
             Politiker-Statistiken in TV Sendungen
           </div>
         </div>
       </div>
+
+      {/* Mobile Menu Overlay */}
+      {isOpen && (
+        <div className="lg:hidden border-t border-gray-100 bg-white absolute top-16 left-0 w-full shadow-lg animate-in slide-in-from-top-5 fade-in duration-200">
+          <div className="max-h-[calc(100vh-4rem)] overflow-y-auto py-4 px-4 space-y-2">
+            {navigationItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setIsOpen(false)}
+                className={cn(
+                  "block p-4 rounded-lg transition-colors",
+                  pathname === item.href
+                    ? "bg-gray-100 text-gray-900"
+                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                )}
+              >
+                <div className="font-medium">{item.title}</div>
+                <div className="text-sm text-gray-500 mt-0.5 font-normal">
+                  {item.description}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
     </header>
   );
 }
