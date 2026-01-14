@@ -9,7 +9,9 @@
     "lint": "eslint",
     "prepare": "husky",
     "ts-check": "tsc --noEmit",
-    "test": "jest"
+    "test": "jest",
+    "generate-embeddings": "tsx scripts/generate-embeddings.ts",
+    "refresh-stats": "tsx scripts/refresh-stats.ts"
   },
   "dependencies": {
     "@google/genai": "^1.30.0",

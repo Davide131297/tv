@@ -5,6 +5,7 @@ import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import YearReview2025Modal from "@/components/YearReview2025Modal";
 import { Analytics } from "@vercel/analytics/next";
+import ChatBot from "@/components/ChatBot";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -132,6 +133,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 min-h-full flex flex-col`}
       >
         <Navigation />
+        <ChatBot />
         <main className="grow">{children}</main>
         <Footer />
         <YearReview2025Modal />

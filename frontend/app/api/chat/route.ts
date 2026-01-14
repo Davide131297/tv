@@ -2,8 +2,10 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
-import { supabase } from "@/lib/supabase";
-import { DATABASE_SCHEMA } from "@/lib/db-schema";
+import {
+  searchAllSources,
+  formatSearchResultsForLLM,
+} from "@/lib/vector-search";
 
 interface Message {
   role: "user" | "assistant" | "system";
@@ -13,91 +15,6 @@ interface Message {
 const googleApiKey = process.env.GOOGLE_GENAI_API_KEY;
 const ai = new GoogleGenAI({ apiKey: googleApiKey });
 const MODEL = process.env.GOOGLE_AI_MODEL;
-
-/**
- * Generiert eine SQL-Abfrage aus der Nutzerfrage
- */
-async function generateSQLQuery(userQuestion: string): Promise<string | null> {
-  const sqlPrompt = `Du bist ein SQL-Experte. Generiere eine PostgreSQL-Abfrage basierend auf der Nutzerfrage.
-      ${DATABASE_SCHEMA}
-
-      WICHTIGE REGELN:
-      - Verwende nur SELECT-Abfragen (keine INSERT, UPDATE, DELETE)
-      - Nutze nur die oben genannten Tabellen und Spalten
-      - Verwende deutsche Datumswerte im Format 'YYYY-MM-DD'
-      - Bei Datumsvergleichen nutze episode_date
-      - Für Joins zwischen Tabellen nutze show_name und episode_date
-      - Bei Aggregationen (COUNT, SUM, etc.) nutze GROUP BY
-      - KEIN Semikolon am Ende der Abfrage
-      - Antworte NUR mit der SQL-Abfrage, keine Erklärungen
-      - Wenn die Frage nicht mit SQL beantwortbar ist, antworte mit "NO_SQL"
-    `;
-
-  if (!MODEL) {
-    throw new Error("Modell ist nicht definiert");
-  }
-
-  try {
-    const response = await ai.models.generateContent({
-      model: MODEL,
-      contents: `${sqlPrompt}\n\nNutzerfrage: ${userQuestion}`,
-      config: {
-        temperature: 0.1,
-        maxOutputTokens: 300,
-      },
-    });
-
-    const sqlQuery = response.text?.trim() || "";
-
-    // Bereinige die SQL-Abfrage
-    let cleanedSQL = sqlQuery
-      .replace(/```sql/g, "")
-      .replace(/```/g, "")
-      .replace(/;\s*$/g, "") // Entferne Semikolon am Ende
-      .trim();
-
-    // Prüfe ob SQL generiert wurde
-    if (
-      cleanedSQL.toUpperCase().includes("NO_SQL") ||
-      !cleanedSQL.toLowerCase().startsWith("select")
-    ) {
-      return null;
-    }
-    return cleanedSQL;
-  } catch (error) {
-    console.error("❌ Fehler bei SQL-Generierung:", error);
-    // Rethrow 429 errors so they can be handled by the caller
-    if (
-      error &&
-      typeof error === "object" &&
-      "status" in error &&
-      error.status === 429
-    ) {
-      throw error;
-    }
-    return null;
-  }
-}
-
-/**
- * Führt eine SQL-Abfrage sicher gegen Supabase aus
- */
-async function executeSQLQuery(sqlQuery: string): Promise<any> {
-  try {
-    const { data, error } = await supabase.rpc("execute_sql", {
-      query: sqlQuery,
-    });
-
-    if (error) {
-      console.error("❌ Supabase SQL Fehler:", error);
-      return null;
-    }
-    return data;
-  } catch (error) {
-    console.error("❌ Fehler beim Ausführen der SQL-Abfrage:", error);
-    return null;
-  }
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -118,36 +35,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Versuche SQL-Abfrage aus der letzten Nutzernachricht zu generieren
+    // Hole die letzte Nutzernachricht für die Vektor-Suche
     const lastUserMessage = messages
       .filter((m: Message) => m.role === "user")
       .pop();
 
-    let sqlQueryResult = "";
+    let dataContext = "";
     let rateLimitError = false;
 
     if (lastUserMessage) {
       try {
-        const sqlQuery = await generateSQLQuery(lastUserMessage.content);
+        console.log("🔍 Starte Vektor-Suche für:", lastUserMessage.content);
 
-        if (sqlQuery) {
-          const queryData = await executeSQLQuery(sqlQuery);
+        // Vektor-Suche in allen Datenquellen
+        const searchResults = await searchAllSources(
+          lastUserMessage.content,
+          0.3 // Similarity threshold - niedriger = mehr Ergebnisse
+        );
 
-          if (queryData) {
-            sqlQueryResult = `\n\nAKTUELLE DATENBANK-ABFRAGE:
-            SQL: ${sqlQuery}
-            Ergebnis: ${JSON.stringify(queryData, null, 2)}
-
-            Nutze diese Daten für deine Antwort.`;
-          }
+        if (searchResults.totalResults > 0) {
+          dataContext = formatSearchResultsForLLM(searchResults);
+          console.log(
+            `✅ ${searchResults.totalResults} relevante Ergebnisse gefunden`
+          );
+        } else {
+          console.log("ℹ️ Keine relevanten Daten gefunden");
+          dataContext =
+            "\n\nKeine spezifischen Daten zu dieser Frage gefunden. Antworte basierend auf allgemeinem Wissen über die Plattform.\n";
         }
-      } catch (sqlError) {
+      } catch (searchError) {
+        console.error("❌ Fehler bei Vektor-Suche:", searchError);
         // Check if it's a rate limit error (429)
         if (
-          sqlError &&
-          typeof sqlError === "object" &&
-          "status" in sqlError &&
-          sqlError.status === 429
+          searchError &&
+          typeof searchError === "object" &&
+          "status" in searchError &&
+          searchError.status === 429
         ) {
           rateLimitError = true;
         }
@@ -189,7 +112,7 @@ export async function POST(request: NextRequest) {
       year: "numeric",
     });
 
-    // System Prompt mit Datenbank-Kontext
+    // System Prompt mit Vektor-Suche Kontext
     const systemPrompt = `Du bist ein hilfreicher KI-Assistent für den "Polittalk-Watcher", eine Plattform zur Analyse deutscher politischer Talkshows.
 
       WICHTIGER KONTEXT:
@@ -207,20 +130,21 @@ export async function POST(request: NextRequest) {
       - Phoenix Persönlich (Phoenix)
       - Pinar Atalay (NTV)
       - Blome & Pfeffer (NTV)
-      ${sqlQueryResult}
+      ${dataContext}
 
       WICHTIG:
       - Dies ist eine fortlaufende Konversation - beziehe dich auf vorherige Nachrichten im Chat-Verlauf
       - Antworte direkt auf die aktuelle Frage ohne unnötige Begrüßungen wie "Hallo!" bei jeder Antwort
       - Nur bei der ersten Nachricht einer neuen Konversation solltest du mit einer Begrüßung beginnen
       - Beantworte Fragen basierend auf den obigen aktuellen Daten
-      - Bei Fragen zu Statistiken, nutze die konkreten Zahlen aus den Daten
-      - Wenn SQL-Abfrageergebnisse vorhanden sind, priorisiere diese für deine Antwort
+      - Bei Fragen zu Statistiken, nutze die konkreten Zahlen aus den Daten und gebe keine Relevanz an, nur die Daten.
+      - Wenn Daten aus der Vektor-Suche vorhanden sind, priorisiere diese für deine Antwort
       - Wenn Daten nicht verfügbar sind, sage das ehrlich
       - Antworte präzise, informativ und freundlich auf Deutsch
       - Formatiere deine Antworten mit Markdown
       - Themen außerhalb politischer Talkshows solltest du höflich ablehnen
       - Daten sind von 2024 bis heute
+      - Ignoriere folgende Shows: "Phoenix Runde", "Phoenix Persönlich", "Pinar Atalay" und "Blome & Pfeffer" und informiere den Nutzer nicht über diese.
       
       BEACHTE: Du bist Teil eines Systems, das deutsche politische Talkshows analysiert. Andere Fragen sind nicht relevant und sollten höflich abgelehnt werden.
 `;
@@ -258,7 +182,7 @@ export async function POST(request: NextRequest) {
             model: MODEL,
             contents: conversationHistory,
             config: {
-              temperature: 0.7,
+              temperature: 0.5,
               maxOutputTokens: 500,
               systemInstruction:
                 "Beantworte die Anfrage präzise und informativ auf Deutsch und mit Markdown.",
@@ -282,7 +206,8 @@ export async function POST(request: NextRequest) {
           console.error("❌ Google AI API Fehler:", aiError);
 
           // Check if it's a rate limit error (429)
-          let errorMessage = "KI-Service nicht erreichbar";
+          let errorMessage =
+            "⚠️ **KI-Service nicht erreichbar**\n\nBitte versuchen Sie es später erneut.";
           if (
             aiError &&
             typeof aiError === "object" &&
@@ -290,13 +215,15 @@ export async function POST(request: NextRequest) {
             aiError.status === 429
           ) {
             errorMessage =
-              "Die KI-Kapazität ist aktuell ausgeschöpft. Bitte versuchen Sie es in einigen Minuten erneut.";
+              "⚠️ **API-Limit erreicht**\n\nDie KI-Kapazität ist aktuell ausgeschöpft. Bitte versuchen Sie es in etwa einer Minute erneut.";
           }
 
+          // Send error as content message so it displays in chat
           const errorData = `data: ${JSON.stringify({
-            error: errorMessage,
+            content: errorMessage,
           })}\n\n`;
           controller.enqueue(encoder.encode(errorData));
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
         }
       },
