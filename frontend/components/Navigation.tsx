@@ -105,7 +105,7 @@ export default function Navigation() {
           </div>
 
           {/* Navigation Menu */}
-          <NavigationMenu className="hidden xl:flex">
+          <NavigationMenu className="hidden lg:flex">
             <NavigationMenuList>
               <NavigationMenuItem>
                 <NavigationMenuTrigger>Ansichten</NavigationMenuTrigger>
