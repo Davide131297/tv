@@ -285,6 +285,7 @@ export default async function CrawlPhoenixPersönlich() {
         // Speichere Politiker
         if (politicians.length > 0) {
           const inserted = await insertMultipleTvShowPoliticians(
+            "Phoenix",
             "Phoenix Persönlich",
             episodeDate,
             politicians

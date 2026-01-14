@@ -190,6 +190,7 @@ export default async function CrawlPinarAtalay() {
         // Speichere Politiker
         if (politicians.length > 0) {
           const inserted = await insertMultipleTvShowPoliticians(
+            "NTV",
             "Pinar Atalay",
             episodeDate,
             politicians

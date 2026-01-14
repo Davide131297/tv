@@ -186,6 +186,7 @@ export default async function CrawlBlomePfeffer() {
           if (politicians.length > 0) {
             try {
               const insertedPols = await insertMultipleTvShowPoliticians(
+                "NTV",
                 "Blome & Pfeffer",
                 ep.isoDate!,
                 politicians

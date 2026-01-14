@@ -231,6 +231,7 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
         // Speichere Politiker in die Datenbank
         if (politicians.length > 0) {
           const inserted = await insertMultipleTvShowPoliticians(
+            "Das Erste",
             "Maischberger",
             episode.date,
             politicians
@@ -421,6 +422,7 @@ export async function crawlMaischbergerFull(): Promise<void> {
         // Speichere Politiker in die Datenbank
         if (politicians.length > 0) {
           const inserted = await insertMultipleTvShowPoliticians(
+            "Das Erste",
             "Maischberger",
             episode.date,
             politicians

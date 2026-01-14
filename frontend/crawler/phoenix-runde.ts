@@ -285,6 +285,7 @@ export default async function CrawlPhoenixRunde() {
         // Speichere Politiker
         if (politicians.length > 0) {
           const inserted = await insertMultipleTvShowPoliticians(
+            "Phoenix",
             "Phoenix Runde",
             episodeDate,
             politicians

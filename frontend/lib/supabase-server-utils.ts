@@ -12,6 +12,14 @@ type GuestDetails = {
 };
 
 interface InsertTvShowPoliticianData {
+  tv_channel:
+    | "Das Erste"
+    | "ZDF"
+    | "RTL"
+    | "NTV"
+    | "Phoenix"
+    | "WELT"
+    | "Pro 7";
   show_name: string;
   episode_date: string;
   politician_id: number;
@@ -109,6 +117,7 @@ export async function insertTvShowPolitician(
   try {
     const { error } = await supabase.from("tv_show_politicians").upsert(
       {
+        tv_channel: data.tv_channel,
         show_name: data.show_name,
         episode_date: data.episode_date,
         politician_id: data.politician_id,
@@ -148,6 +157,7 @@ export function checkPoliticianOverride(name: string): GuestDetails | null {
 
 // Füge mehrere Politiker zu einer Sendung hinzu (Supabase Version)
 export async function insertMultipleTvShowPoliticians(
+  tvChannel: "Das Erste" | "ZDF" | "RTL" | "NTV" | "Phoenix" | "WELT" | "Pro 7",
   showName: string,
   episodeDate: string,
   politicians: Array<{
@@ -181,6 +191,7 @@ export async function insertMultipleTvShowPoliticians(
         : null;
 
       return {
+        tv_channel: tvChannel,
         show_name: showName,
         episode_date: episodeDate,
         politician_id: politician.politicianId,
@@ -213,6 +224,7 @@ export async function insertMultipleTvShowPoliticians(
     // Fallback: Einzeln einfügen
     for (const politician of politicians) {
       const success = await insertTvShowPolitician({
+        tv_channel: tvChannel,
         show_name: showName,
         episode_date: episodeDate,
         politician_id: politician.politicianId,

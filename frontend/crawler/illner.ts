@@ -510,6 +510,7 @@ export async function crawlNewMaybritIllnerEpisodes(): Promise<void> {
         // Speichere Politiker in die Datenbank
         if (politicians.length > 0) {
           const inserted = await insertMultipleTvShowPoliticians(
+            "ZDF",
             "Maybrit Illner",
             episode.date,
             politicians
@@ -676,6 +677,7 @@ export async function crawlAllMaybritIllnerEpisodes(): Promise<void> {
         // Speichere Politiker in die Datenbank
         if (politicians.length > 0) {
           const inserted = await insertMultipleTvShowPoliticians(
+            "ZDF",
             "Maybrit Illner",
             episode.date,
             politicians

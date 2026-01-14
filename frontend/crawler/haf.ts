@@ -380,6 +380,7 @@ export default async function crawlHartAberFair() {
         let politiciansInserted = 0;
         if (politiciansToInsert.length > 0) {
           politiciansInserted = await insertMultipleTvShowPoliticians(
+            "Das Erste",
             "Hart aber fair",
             episodeDetails.date,
             politiciansToInsert

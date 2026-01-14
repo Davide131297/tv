@@ -592,6 +592,7 @@ export default async function CrawlLanz() {
       // Speichere Politiker
       if (politicians.length > 0) {
         const inserted = await insertMultipleTvShowPoliticians(
+          "ZDF",
           "Markus Lanz",
           episode.date,
           politicians

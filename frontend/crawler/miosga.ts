@@ -539,6 +539,7 @@ export async function crawlIncrementalCarenMiosgaEpisodes(): Promise<void> {
         // Speichere Politiker in die Datenbank
         if (politicians.length > 0) {
           const inserted = await insertMultipleTvShowPoliticians(
+            "ZDF",
             "Caren Miosga",
             formatDateForDB(episode.date),
             politicians
@@ -730,6 +731,7 @@ export async function crawlAllCarenMiosgaEpisodes(): Promise<void> {
         // Speichere Politiker in die Datenbank
         if (politicians.length > 0) {
           const inserted = await insertMultipleTvShowPoliticians(
+            "ZDF",
             "Caren Miosga",
             formatDateForDB(episode.date),
             politicians
