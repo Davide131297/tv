@@ -3,233 +3,263 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  NavigationMenu,
-  NavigationMenuContent,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  NavigationMenuTrigger,
-} from "@/components/ui/navigation-menu";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { ChevronDown, Menu, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import TransparentLogo from "@/public/transparent_logo.png";
-
-const navigationItems = [
-  {
-    title: "Übersicht",
-    href: "/uebersicht",
-    description: "Gesamtübersicht der Politiker-Statistiken",
-  },
-  {
-    title: "Parteien",
-    href: "/parteien",
-    description: "Partei-Chart und Verteilung",
-  },
-  {
-    title: "Zeitverlauf Parteien",
-    href: "/parteien-zeitverlauf",
-    description: "Monatliche Entwicklung der Partei-Auftritte",
-  },
-  {
-    title: "Politische Themen",
-    href: "/politische-themen",
-    description: "Verteilung der politischen Themenbereiche",
-  },
-  {
-    title: "Politiker",
-    href: "/politiker",
-    description: "Detaillierte Politiker-Tabelle",
-  },
-  {
-    title: "Politiker-Rankings",
-    href: "/politiker-rankings",
-    description: "Ranking der häufigsten Talkshow-Gäste",
-  },
-  {
-    title: "Sendungen",
-    href: "/sendungen",
-    description: "Übersicht der letzten Sendungen",
-  },
-  {
-    title: "Datenbank",
-    href: "/datenbank",
-    description: "Alle Datenbank-Einträge mit Feedback-Option",
-  },
-];
 
 export default function Navigation() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = React.useState(false);
+  const [scrolled, setScrolled] = React.useState(false);
 
-  // Lock body scroll when menu is open
+  // Handle scroll effect
+  React.useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 10);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Lock body scroll when mobile menu is open
   React.useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "unset";
     }
-    return () => {
-      document.body.style.overflow = "unset";
-    };
   }, [isOpen]);
 
+  const navLinks = [
+    { title: "Übersicht", href: "/uebersicht" },
+    {
+      title: "Parteien",
+      href: "/parteien",
+      dropdown: true,
+      children: [
+        {
+          title: "Übersicht",
+          href: "/parteien",
+          description: "Interaktive Charts & Verteilungen",
+        },
+        {
+          title: "Zeitverlauf",
+          href: "/parteien-zeitverlauf",
+          description: "Entwicklung der Auftritte",
+        },
+      ],
+    },
+    { title: "Themen", href: "/politische-themen" },
+    {
+      title: "Politiker",
+      href: "/politiker",
+      dropdown: true,
+      children: [
+        {
+          title: "Datenbank",
+          href: "/politiker",
+          description: "Detaillierte Tabelle",
+        },
+        {
+          title: "Rankings",
+          href: "/politiker-rankings",
+          description: "Wer ist am häufigsten zu Gast?",
+        },
+      ],
+    },
+    { title: "Sendungen", href: "/sendungen" },
+    { title: "Datenbank", href: "/datenbank" },
+  ];
+
   return (
-    <header className="bg-white shadow-sm border-b sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <div className="flex items-center">
+    <>
+      <header
+        className={cn(
+          "sticky top-0 left-0 right-0 z-50 transition-all duration-300 border-b",
+          scrolled || isOpen
+            ? "bg-white/90 backdrop-blur-xl border-gray-200 shadow-sm"
+            : "bg-white/80 backdrop-blur-md border-transparent"
+        )}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            {/* Logo */}
             <Link
               href="/"
+              className="flex items-center gap-3 group"
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-2 text-2xl font-bold text-gray-900 hover:text-blue-600 transition-colors"
             >
-              <Image
-                src={TransparentLogo}
-                alt="Polittalk Logo"
-                width={30}
-                height={30}
-                className="w-12 h-12"
-              />
-              <span>Polittalk-Watcher</span>
-            </Link>
-          </div>
-
-          {/* Navigation Menu */}
-          <NavigationMenu className="hidden lg:flex">
-            <NavigationMenuList>
-              <NavigationMenuItem>
-                <NavigationMenuTrigger>Ansichten</NavigationMenuTrigger>
-                <NavigationMenuContent>
-                  <ul
-                    className={cn(
-                      "grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px]"
-                    )}
-                  >
-                    {navigationItems.map((item) => (
-                      <ListItem
-                        key={item.title}
-                        title={item.title}
-                        href={item.href}
-                        isActive={pathname === item.href}
-                        className={cn(
-                          item.title === "Datenbank" &&
-                            "border border-dashed border-gray-200"
-                        )}
-                      >
-                        {item.description}
-                      </ListItem>
-                    ))}
-                  </ul>
-                </NavigationMenuContent>
-              </NavigationMenuItem>
-            </NavigationMenuList>
-          </NavigationMenu>
-
-          {/* Mobile Navigation Toggle */}
-          <div className="lg:hidden">
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="p-2 rounded-md hover:bg-gray-100 transition-colors focus:outline-none"
-              aria-label="Menü öffnen"
-            >
-              <div className="w-6 h-6 flex flex-col justify-center items-center">
-                <span
-                  className={cn(
-                    "block h-0.5 w-6 bg-gray-600 transition-all duration-300 ease-in-out",
-                    isOpen ? "rotate-45 translate-y-1" : "-translate-y-1"
-                  )}
-                />
-                <span
-                  className={cn(
-                    "block h-0.5 w-6 bg-gray-600 transition-all duration-300 ease-in-out",
-                    isOpen ? "opacity-0" : "opacity-100"
-                  )}
-                />
-                <span
-                  className={cn(
-                    "block h-0.5 w-6 bg-gray-600 transition-all duration-300 ease-in-out",
-                    isOpen ? "-rotate-45 -translate-y-1" : "translate-y-1"
-                  )}
+              <div className="relative w-10 h-10 transition-transform duration-300 group-hover:scale-110">
+                <Image
+                  src={TransparentLogo}
+                  alt="Polittalk-Watcher Logo"
+                  fill
+                  className="object-contain"
+                  priority
                 />
               </div>
+              <div className="flex flex-col transform transition-transform duration-300 group-hover:translate-x-1">
+                <span className="font-bold text-xl text-gray-900 leading-none">
+                  Polittalk
+                </span>
+                <span className="text-sm font-medium text-blue-600 leading-none">
+                  Watcher
+                </span>
+              </div>
+            </Link>
+
+            {/* Desktop Navigation */}
+            <nav className="hidden lg:flex items-center gap-1">
+              {navLinks.map((link) => {
+                if (link.dropdown) {
+                  return (
+                    <div key={link.title} className="relative group px-3 py-2">
+                      <button
+                        className={cn(
+                          "flex items-center gap-1 text-sm font-medium transition-colors hover:text-blue-600 outline-none",
+                          pathname.startsWith(link.href)
+                            ? "text-blue-600"
+                            : "text-gray-600"
+                        )}
+                      >
+                        {link.title}
+                        <ChevronDown className="w-4 h-4 transition-transform duration-200 group-hover:rotate-180 text-gray-400 group-hover:text-blue-600" />
+                      </button>
+
+                      {/* Dropdown Menu */}
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 pt-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top translate-y-2 group-hover:translate-y-0 w-80 z-50">
+                        <div className="bg-white rounded-xl shadow-xl border border-gray-100 p-2 overflow-hidden ring-1 ring-black/5">
+                          {link.children?.map((child) => (
+                            <Link
+                              key={child.href + child.title}
+                              href={child.href}
+                              className={cn(
+                                "block p-3 rounded-lg transition-all duration-200 group/item hover:bg-gray-50 bg-white"
+                              )}
+                            >
+                              <div
+                                className={cn(
+                                  "font-medium mb-0.5",
+                                  pathname === child.href
+                                    ? "text-blue-700"
+                                    : "text-gray-900 group-hover/item:text-blue-700"
+                                )}
+                              >
+                                {child.title}
+                              </div>
+                              {child.description && (
+                                <div className="text-xs text-gray-500 leading-snug group-hover/item:text-gray-600">
+                                  {child.description}
+                                </div>
+                              )}
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <Link
+                    key={link.title}
+                    href={link.href}
+                    className={cn(
+                      "px-3 py-2 text-sm font-medium transition-all duration-200 rounded-lg hover:bg-gray-50 hover:text-blue-600",
+                      pathname === link.href
+                        ? "text-blue-600 bg-blue-50/50"
+                        : "text-gray-600"
+                    )}
+                  >
+                    {link.title}
+                  </Link>
+                );
+              })}
+            </nav>
+
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="lg:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors focus:outline-none"
+              aria-label="Menü öffnen"
+            >
+              {isOpen ? (
+                <X className="w-6 h-6" />
+              ) : (
+                <Menu className="w-6 h-6" />
+              )}
             </button>
           </div>
+        </div>
+      </header>
 
-          {/* Info Text - visible on Desktop */}
-          <div className="text-sm text-gray-500 hidden lg:block">
-            Politiker-Statistiken in TV Sendungen
+      {/* Mobile Menu Overlay */}
+      <div
+        className={cn(
+          "fixed inset-0 z-40 bg-white lg:hidden transition-all duration-300 ease-in-out",
+          isOpen
+            ? "opacity-100 pointer-events-auto translate-y-0"
+            : "opacity-0 pointer-events-none -translate-y-4"
+        )}
+        style={{ top: "64px" }}
+      >
+        <div className="h-full overflow-y-auto pb-20">
+          <div className="p-4 space-y-1">
+            {navLinks.map((link) => {
+              if (link.dropdown) {
+                return (
+                  <div key={link.title} className="space-y-1 py-2">
+                    <div className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                      {link.title}
+                    </div>
+                    {link.children?.map((child) => (
+                      <Link
+                        key={child.href + child.title}
+                        href={child.href}
+                        onClick={() => setIsOpen(false)}
+                        className={cn(
+                          "block px-4 py-3 rounded-xl transition-colors mx-2",
+                          pathname === child.href
+                            ? "bg-blue-50 text-blue-700 font-medium"
+                            : "text-gray-600 hover:bg-gray-50 text-base"
+                        )}
+                      >
+                        {child.title}
+                        <div className="text-xs text-gray-400 font-normal mt-0.5">
+                          {child.description}
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                );
+              }
+
+              return (
+                <Link
+                  key={link.title}
+                  href={link.href}
+                  onClick={() => setIsOpen(false)}
+                  className={cn(
+                    "block px-6 py-4 text-lg font-medium transition-colors border-b border-gray-50 last:border-0",
+                    pathname === link.href
+                      ? "text-blue-600"
+                      : "text-gray-900 hover:text-blue-600"
+                  )}
+                >
+                  {link.title}
+                </Link>
+              );
+            })}
+          </div>
+
+          <div className="mt-8 px-6 text-center">
+            <p className="text-sm text-gray-400">
+              © {new Date().getFullYear()} Polittalk-Watcher
+            </p>
           </div>
         </div>
       </div>
-
-      {/* Mobile Menu Overlay */}
-      {isOpen && (
-        <div className="lg:hidden border-t border-gray-100 bg-white absolute top-16 left-0 w-full shadow-lg animate-in slide-in-from-top-5 fade-in duration-200">
-          <div className="max-h-[calc(100vh-4rem)] overflow-y-auto py-4 px-4 space-y-2">
-            {navigationItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setIsOpen(false)}
-                className={cn(
-                  "block p-4 rounded-lg transition-colors",
-                  pathname === item.href
-                    ? "bg-gray-100 text-gray-900"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                )}
-              >
-                <div className="font-medium">{item.title}</div>
-                <div className="text-sm text-gray-500 mt-0.5 font-normal">
-                  {item.description}
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-    </header>
+    </>
   );
 }
-
-const ListItem = React.forwardRef<
-  React.ComponentRef<"a">,
-  React.ComponentPropsWithoutRef<"a"> & {
-    isActive?: boolean;
-    title: string;
-    children: React.ReactNode;
-    href: string;
-  }
->(({ className, title, children, isActive, href, ...props }, ref) => {
-  return (
-    <li>
-      <NavigationMenuLink asChild>
-        <Link
-          ref={ref}
-          href={href}
-          className={cn(
-            "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
-            isActive && "bg-accent text-accent-foreground",
-            className
-          )}
-          {...props}
-        >
-          <div className="text-sm font-medium leading-none">{title}</div>
-          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-            {children}
-          </p>
-        </Link>
-      </NavigationMenuLink>
-    </li>
-  );
-});
-ListItem.displayName = "ListItem";
