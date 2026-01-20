@@ -145,7 +145,7 @@ export default function TopicPartyHeatmap({
                       <div
                         className={cn(
                           "h-10 md:h-12 w-full flex items-center justify-center rounded-lg transition-transform hover:scale-105 duration-200 cursor-default",
-                          getIntensityClass(count)
+                          getIntensityClass(count),
                         )}
                         title={`${party}: ${count} mal zu "${topic.label}"`}
                       >
@@ -179,7 +179,8 @@ export default function TopicPartyHeatmap({
           <span className="ml-1">(Niedrig → Hoch)</span>
         </div>
         <div className="text-[10px] uppercase tracking-wider text-gray-400">
-          Daten basieren auf ausgewählten Sendungen
+          Daten basieren anhand der Episodenbeschreibung und automatisierter
+          zuordnung mit Künstlicher Intelligenz
         </div>
       </div>
     </div>
