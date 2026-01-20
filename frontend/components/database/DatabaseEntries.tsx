@@ -23,6 +23,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { FETCH_HEADERS } from "@/lib/utils";
 
 interface TvShowEntry {
   id: number;
@@ -93,7 +94,10 @@ export default function DatabaseEntries() {
 
     try {
       const response = await fetch(
-        `/api/database-entries?page=${currentPage}&limit=50`
+        `/api/database-entries?page=${currentPage}&limit=50`,
+        {
+          headers: FETCH_HEADERS,
+        },
       );
 
       if (!response.ok) {
@@ -109,7 +113,7 @@ export default function DatabaseEntries() {
       setError(
         err instanceof Error
           ? err.message
-          : "Ein unerwarteter Fehler ist aufgetreten"
+          : "Ein unerwarteter Fehler ist aufgetreten",
       );
     } finally {
       setLoading(false);
@@ -132,7 +136,7 @@ export default function DatabaseEntries() {
       entry.politician_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       entry.show_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       entry.party_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      entry.id.toString().includes(searchTerm.toLowerCase())
+      entry.id.toString().includes(searchTerm.toLowerCase()),
   );
 
   const handleFeedbackSubmit = async (e: React.FormEvent) => {
@@ -345,7 +349,7 @@ export default function DatabaseEntries() {
               <div>
                 <strong>Datum:</strong>{" "}
                 {new Date(selectedEntry.episode_date).toLocaleDateString(
-                  "de-DE"
+                  "de-DE",
                 )}
               </div>
               <div>

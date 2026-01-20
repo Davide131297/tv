@@ -25,6 +25,7 @@ import { LinkPreview } from "@/components/ui/link-preview";
 import { BADGE_PARTY_COLORS } from "@/types";
 import { DialogTitle } from "@radix-ui/react-dialog";
 import { LoaderOne } from "@/components/ui/loader";
+import { FETCH_HEADERS } from "@/lib/utils";
 
 type Appearances = {
   id: string;
@@ -46,7 +47,7 @@ export default function PoliticianModal({
 }: PoliticianModalProps) {
   const [appearances, setAppearances] = useState<Appearances[]>([]);
   const [selectedPolitician, setSelectedPolitician] = useState<any | null>(
-    null
+    null,
   );
 
   const [isLoading, setIsLoading] = useState(false);
@@ -64,8 +65,8 @@ export default function PoliticianModal({
     try {
       const res = await fetch(
         `https://www.abgeordnetenwatch.de/api/v2/politicians?first_name=${encodeURIComponent(
-          firstName
-        )}&last_name=${encodeURIComponent(lastName)}`
+          firstName,
+        )}&last_name=${encodeURIComponent(lastName)}`,
       );
 
       if (!res.ok) throw new Error("Fehler beim Abrufen der Daten");
@@ -88,7 +89,7 @@ export default function PoliticianModal({
           list.find(
             (p: any) =>
               p?.party?.label &&
-              p.party.label.toLowerCase() === politicianParty.toLowerCase()
+              p.party.label.toLowerCase() === politicianParty.toLowerCase(),
           ) ?? null;
       }
       if (!selected && list.length > 0) {
@@ -99,13 +100,16 @@ export default function PoliticianModal({
 
       if (!selected || !selected.id) {
         console.warn(
-          "Kein gültiger Politiker oder ID vorhanden — Detailabfrage übersprungen."
+          "Kein gültiger Politiker oder ID vorhanden — Detailabfrage übersprungen.",
         );
         return;
       }
 
       const detailRes = await fetch(
-        `/api/politician-details?id=${encodeURIComponent(selected.id)}`
+        `/api/politician-details?id=${encodeURIComponent(selected.id)}`,
+        {
+          headers: FETCH_HEADERS,
+        },
       );
       if (!detailRes.ok) {
         console.warn("Fehler beim Abrufen der Detaildaten:", detailRes.status);
@@ -119,18 +123,18 @@ export default function PoliticianModal({
         ? [...detailData].sort(
             (a: Appearances, b: Appearances) =>
               new Date(b.episode_date).getTime() -
-              new Date(a.episode_date).getTime()
+              new Date(a.episode_date).getTime(),
           )
         : [];
 
       if (selected.qid_wikidata) {
         const wikidataRes = await fetch(
-          `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${selected.qid_wikidata}&format=json&origin=*`
+          `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${selected.qid_wikidata}&format=json&origin=*`,
         );
         if (!wikidataRes.ok) {
           console.warn(
             "Fehler beim Abrufen der Wikidata-Daten:",
-            wikidataRes.status
+            wikidataRes.status,
           );
         }
 

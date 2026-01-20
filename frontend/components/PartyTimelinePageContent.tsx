@@ -9,6 +9,7 @@ import { TV_CHANNEL } from "@/lib/utils";
 import { useYearList } from "@/hooks/useYearList";
 import { useSelectedShow } from "@/hooks/useSelectedShow";
 import { useSelectedChannel } from "@/hooks/useSelectedChannel";
+import { FETCH_HEADERS } from "@/lib/utils";
 
 interface MonthlyPartyStats {
   month: string;
@@ -35,18 +36,18 @@ export default function PartyTimelinePageContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState<string>(
-    () => searchParams.get("year") || String(currentYear)
+    () => searchParams.get("year") || String(currentYear),
   );
 
   const [localShow, setLocalShow] = useState<string>(selectedShow);
   const [localUnionMode, setLocalUnionMode] = useState<boolean>(
-    searchParams.get("union") === "true"
+    searchParams.get("union") === "true",
   );
   const [localSelectedParties, setLocalSelectedParties] = useState<string[]>(
     () => {
       const partiesParam = searchParams.get("parteien");
       return partiesParam ? partiesParam.split(",") : [];
-    }
+    },
   );
 
   // Sync localShow with URL on mount/navigation
@@ -121,7 +122,10 @@ export default function PartyTimelinePageContent() {
 
         const queryString = params.toString();
 
-        const response = await fetch(`/api/party-timeline?${queryString}`);
+        const response = await fetch(`/api/party-timeline?${queryString}`, {
+          method: "GET",
+          headers: FETCH_HEADERS,
+        });
 
         if (!response.ok) {
           throw new Error("Fehler beim Laden der Daten");
@@ -137,7 +141,7 @@ export default function PartyTimelinePageContent() {
         }
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : "Ein Fehler ist aufgetreten"
+          err instanceof Error ? err.message : "Ein Fehler ist aufgetreten",
         );
         console.error("Error fetching party timeline data:", err);
       } finally {

@@ -12,7 +12,12 @@ export async function proxy(request: NextRequest) {
 
   // Apply middleware to crawl API routes and politics API
   const isProtectedAPIRoute =
-    pathname.startsWith("/api/crawl/") || pathname.startsWith("/api/politics");
+    pathname.startsWith("/api/crawl/") ||
+    pathname.startsWith("/api/politics") ||
+    pathname.startsWith("/api/database-entries") ||
+    pathname.startsWith("/api/party-timeline") ||
+    pathname.startsWith("/api/political-areas") ||
+    pathname.startsWith("/api/politician-details");
 
   if (!isProtectedAPIRoute) {
     return NextResponse.next();
@@ -43,7 +48,7 @@ function handleAPIProtection(request: NextRequest) {
     if (!allowedMethods.includes(request.method)) {
       return NextResponse.json(
         { error: `Method ${request.method} not allowed` },
-        { status: 405 }
+        { status: 405 },
       );
     }
 
@@ -68,7 +73,7 @@ function handleAPIProtection(request: NextRequest) {
                 error: "Rate limit exceeded",
                 retryAfter: Math.ceil((rateLimitEntry.resetTime - now) / 1000),
               },
-              { status: 429 }
+              { status: 429 },
             );
           }
           rateLimitEntry.count++;
@@ -106,7 +111,7 @@ function handleAPIProtection(request: NextRequest) {
       if (!apiKeyFromHeader || apiKeyFromHeader !== expectedApiKey) {
         return NextResponse.json(
           { error: "Unauthorized: Invalid or missing API key" },
-          { status: 401 }
+          { status: 401 },
         );
       }
     }
@@ -129,7 +134,7 @@ function handleAPIProtection(request: NextRequest) {
 
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -140,11 +145,14 @@ export const config = {
 };
 
 // Cleanup function for rate limit store (should be called periodically)
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, entry] of rateLimitStore.entries()) {
-    if (now >= entry.resetTime) {
-      rateLimitStore.delete(key);
+setInterval(
+  () => {
+    const now = Date.now();
+    for (const [key, entry] of rateLimitStore.entries()) {
+      if (now >= entry.resetTime) {
+        rateLimitStore.delete(key);
+      }
     }
-  }
-}, 5 * 60 * 1000); // Clean up every 5 minutes
+  },
+  5 * 60 * 1000,
+); // Clean up every 5 minutes

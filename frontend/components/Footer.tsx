@@ -25,20 +25,28 @@ export default function Footer() {
           </Link>
           .
         </p>
-        <div className="flex justify-center gap-4 mt-2">
+        <div className="flex flex-col md:flex-row justify-center items-center gap-2 md:gap-4 mt-2">
           <p>Letztes Update: {format(new Date(), "dd.MM.yyyy")}</p>
-          <Link
-            href="/datenschutz"
-            className="text-black/70 hover:text-black/90 hover:underline"
-          >
-            Datenschutz
-          </Link>
-          <Link
-            href="/impressum"
-            className="text-black/70 hover:text-black/90 hover:underline"
-          >
-            Impressum
-          </Link>
+          <div className="flex gap-4">
+            <Link
+              href="/datenschutz"
+              className="text-black/70 hover:text-black/90 hover:underline"
+            >
+              Datenschutz
+            </Link>
+            <Link
+              href="/impressum"
+              className="text-black/70 hover:text-black/90 hover:underline"
+            >
+              Impressum
+            </Link>
+            <Link
+              href="/api-docs"
+              className="text-black/70 hover:text-black/90 hover:underline"
+            >
+              API
+            </Link>
+          </div>
           <YearReview2025Button />
         </div>
         {/* <div className="mt-3 flex gap-2.5 justify-center items-center">

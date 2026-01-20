@@ -1,0 +1,124 @@
+{
+  "info": {
+    "_postman_id": "e9df1793-c712-4689-8999-4123343cd53f",
+    "name": "TV Stats API",
+    "description": "Public API for accessing political TV show statistics.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Party Timeline",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1/party-timeline?year=2024",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "party-timeline"],
+          "query": [
+            {
+              "key": "year",
+              "value": "2024",
+              "description": "Year filter (optional)"
+            },
+            {
+              "key": "show",
+              "value": "Marcus Lanz",
+              "description": "Show name filter (optional)",
+              "disabled": true
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Political Areas",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1/political-areas?year=2024",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "political-areas"],
+          "query": [
+            {
+              "key": "year",
+              "value": "2024",
+              "description": "Year filter (optional)"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Politician Details",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1/politician-details?first_name=Friedrich&last_name=Merz&year=2026",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "politician-details"],
+          "query": [
+            {
+              "key": "first_name",
+              "value": "Friedrich",
+              "description": "First name of the politician"
+            },
+            {
+              "key": "last_name",
+              "value": "Merz",
+              "description": "Last name of the politician"
+            },
+            {
+              "key": "year",
+              "value": "2024",
+              "description": "Year filter (optional)"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Politics (General Stats)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1/politics?type=party-stats",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "politics"],
+          "query": [
+            {
+              "key": "type",
+              "value": "party-stats",
+              "description": "Type of stats (required): 'party-stats', 'episodes', 'recent', 'summary', etc."
+            },
+            {
+              "key": "limit",
+              "value": "10",
+              "description": "Limit results"
+            },
+            {
+              "key": "year",
+              "value": "2024",
+              "description": "Year filter (optional)",
+              "disabled": true
+            }
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://polittalk-watcher.de",
+      "type": "string"
+    }
+  ]
+}
