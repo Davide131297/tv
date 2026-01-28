@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
-import YearReview2025Modal from "@/components/YearReview2025Modal";
+//import YearReview2025Modal from "@/components/YearReview2025Modal";
 import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL || "https://polittalk-watcher.de"
+    process.env.NEXT_PUBLIC_SITE_URL || "https://polittalk-watcher.de",
   ),
   title: {
     default: "Polittalk-Watcher – Politische Talkshows im Faktencheck",
@@ -134,7 +134,7 @@ export default function RootLayout({
         <Navigation />
         <main className="grow">{children}</main>
         <Footer />
-        <YearReview2025Modal />
+        {/* <YearReview2025Modal />  Jahresrückblick 2025*/}
         <Analytics />
       </body>
     </html>

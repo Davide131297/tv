@@ -1,7 +1,5 @@
 import Link from "next/link";
-import Image from "next/image";
 import { format } from "date-fns";
-import YearReview2025Button from "./YearReview2025Button";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -47,7 +45,6 @@ export default function Footer() {
               API
             </Link>
           </div>
-          <YearReview2025Button />
         </div>
         {/* <div className="mt-3 flex gap-2.5 justify-center items-center">
           <p className="mb-2">Zur Unterstützung des Projekts:</p>
