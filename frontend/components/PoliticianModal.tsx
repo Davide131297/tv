@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, memo } from "react";
 import {
   Dialog,
   DialogTrigger,
@@ -40,7 +40,7 @@ type PoliticianModalProps = {
   className?: string;
 };
 
-export default function PoliticianModal({
+function PoliticianModal({
   politicianName,
   politicianParty,
   className,
@@ -324,3 +324,5 @@ export default function PoliticianModal({
     </Tooltip>
   );
 }
+
+export default memo(PoliticianModal);

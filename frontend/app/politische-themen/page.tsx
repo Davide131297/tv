@@ -1,5 +1,6 @@
 import PoliticalAreasPageContent from "@/components/PoliticalAreasPageContent";
 import { Suspense } from "react";
+import { ChartSkeleton } from "@/components/ui/page-skeletons";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
 
 export default function PoliticalAreasPage() {
   return (
-    <Suspense fallback={""}>
+    <Suspense fallback={<ChartSkeleton />}>
       <PoliticalAreasPageContent />
     </Suspense>
   );

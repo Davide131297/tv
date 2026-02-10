@@ -1,5 +1,6 @@
 import PartyTimelinePageContent from "@/components/PartyTimelinePageContent";
 import { Suspense } from "react";
+import { ChartSkeleton } from "@/components/ui/page-skeletons";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -15,11 +16,7 @@ export const metadata: Metadata = {
 
 export default function PartyTimelinePage() {
   return (
-    <Suspense
-      fallback={
-        <div className="container mx-auto py-8 px-4">Lade Daten...</div>
-      }
-    >
+    <Suspense fallback={<ChartSkeleton />}>
       <PartyTimelinePageContent />
     </Suspense>
   );

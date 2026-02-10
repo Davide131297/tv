@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { useUrlUpdater } from "@/hooks/useUrlUpdater";
 import type { SummaryData } from "@/types";
 import { SHOW_OPTIONS } from "@/types";
 import { FETCH_HEADERS } from "@/lib/utils";
@@ -13,10 +14,11 @@ import {
 import ColorBox from "./ui/color-box";
 import { useYearList } from "@/hooks/useYearList";
 import { useSelectedShow } from "@/hooks/useSelectedShow";
+import { OverviewSkeleton } from "@/components/ui/page-skeletons";
 
 function OverviewPageContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
+  const updateUrl = useUrlUpdater();
   const years = useYearList(2024);
   const selectedShow = useSelectedShow(searchParams, SHOW_OPTIONS);
   const [summary, setSummary] = useState<SummaryData | null>(null);
@@ -27,7 +29,7 @@ function OverviewPageContent() {
   // Initialisiere selectedYear aus URL-Parameter oder verwende aktuelles Jahr
   const yearFromUrl = searchParams.get("year");
   const [selectedYear, setSelectedYear] = useState<string>(
-    yearFromUrl || String(currentYear)
+    yearFromUrl || String(currentYear),
   );
 
   const fetchData = useCallback(async () => {
@@ -38,7 +40,7 @@ function OverviewPageContent() {
           ? "/api/politics?type=summary&year=" +
             encodeURIComponent(selectedYear)
           : `/api/politics?type=summary&show=${encodeURIComponent(
-              selectedShow
+              selectedShow,
             )}&year=${encodeURIComponent(selectedYear)}`;
 
       const response = await fetch(url, {
@@ -77,34 +79,16 @@ function OverviewPageContent() {
   }, [fetchData]);
 
   const handleShowChange = (showValue: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (showValue === "all") {
-      params.delete("show");
-    } else {
-      params.set("show", showValue);
-    }
-
-    const newUrl = params.toString() ? `?${params.toString()}` : "/uebersicht";
-    router.push(newUrl, { scroll: false });
+    updateUrl({ show: showValue === "all" ? undefined : showValue });
   };
 
   function handleYearChange(year: string) {
     setSelectedYear(year);
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("year", year);
-    const newUrl = params.toString() ? `?${params.toString()}` : "/uebersicht";
-    router.push(newUrl, { scroll: false });
+    updateUrl({ year });
   }
 
   if (loading) {
-    return (
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="flex items-center justify-center p-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="ml-2">Lade Daten...</span>
-        </div>
-      </div>
-    );
+    return <OverviewSkeleton />;
   }
 
   if (error) {
@@ -196,7 +180,7 @@ function OverviewPageContent() {
               <div className="text-center">
                 <div className="text-2xl font-bold text-gray-900 mb-1">
                   {(
-                    (summary.total_appearances / summary.total_episodes) || 0
+                    summary.total_appearances / summary.total_episodes || 0
                   ).toFixed(1)}
                 </div>
                 <div className="text-sm text-gray-600">
@@ -206,7 +190,7 @@ function OverviewPageContent() {
               <div className="text-center">
                 <div className="text-2xl font-bold text-gray-900 mb-1">
                   {(
-                    (summary.total_appearances / summary.unique_politicians) || 0
+                    summary.total_appearances / summary.unique_politicians || 0
                   ).toFixed(1)}
                 </div>
                 <div className="text-sm text-gray-600">
@@ -216,7 +200,8 @@ function OverviewPageContent() {
               <div className="text-center">
                 <div className="text-2xl font-bold text-gray-900 mb-1">
                   {(
-                    (summary.unique_politicians / summary.parties_represented) || 0
+                    summary.unique_politicians / summary.parties_represented ||
+                    0
                   ).toFixed(1)}
                 </div>
                 <div className="text-sm text-gray-600">

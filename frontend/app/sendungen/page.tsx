@@ -1,5 +1,6 @@
 import SendungenPageContent from "@/components/SendungenPageContent";
 import { Suspense } from "react";
+import { TableSkeleton } from "@/components/ui/page-skeletons";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
 
 export default function EpisodesPage() {
   return (
-    <Suspense fallback={""}>
+    <Suspense fallback={<TableSkeleton />}>
       <SendungenPageContent />
     </Suspense>
   );

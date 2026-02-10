@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { useUrlUpdater } from "@/hooks/useUrlUpdater";
+import { LoadingOverlay } from "@/components/ui/loading-overlay";
 import PoliticalAreasChart from "@/components/PoliticalAreasChart";
 import type { PoliticalAreaStats } from "@/types";
 import { SHOW_OPTIONS } from "@/types";
@@ -16,8 +18,7 @@ import TopicPartyHeatmap from "@/components/TopicPartyHeatmap";
 
 export default function PoliticalAreasPageContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
+  const updateUrl = useUrlUpdater();
   const years = useYearList(2024);
   const selectedShow = useSelectedShow(searchParams, SHOW_OPTIONS);
   const selectedChannel = useSelectedChannel(searchParams, TV_CHANNEL);
@@ -29,7 +30,7 @@ export default function PoliticalAreasPageContent() {
   const [error, setError] = useState<string | null>(null);
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState<string>(
-    () => searchParams.get("year") || String(currentYear)
+    () => searchParams.get("year") || String(currentYear),
   );
 
   const [localShow, setLocalShow] = useState<string>(selectedShow);
@@ -38,28 +39,6 @@ export default function PoliticalAreasPageContent() {
   useEffect(() => {
     setLocalShow(selectedShow);
   }, [selectedShow]);
-
-  // Update URL without page reload
-  const updateUrl = (updates: {
-    [key: string]: string | boolean | undefined;
-  }) => {
-    const params = new URLSearchParams(searchParams.toString());
-
-    Object.entries(updates).forEach(([key, value]) => {
-      if (value === undefined || value === false || value === "") {
-        params.delete(key);
-      } else if (typeof value === "boolean") {
-        params.set(key, String(value));
-      } else {
-        params.set(key, value);
-      }
-    });
-
-    const newUrl = params.toString()
-      ? `${pathname}?${params.toString()}`
-      : pathname;
-    router.replace(newUrl, { scroll: false });
-  };
 
   const handleShowChange = (showValue: string) => {
     setLocalShow(showValue);
@@ -148,14 +127,7 @@ export default function PoliticalAreasPageContent() {
         </div>
       ) : (
         <div className="relative">
-          {loading && (
-            <div className="absolute inset-0 bg-white/75 flex items-center justify-center z-10 rounded-lg min-h-[400px]">
-              <div className="flex items-center gap-2">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                <span className="text-sm text-gray-600">Lade Daten...</span>
-              </div>
-            </div>
-          )}
+          {loading && <LoadingOverlay />}
 
           <PoliticalAreasChart
             data={politicalAreaStats}

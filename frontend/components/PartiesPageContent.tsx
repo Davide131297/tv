@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { useUrlUpdater } from "@/hooks/useUrlUpdater";
+import { LoadingOverlay } from "@/components/ui/loading-overlay";
 import PartyChart from "@/components/PartyChart";
 import type { PartyStats } from "@/types";
 import { SHOW_OPTIONS } from "@/types";
@@ -14,8 +16,7 @@ import { useSelectedChannel } from "@/hooks/useSelectedChannel";
 
 export default function PartiesPageContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
+  const updateUrl = useUrlUpdater();
   const [partyStats, setPartyStats] = useState<PartyStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,35 +28,13 @@ export default function PartiesPageContent() {
 
   const [localShow, setLocalShow] = useState<string>(selectedShow);
   const [localUnionMode, setLocalUnionMode] = useState<boolean>(
-    searchParams.get("union") === "true"
+    searchParams.get("union") === "true",
   );
 
   // Sync localShow with URL on mount/navigation
   useEffect(() => {
     setLocalShow(selectedShow);
   }, [selectedShow]);
-
-  // Update URL without page reload
-  const updateUrl = (updates: {
-    [key: string]: string | boolean | undefined;
-  }) => {
-    const params = new URLSearchParams(searchParams.toString());
-
-    Object.entries(updates).forEach(([key, value]) => {
-      if (value === undefined || value === false || value === "") {
-        params.delete(key);
-      } else if (typeof value === "boolean") {
-        params.set(key, String(value));
-      } else {
-        params.set(key, value);
-      }
-    });
-
-    const newUrl = params.toString()
-      ? `${pathname}?${params.toString()}`
-      : pathname;
-    router.replace(newUrl, { scroll: false });
-  };
 
   const handleShowChange = (showValue: string) => {
     setLocalShow(showValue);
@@ -168,14 +147,7 @@ export default function PartiesPageContent() {
       )}
 
       <div className="relative">
-        {loading && (
-          <div className="absolute inset-0 bg-white/75 flex items-center justify-center z-10 rounded-lg">
-            <div className="flex items-center gap-2">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-              <span className="text-sm text-gray-600">Lade Daten...</span>
-            </div>
-          </div>
-        )}
+        {loading && <LoadingOverlay />}
         <PartyChart
           data={displayedStats}
           selectedShow={localShow}
@@ -193,14 +165,7 @@ export default function PartiesPageContent() {
           className="mt-8 bg-white rounded-lg shadow-md overflow-hidden relative"
           id="aufschluesselung"
         >
-          {loading && (
-            <div className="absolute inset-0 bg-white/75 flex items-center justify-center z-10 rounded-lg">
-              <div className="flex items-center gap-2">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                <span className="text-sm text-gray-600">Lade Daten...</span>
-              </div>
-            </div>
-          )}
+          {loading && <LoadingOverlay />}
           <div className="p-4 sm:p-6 border-b border-gray-200">
             <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
               Detaillierte Aufschlüsselung
@@ -215,7 +180,7 @@ export default function PartiesPageContent() {
                 .map((party) => {
                   const totalAppearances = displayedStats.reduce(
                     (sum, p) => sum + p.count,
-                    0
+                    0,
                   );
                   const percentage = (
                     (party.count / totalAppearances) *
@@ -263,7 +228,7 @@ export default function PartiesPageContent() {
                   .map((party, index) => {
                     const totalAppearances = displayedStats.reduce(
                       (sum, p) => sum + p.count,
-                      0
+                      0,
                     );
                     const percentage = (
                       (party.count / totalAppearances) *

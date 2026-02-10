@@ -15,10 +15,17 @@ export default function Navigation() {
 
   // Handle scroll effect
   React.useEffect(() => {
+    let ticking = false;
     const handleScroll = () => {
-      setScrolled(window.scrollY > 10);
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          setScrolled(window.scrollY > 10);
+          ticking = false;
+        });
+        ticking = true;
+      }
     };
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
@@ -79,7 +86,7 @@ export default function Navigation() {
           "sticky top-0 left-0 right-0 z-50 transition-all duration-300 border-b",
           scrolled || isOpen
             ? "bg-white/90 backdrop-blur-xl border-gray-200 shadow-sm"
-            : "bg-white/80 backdrop-blur-md border-transparent"
+            : "bg-white/80 backdrop-blur-md border-transparent",
         )}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -110,21 +117,29 @@ export default function Navigation() {
             </Link>
 
             {/* Desktop Navigation */}
-            <nav className="hidden lg:flex items-center gap-1">
+            <nav
+              className="hidden lg:flex items-center gap-1"
+              aria-label="Hauptnavigation"
+            >
               {navLinks.map((link) => {
                 if (link.dropdown) {
                   return (
                     <div key={link.title} className="relative group px-3 py-2">
                       <button
                         className={cn(
-                          "flex items-center gap-1 text-sm font-medium transition-colors hover:text-blue-600 outline-none",
+                          "flex items-center gap-1 text-sm font-medium transition-colors hover:text-blue-600 outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded-lg",
                           pathname.startsWith(link.href)
                             ? "text-blue-600"
-                            : "text-gray-600"
+                            : "text-gray-600",
                         )}
+                        aria-expanded={false}
+                        aria-haspopup="true"
                       >
                         {link.title}
-                        <ChevronDown className="w-4 h-4 transition-transform duration-200 group-hover:rotate-180 text-gray-400 group-hover:text-blue-600" />
+                        <ChevronDown
+                          className="w-4 h-4 transition-transform duration-200 group-hover:rotate-180 text-gray-400 group-hover:text-blue-600"
+                          aria-hidden="true"
+                        />
                       </button>
 
                       {/* Dropdown Menu */}
@@ -135,7 +150,7 @@ export default function Navigation() {
                               key={child.href + child.title}
                               href={child.href}
                               className={cn(
-                                "block p-3 rounded-lg transition-all duration-200 group/item hover:bg-gray-50 bg-white"
+                                "block p-3 rounded-lg transition-all duration-200 group/item hover:bg-gray-50 bg-white",
                               )}
                             >
                               <div
@@ -143,7 +158,7 @@ export default function Navigation() {
                                   "font-medium mb-0.5",
                                   pathname === child.href
                                     ? "text-blue-700"
-                                    : "text-gray-900 group-hover/item:text-blue-700"
+                                    : "text-gray-900 group-hover/item:text-blue-700",
                                 )}
                               >
                                 {child.title}
@@ -165,11 +180,12 @@ export default function Navigation() {
                   <Link
                     key={link.title}
                     href={link.href}
+                    aria-current={pathname === link.href ? "page" : undefined}
                     className={cn(
-                      "px-3 py-2 text-sm font-medium transition-all duration-200 rounded-lg hover:bg-gray-50 hover:text-blue-600",
+                      "px-3 py-2 text-sm font-medium transition-all duration-200 rounded-lg hover:bg-gray-50 hover:text-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2",
                       pathname === link.href
                         ? "text-blue-600 bg-blue-50/50"
-                        : "text-gray-600"
+                        : "text-gray-600",
                     )}
                   >
                     {link.title}
@@ -181,13 +197,15 @@ export default function Navigation() {
             {/* Mobile Menu Button */}
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="lg:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors focus:outline-none"
-              aria-label="Menü öffnen"
+              className="lg:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+              aria-label={isOpen ? "Menü schließen" : "Menü öffnen"}
+              aria-expanded={isOpen}
+              aria-controls="mobile-menu"
             >
               {isOpen ? (
-                <X className="w-6 h-6" />
+                <X className="w-6 h-6" aria-hidden="true" />
               ) : (
-                <Menu className="w-6 h-6" />
+                <Menu className="w-6 h-6" aria-hidden="true" />
               )}
             </button>
           </div>
@@ -195,12 +213,14 @@ export default function Navigation() {
       </header>
 
       {/* Mobile Menu Overlay */}
-      <div
+      <nav
+        id="mobile-menu"
+        aria-label="Mobile Navigation"
         className={cn(
           "fixed inset-0 z-40 bg-white lg:hidden transition-all duration-300 ease-in-out",
           isOpen
             ? "opacity-100 pointer-events-auto translate-y-0"
-            : "opacity-0 pointer-events-none -translate-y-4"
+            : "opacity-0 pointer-events-none -translate-y-4",
         )}
         style={{ top: "64px" }}
       >
@@ -222,7 +242,7 @@ export default function Navigation() {
                           "block px-4 py-3 rounded-xl transition-colors mx-2",
                           pathname === child.href
                             ? "bg-blue-50 text-blue-700 font-medium"
-                            : "text-gray-600 hover:bg-gray-50 text-base"
+                            : "text-gray-600 hover:bg-gray-50 text-base",
                         )}
                       >
                         {child.title}
@@ -244,7 +264,7 @@ export default function Navigation() {
                     "block px-6 py-4 text-lg font-medium transition-colors border-b border-gray-50 last:border-0",
                     pathname === link.href
                       ? "text-blue-600"
-                      : "text-gray-900 hover:text-blue-600"
+                      : "text-gray-900 hover:text-blue-600",
                   )}
                 >
                   {link.title}
@@ -259,7 +279,7 @@ export default function Navigation() {
             </p>
           </div>
         </div>
-      </div>
+      </nav>
     </>
   );
 }

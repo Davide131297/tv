@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { useUrlUpdater } from "@/hooks/useUrlUpdater";
+import { LoadingOverlay } from "@/components/ui/loading-overlay";
 import PartyTimelineChart from "@/components/PartyTimelineChart";
 import ShowOptionsButtons from "@/components/ShowOptionsButtons";
 import { SHOW_OPTIONS } from "@/types";
@@ -25,8 +27,7 @@ interface ApiResponse {
 
 export default function PartyTimelinePageContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
+  const updateUrl = useUrlUpdater();
   const years = useYearList(2024);
   const selectedShow = useSelectedShow(searchParams, SHOW_OPTIONS);
   const selectedChannel = useSelectedChannel(searchParams, TV_CHANNEL);
@@ -54,34 +55,6 @@ export default function PartyTimelinePageContent() {
   useEffect(() => {
     setLocalShow(selectedShow);
   }, [selectedShow]);
-
-  // Update URL without page reload
-  const updateUrl = (updates: {
-    [key: string]: string | boolean | string[] | undefined;
-  }) => {
-    const params = new URLSearchParams(searchParams.toString());
-
-    Object.entries(updates).forEach(([key, value]) => {
-      if (value === undefined || value === false || value === "") {
-        params.delete(key);
-      } else if (Array.isArray(value)) {
-        if (value.length > 0) {
-          params.set(key, value.join(","));
-        } else {
-          params.delete(key);
-        }
-      } else if (typeof value === "boolean") {
-        params.set(key, String(value));
-      } else {
-        params.set(key, value);
-      }
-    });
-
-    const newUrl = params.toString()
-      ? `${pathname}?${params.toString()}`
-      : pathname;
-    router.replace(newUrl, { scroll: false });
-  };
 
   const handleShowChange = (show: string) => {
     setLocalShow(show);
@@ -182,14 +155,7 @@ export default function PartyTimelinePageContent() {
       )}
 
       <div className="relative">
-        {isLoading && (
-          <div className="absolute inset-0 bg-white/75 flex items-center justify-center z-10 rounded-lg min-h-[400px]">
-            <div className="flex items-center gap-2">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-              <span className="text-sm text-gray-600">Lade Daten...</span>
-            </div>
-          </div>
-        )}
+        {isLoading && <LoadingOverlay />}
 
         <PartyTimelineChart
           data={data}

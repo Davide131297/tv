@@ -1,5 +1,6 @@
 import PartiesPageContent from "@/components/PartiesPageContent";
 import { Suspense } from "react";
+import { ChartSkeleton } from "@/components/ui/page-skeletons";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
 
 export default function PartiesPage() {
   return (
-    <Suspense fallback={""}>
+    <Suspense fallback={<ChartSkeleton />}>
       <PartiesPageContent />
     </Suspense>
   );

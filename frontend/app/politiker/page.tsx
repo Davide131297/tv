@@ -1,5 +1,6 @@
 import PoliticianTable from "@/components/PoliticianTable";
 import { Suspense } from "react";
+import { TableSkeleton } from "@/components/ui/page-skeletons";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -25,7 +26,7 @@ export default function PoliticiansPage() {
           deutschen TV-Talkshows
         </p>
       </div>
-      <Suspense fallback={<div>Loading...</div>}>
+      <Suspense fallback={<TableSkeleton />}>
         <PoliticianTable />
       </Suspense>
     </div>

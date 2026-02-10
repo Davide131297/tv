@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useUrlUpdater } from "@/hooks/useUrlUpdater";
+import { LoadingOverlay } from "@/components/ui/loading-overlay";
 import type { EpisodeData, Statistics } from "@/types";
 import { SHOW_OPTIONS_WITHOUT_ALL } from "@/types";
 import { FETCH_HEADERS } from "@/lib/utils";
@@ -30,7 +32,7 @@ export default function SendungenPageContent() {
   const selectedShow = useSelectedShow(
     searchParams,
     SHOW_OPTIONS_WITHOUT_ALL,
-    "Markus Lanz"
+    "Markus Lanz",
   );
 
   const [localShow, setLocalShow] = useState<string>(selectedShow);
@@ -40,27 +42,7 @@ export default function SendungenPageContent() {
     setLocalShow(selectedShow);
   }, [selectedShow]);
 
-  // Update URL without page reload
-  const updateUrl = (updates: {
-    [key: string]: string | boolean | undefined;
-  }) => {
-    const params = new URLSearchParams(searchParams.toString());
-
-    Object.entries(updates).forEach(([key, value]) => {
-      if (value === undefined || value === false || value === "") {
-        params.delete(key);
-      } else if (typeof value === "boolean") {
-        params.set(key, String(value));
-      } else {
-        params.set(key, value);
-      }
-    });
-
-    const newUrl = params.toString()
-      ? `${pathname}?${params.toString()}`
-      : pathname;
-    router.replace(newUrl, { scroll: false });
-  };
+  const updateUrl = useUrlUpdater();
 
   const handleShowChange = (showValue: string) => {
     setLocalShow(showValue);
@@ -76,16 +58,27 @@ export default function SendungenPageContent() {
     try {
       setLoading(true);
 
-      // Hole Episoden-Daten
-      const episodesResponse = await fetch(
-        `/api/politics?type=episodes-with-politicians&show=${encodeURIComponent(
-          localShow
-        )}&year=${encodeURIComponent(selectedYear)}`,
-        {
-          method: "GET",
-          headers: FETCH_HEADERS,
-        }
-      );
+      // Hole Episoden-Daten und Statistiken parallel
+      const [episodesResponse, statsResponse] = await Promise.all([
+        fetch(
+          `/api/politics?type=episodes-with-politicians&show=${encodeURIComponent(
+            localShow,
+          )}&year=${encodeURIComponent(selectedYear)}`,
+          {
+            method: "GET",
+            headers: FETCH_HEADERS,
+          },
+        ),
+        fetch(
+          `/api/politics?type=episode-statistics&show=${encodeURIComponent(
+            localShow,
+          )}&year=${encodeURIComponent(selectedYear)}`,
+          {
+            method: "GET",
+            headers: FETCH_HEADERS,
+          },
+        ),
+      ]);
 
       if (!episodesResponse.ok) {
         throw new Error("Failed to fetch episodes data");
@@ -95,17 +88,6 @@ export default function SendungenPageContent() {
       if (episodesData.success) {
         setEpisodes(episodesData.data);
       }
-
-      // Hole Statistiken separat für die gesamte Datenbank
-      const statsResponse = await fetch(
-        `/api/politics?type=episode-statistics&show=${encodeURIComponent(
-          localShow
-        )}&year=${encodeURIComponent(selectedYear)}`,
-        {
-          method: "GET",
-          headers: FETCH_HEADERS,
-        }
-      );
 
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
@@ -146,10 +128,10 @@ export default function SendungenPageContent() {
         totalEpisodes: episodes.length,
         totalAppearances: episodes.reduce(
           (sum, ep) => sum + ep.politician_count,
-          0
+          0,
         ),
         episodesWithPoliticians: episodes.filter(
-          (ep) => ep.politician_count > 0
+          (ep) => ep.politician_count > 0,
         ).length,
         averagePoliticiansPerEpisode:
           episodes.length > 0
@@ -217,14 +199,7 @@ export default function SendungenPageContent() {
       )}
 
       <div className="relative">
-        {loading && (
-          <div className="absolute inset-0 bg-white/75 flex items-center justify-center z-10 rounded-lg min-h-[400px]">
-            <div className="flex items-center gap-2">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-              <span className="text-sm text-gray-600">Lade Daten...</span>
-            </div>
-          </div>
-        )}
+        {loading && <LoadingOverlay />}
 
         {/* Statistiken */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6 mb-8">

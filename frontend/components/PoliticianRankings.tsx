@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useUrlUpdater } from "@/hooks/useUrlUpdater";
+import { LoadingOverlay } from "@/components/ui/loading-overlay";
 import { Card, CardContent } from "@/components/ui/card";
 import { Eye } from "lucide-react";
 import { FETCH_HEADERS } from "@/lib/utils";
@@ -74,12 +76,7 @@ const Badge = ({
   );
 };
 
-// Skeleton Komponente
-const Skeleton = ({ className = "" }: { className?: string }) => {
-  return (
-    <div className={`animate-pulse bg-gray-200 rounded ${className}`}></div>
-  );
-};
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function PoliticianRankings() {
   const router = useRouter();
@@ -97,22 +94,7 @@ export default function PoliticianRankings() {
   const years = useYearList(2024);
 
   // Update URL without page reload
-  const updateUrl = (updates: { [key: string]: string | undefined }) => {
-    const params = new URLSearchParams(searchParams.toString());
-
-    Object.entries(updates).forEach(([key, value]) => {
-      if (value === undefined || value === "" || value === "all") {
-        params.delete(key);
-      } else {
-        params.set(key, value);
-      }
-    });
-
-    const newUrl = params.toString()
-      ? `${pathname}?${params.toString()}`
-      : pathname;
-    router.replace(newUrl, { scroll: false });
-  };
+  const updateUrl = useUrlUpdater();
 
   const handleShowChange = (show: string) => {
     setSelectedShow(show);
@@ -172,7 +154,7 @@ export default function PoliticianRankings() {
         setLoading(false);
       }
     },
-    []
+    [],
   );
 
   useEffect(() => {
@@ -255,14 +237,7 @@ export default function PoliticianRankings() {
 
       {/* Rankings Liste */}
       <div className="space-y-2 sm:space-y-3 relative">
-        {loading && (
-          <div className="absolute inset-0 bg-white/75 flex items-center justify-center z-10 rounded-lg min-h-[400px]">
-            <div className="flex items-center gap-2">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-              <span className="text-sm text-gray-600">Lade Daten...</span>
-            </div>
-          </div>
-        )}
+        {loading && <LoadingOverlay />}
         {rankings.length === 0 ? (
           <Card>
             <CardContent className="pt-4 sm:pt-6">
@@ -285,7 +260,7 @@ export default function PoliticianRankings() {
                     {/* Rang */}
                     <Badge
                       className={`${getRankBadgeColor(
-                        rank
+                        rank,
                       )} min-w-8 sm:min-w-10 justify-center shrink-0`}
                     >
                       #{rank}
@@ -308,7 +283,7 @@ export default function PoliticianRankings() {
                                   <Link
                                     href={`politiker?search=${politician.politician_name.replace(
                                       / /g,
-                                      "+"
+                                      "+",
                                     )}`}
                                   >
                                     <Eye className="cursor-pointer" size={16} />
@@ -321,7 +296,7 @@ export default function PoliticianRankings() {
                             </div>
                             <Badge
                               className={`${getPartyColorClass(
-                                politician.party_name
+                                politician.party_name,
                               )} text-xs mt-1`}
                             >
                               {politician.party_name}
@@ -384,7 +359,7 @@ export default function PoliticianRankings() {
                                   <Link
                                     href={`politiker?search=${politician.politician_name.replace(
                                       / /g,
-                                      "+"
+                                      "+",
                                     )}`}
                                   >
                                     <Eye className="cursor-pointer" size={16} />
@@ -398,7 +373,7 @@ export default function PoliticianRankings() {
                             <div className="flex flex-wrap gap-2 mt-1">
                               <Badge
                                 className={getPartyColorClass(
-                                  politician.party_name
+                                  politician.party_name,
                                 )}
                               >
                                 {politician.party_name}
@@ -425,7 +400,7 @@ export default function PoliticianRankings() {
                             <div className="font-medium">
                               {format(
                                 politician.latest_appearance,
-                                "dd.MM.yyyy"
+                                "dd.MM.yyyy",
                               )}
                             </div>
                           </div>

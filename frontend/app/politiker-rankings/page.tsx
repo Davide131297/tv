@@ -1,6 +1,7 @@
 import PoliticianRankings from "@/components/PoliticianRankings";
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { RankingsSkeleton } from "@/components/ui/page-skeletons";
 
 export const metadata: Metadata = {
   title: "Politiker-Rankings",
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
 
 export default function PoliticianRankingsPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<RankingsSkeleton />}>
       <div className="container mx-auto py-8 px-4">
         <PoliticianRankings />
       </div>

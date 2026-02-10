@@ -1,5 +1,6 @@
 import { EpisodeData } from "@/types";
 import { cn } from "@/lib/utils";
+import { getPartyBadgeClasses } from "@/lib/party-colors";
 import Link from "next/link";
 import PoliticianModal from "./PoliticianModal";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -9,35 +10,6 @@ import { de } from "date-fns/locale/de";
 type LastShowTableProps = {
   episodes: EpisodeData[];
 };
-
-function getPartyColorClass(partyName: string) {
-  switch (partyName) {
-    case "CDU":
-      return "bg-black text-white";
-    case "CSU":
-      return "bg-blue-800 text-white";
-    case "SPD":
-      return "bg-red-600 text-white";
-    case "FDP":
-      return "bg-yellow-400 text-black";
-    case "Die Linke":
-      return "bg-[#DF007D] text-white";
-    case "BÜNDNIS 90/DIE GRÜNEN":
-      return "bg-green-400 text-green-900 border-green-200";
-    case "AfD":
-      return "bg-blue-600 text-white";
-    case "BSW":
-      return "bg-yellow-700 text-white";
-    case "parteilos":
-      return "bg-gray-500 text-white";
-    case "ÖVP":
-      return "bg-[#63c3d0] text-white";
-    case "FREIE WÄHLER":
-      return "bg-[#f97316] text-white";
-    default:
-      return "bg-gray-100 text-gray-600";
-  }
-}
 
 export default function LastShowTable({ episodes }: LastShowTableProps) {
   return (
@@ -106,8 +78,8 @@ export default function LastShowTable({ episodes }: LastShowTableProps) {
                             className={cn(
                               "text-xs px-2 py-1 rounded",
                               politician.party_name
-                                ? getPartyColorClass(politician.party_name)
-                                : "bg-gray-100 text-gray-600"
+                                ? getPartyBadgeClasses(politician.party_name)
+                                : "bg-gray-100 text-gray-600",
                             )}
                           >
                             {politician.party_name}
@@ -187,8 +159,8 @@ export default function LastShowTable({ episodes }: LastShowTableProps) {
                               className={cn(
                                 "text-xs px-2 py-1 rounded",
                                 politician.party_name
-                                  ? getPartyColorClass(politician.party_name)
-                                  : "bg-gray-100 text-gray-600"
+                                  ? getPartyBadgeClasses(politician.party_name)
+                                  : "bg-gray-100 text-gray-600",
                               )}
                             >
                               {politician.party_name}
