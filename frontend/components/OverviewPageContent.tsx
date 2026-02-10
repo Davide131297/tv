@@ -79,7 +79,7 @@ function OverviewPageContent() {
   }, [fetchData]);
 
   const handleShowChange = (showValue: string) => {
-    updateUrl({ show: showValue === "all" ? undefined : showValue });
+    updateUrl({ show: showValue === "all" ? "" : showValue });
   };
 
   function handleYearChange(year: string) {
