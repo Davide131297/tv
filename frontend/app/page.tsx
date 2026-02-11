@@ -55,6 +55,10 @@ async function getHomeStats() {
       supabase
         .from("tv_show_politicians")
         .select("show_name, episode_date, politician_name, party_name")
+        .neq("show_name", "Phoenix Runde")
+        .neq("show_name", "Phoenix Persönlich")
+        .neq("show_name", "Pinar Atalay")
+        .neq("show_name", "Blome & Pfeffer")
         .order("episode_date", { ascending: false })
         .order("id", { ascending: false })
         .limit(8),
