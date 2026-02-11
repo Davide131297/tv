@@ -28,7 +28,7 @@ function applyShowFilter(
   query: any,
   showName: string | null,
   year?: string | null,
-  tv_channel?: string | null
+  tv_channel?: string | null,
 ) {
   // 1️⃣ Erst nach showName filtern
   if (showName !== null) {
@@ -193,14 +193,14 @@ export async function GET(request: NextRequest) {
             episode_url: urlMap.get(date) || null,
             politicians: politicianNames.map((name) => {
               const result = politiciansData.find(
-                (r) => r.politician_name === name && r.episode_date === date
+                (r) => r.politician_name === name && r.episode_date === date,
               );
               return {
                 name: name,
                 party_name: result?.party_name || "Unbekannt",
               };
             }),
-          })
+          }),
         );
 
         return NextResponse.json({
@@ -241,15 +241,15 @@ export async function GET(request: NextRequest) {
 
         const total = allData?.length || 0;
         const episodes = new Set(
-          allData?.map((d: { episode_date: string }) => d.episode_date)
+          allData?.map((d: { episode_date: string }) => d.episode_date),
         ).size;
         const politicians = new Set(
-          allData?.map((d: { politician_name: string }) => d.politician_name)
+          allData?.map((d: { politician_name: string }) => d.politician_name),
         ).size;
         const parties = new Set(
           allData
             ?.filter((d: { party_name: string | null }) => d.party_name)
-            .map((d: { party_name: string }) => d.party_name)
+            .map((d: { party_name: string }) => d.party_name),
         ).size;
 
         return NextResponse.json({
@@ -268,7 +268,7 @@ export async function GET(request: NextRequest) {
         let query = supabase
           .from("tv_show_politicians")
           .select(
-            "show_name, episode_date, politician_name, party_name, abgeordnetenwatch_url"
+            "show_name, episode_date, politician_name, party_name, abgeordnetenwatch_url",
           )
           .order("episode_date", { ascending: false })
           .order("id", { ascending: false })
@@ -346,7 +346,7 @@ export async function GET(request: NextRequest) {
           ([episode_date, politician_count]) => ({
             episode_date,
             politician_count,
-          })
+          }),
         );
 
         const totalAppearances = data.length;
@@ -428,7 +428,7 @@ export async function GET(request: NextRequest) {
         });
 
         const months = Array.from({ length: 12 }, (_, i) =>
-          String(i + 1).padStart(2, "0")
+          String(i + 1).padStart(2, "0"),
         );
 
         const rows = months.map((m) => {
@@ -512,7 +512,7 @@ export async function GET(request: NextRequest) {
             episodes: stats.episodes.size,
             first_episode: stats.first_episode,
             latest_episode: stats.latest_episode,
-          })
+          }),
         );
 
         return NextResponse.json({
@@ -640,9 +640,8 @@ export async function GET(request: NextRequest) {
           .select("show_name, episode_date, political_area_id");
 
         topicQuery = applyShowFilter(topicQuery, showName, year, tv_channel);
-        const { data: topicData, error: topicError } = await topicQuery.limit(
-          10000
-        );
+        const { data: topicData, error: topicError } =
+          await topicQuery.limit(10000);
 
         if (topicError) throw topicError;
 
@@ -661,9 +660,8 @@ export async function GET(request: NextRequest) {
           .neq("party_name", "");
 
         partyQuery = applyShowFilter(partyQuery, showName, year, tv_channel);
-        const { data: partyData, error: partyError } = await partyQuery.limit(
-          10000
-        );
+        const { data: partyData, error: partyError } =
+          await partyQuery.limit(10000);
 
         if (partyError) throw partyError;
 
@@ -712,7 +710,7 @@ export async function GET(request: NextRequest) {
               topicId: parseInt(topicIdStr),
               count,
             };
-          }
+          },
         );
 
         const topicsList = topicDefinitions
@@ -723,7 +721,7 @@ export async function GET(request: NextRequest) {
           .sort((a, b) => a.id - b.id);
 
         const partiesList = Array.from(
-          new Set(resultMatrix.map((r) => r.party))
+          new Set(resultMatrix.map((r) => r.party)),
         ).sort();
 
         return NextResponse.json({
@@ -736,17 +734,165 @@ export async function GET(request: NextRequest) {
         });
       }
 
+      case "topic-party-dominance": {
+        // 1. Calculate baseline party representation (total appearances per party)
+        let baselineQuery = supabase
+          .from("tv_show_politicians")
+          .select("party_name")
+          .not("party_name", "is", null)
+          .neq("party_name", "");
+
+        baselineQuery = applyShowFilter(
+          baselineQuery,
+          showName,
+          year,
+          tv_channel,
+        );
+        const { data: baselineData, error: baselineError } =
+          await baselineQuery;
+
+        if (baselineError) throw baselineError;
+
+        // Count total appearances per party
+        const baselineCount = new Map<string, number>();
+        baselineData.forEach((row) => {
+          const party = row.party_name;
+          baselineCount.set(party, (baselineCount.get(party) || 0) + 1);
+        });
+
+        const totalAppearances = baselineData.length;
+
+        // 2. Get all topics
+        const { data: topicDefinitions, error: topicError } = await supabase
+          .from("political_area")
+          .select("id, label");
+
+        if (topicError) throw topicError;
+
+        // 3. Get topic-episode mappings
+        let topicQuery = supabase
+          .from("tv_show_episode_political_areas")
+          .select("show_name, episode_date, political_area_id");
+
+        topicQuery = applyShowFilter(topicQuery, showName, year, tv_channel);
+        const { data: topicData, error: topicDataError } =
+          await topicQuery.limit(10000);
+
+        if (topicDataError) throw topicDataError;
+
+        // 4. Get party-episode mappings
+        let partyQuery = supabase
+          .from("tv_show_politicians")
+          .select("show_name, episode_date, party_name")
+          .not("party_name", "is", null)
+          .neq("party_name", "");
+
+        partyQuery = applyShowFilter(partyQuery, showName, year, tv_channel);
+        const { data: partyData, error: partyDataError } =
+          await partyQuery.limit(10000);
+
+        if (partyDataError) throw partyDataError;
+
+        // 5. Create episode-to-topics mapping
+        const episodeTopics = new Map<string, number[]>();
+        topicData.forEach((row) => {
+          const key = `${row.show_name}|${row.episode_date}`;
+          if (!episodeTopics.has(key)) {
+            episodeTopics.set(key, []);
+          }
+          episodeTopics.get(key)!.push(row.political_area_id);
+        });
+
+        // 6. Calculate party appearances per topic
+        const topicPartyCount = new Map<string, number>(); // Key: "topicId|party"
+
+        partyData.forEach((row) => {
+          const key = `${row.show_name}|${row.episode_date}`;
+          const topics = episodeTopics.get(key);
+
+          if (topics && topics.length > 0) {
+            topics.forEach((topicId) => {
+              const countKey = `${topicId}|${row.party_name}`;
+              topicPartyCount.set(
+                countKey,
+                (topicPartyCount.get(countKey) || 0) + 1,
+              );
+            });
+          }
+        });
+
+        // 7. Calculate dominance scores
+        const topicsWithDominance = topicDefinitions
+          .map((topic) => {
+            const parties = Array.from(baselineCount.entries())
+              .map(([party_name, baseline]) => {
+                const topicCount =
+                  topicPartyCount.get(`${topic.id}|${party_name}`) || 0;
+                const baselinePercentage = (baseline / totalAppearances) * 100;
+                const topicPercentage =
+                  topicCount > 0
+                    ? (topicCount /
+                        Array.from(topicPartyCount.entries())
+                          .filter(([key]) => key.startsWith(`${topic.id}|`))
+                          .reduce((sum, [, count]) => sum + count, 0)) *
+                      100
+                    : 0;
+
+                // Dominance score: how much more/less represented compared to baseline
+                const dominance_score =
+                  baselinePercentage > 0
+                    ? (topicPercentage / baselinePercentage) * 100
+                    : 0;
+
+                return {
+                  party_name,
+                  count: topicCount,
+                  baseline_count: baseline,
+                  baseline_percentage: parseFloat(
+                    baselinePercentage.toFixed(1),
+                  ),
+                  topic_percentage: parseFloat(topicPercentage.toFixed(1)),
+                  dominance_score: parseFloat(dominance_score.toFixed(1)),
+                  is_overrepresented: dominance_score > 120,
+                  is_underrepresented: dominance_score < 80,
+                };
+              })
+              .filter((p) => p.count > 0) // Only include parties that appear in this topic
+              .sort((a, b) => b.count - a.count); // Sort by count (most to least)
+
+            return {
+              id: topic.id,
+              label: topic.label || "Unbekannt",
+              parties,
+            };
+          })
+          .filter((topic) => topic.parties.length > 0); // Only include topics with data
+
+        return NextResponse.json({
+          success: true,
+          data: {
+            topics: topicsWithDominance,
+            metadata: {
+              total_appearances: totalAppearances,
+              total_parties: baselineCount.size,
+              show_filter: showName || "Alle Shows",
+              year_filter: year || "Alle Jahre",
+            },
+          },
+        });
+      }
+
       default:
         return NextResponse.json(
           { success: false, error: "Unknown type parameter" },
-          { status: 400 }
+          { status: 400 },
         );
     }
   } catch (error) {
     console.error("API Error:", error);
     return NextResponse.json(
       { success: false, error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

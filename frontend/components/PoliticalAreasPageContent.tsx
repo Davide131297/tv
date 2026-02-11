@@ -15,6 +15,7 @@ import { useYearList } from "@/hooks/useYearList";
 import { useSelectedShow } from "@/hooks/useSelectedShow";
 import { useSelectedChannel } from "@/hooks/useSelectedChannel";
 import TopicPartyHeatmap from "@/components/TopicPartyHeatmap";
+import PartyDominanceChart from "@/components/PartyDominanceChart";
 
 export default function PoliticalAreasPageContent() {
   const searchParams = useSearchParams();
@@ -143,6 +144,12 @@ export default function PoliticalAreasPageContent() {
 
           {/* Themen-Partei Matrix */}
           <TopicPartyHeatmap
+            selectedShow={localShow}
+            selectedYear={selectedYear}
+          />
+
+          {/* Partei-Dominanz Analyse */}
+          <PartyDominanceChart
             selectedShow={localShow}
             selectedYear={selectedYear}
           />
