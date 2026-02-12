@@ -1,0 +1,24 @@
+name: Weekly Threads Bot Post
+
+on:
+  schedule:
+    # Run at 09:00 CET (08:00 UTC) every Monday
+    - cron: "0 8 * * 1"
+  workflow_dispatch: # Allow manual triggering from GitHub UI
+
+jobs:
+  post-to-threads:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Threads Bot API
+        run: |
+          # The valid status code for this API is 200.
+          # We use --fail to make curl exit with code 22 if the server returns 400+
+          response=$(curl --write-out "%{http_code}" --silent --output /dev/null "${{ secrets.DEPLOYMENT_URL }}/api/threads-bot?secret=${{ secrets.CRON_SECRET }}")
+
+          if [ "$response" -ne 200 ]; then
+            echo "::error::API request failed with status code $response"
+            exit 1
+          else
+            echo "Successfully triggered Threads bot."
+          fi

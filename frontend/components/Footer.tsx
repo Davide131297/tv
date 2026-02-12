@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FaSquareThreads } from "react-icons/fa6";
 import { format } from "date-fns";
 
 export default function Footer() {
@@ -43,6 +44,14 @@ export default function Footer() {
               className="text-black/70 hover:text-black/90 hover:underline"
             >
               API
+            </Link>
+            <Link
+              href="https://www.threads.net/@polittalk.watcher"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-black/70 hover:text-black/90"
+            >
+              <FaSquareThreads className="size-5" />
             </Link>
           </div>
         </div>
