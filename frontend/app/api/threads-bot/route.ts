@@ -187,7 +187,7 @@ export async function GET(request: NextRequest) {
     });
 
     // 7. Format Text
-    let fullText = `Polit-Talks ${deStartDate}-${deEndDate}\n\n`;
+    let fullText = `Polit-Talks für die Woche vom ${deStartDate} bis ${deEndDate}\n\n`;
 
     if (episodes.size === 0) {
       fullText += "Keine Sendungen.";
@@ -206,15 +206,10 @@ export async function GET(request: NextRequest) {
 
         if (ep.guests.length > 0) {
           const shortGuests = ep.guests.map((g) => {
-            const parts = g.name.split(" ");
-            let shortName = g.name;
-            if (parts.length > 1) {
-              shortName = `${parts[0][0]}. ${parts[parts.length - 1]}`;
-            }
             if (g.party) {
-              return `${shortName} (${g.party})`;
+              return `${g.name} (${g.party})`; // Use full name
             }
-            return shortName;
+            return g.name;
           });
           fullText += `G: ${shortGuests.slice(0, 5).join(", ")}${
             shortGuests.length > 5 ? "..." : ""
@@ -223,8 +218,6 @@ export async function GET(request: NextRequest) {
         fullText += `\n`;
       });
     }
-
-    fullText += `#Polittalk`;
 
     const chunks = splitTextForThreads(fullText);
 
