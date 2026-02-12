@@ -1,0 +1,22 @@
+name: Monthly Threads Bot Post
+
+on:
+  schedule:
+    # Run at 11:00 UTC (12:00 CET / 13:00 CEST) on the 1st of every month
+    - cron: "0 11 1 * *"
+  workflow_dispatch:
+
+jobs:
+  post-to-threads-monthly:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Monthly Threads Bot API
+        run: |
+          response=$(curl --write-out "%{http_code}" --silent --output /dev/null "${{ secrets.DEPLOYMENT_URL }}/api/threads-bot/monthly?secret=${{ secrets.CRON_SECRET }}")
+
+          if [ "$response" -ne 200 ]; then
+            echo "::error::API request failed with status code $response"
+            exit 1
+          else
+            echo "Successfully triggered Monthly Threads bot."
+          fi

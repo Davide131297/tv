@@ -14,7 +14,7 @@ jobs:
         run: |
           # The valid status code for this API is 200.
           # We use --fail to make curl exit with code 22 if the server returns 400+
-          response=$(curl --write-out "%{http_code}" --silent --output /dev/null "${{ secrets.DEPLOYMENT_URL }}/api/threads-bot?secret=${{ secrets.CRON_SECRET }}")
+          response=$(curl --write-out "%{http_code}" --silent --output /dev/null "${{ secrets.DEPLOYMENT_URL }}/api/threads-bot/weekly?secret=${{ secrets.CRON_SECRET }}")
 
           if [ "$response" -ne 200 ]; then
             echo "::error::API request failed with status code $response"
