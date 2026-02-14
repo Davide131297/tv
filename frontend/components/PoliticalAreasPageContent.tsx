@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useUrlUpdater } from "@/hooks/useUrlUpdater";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
 import PoliticalAreasChart from "@/components/PoliticalAreasChart";
-import type { PoliticalAreaStats } from "@/types";
+import type { PoliticalAreaStats, PoliticalAreaEpisodeRow } from "@/types";
 import { SHOW_OPTIONS } from "@/types";
 import { FETCH_HEADERS } from "@/lib/utils";
 import ShowOptionsButtons from "@/components/ShowOptionsButtons";
@@ -26,7 +26,9 @@ export default function PoliticalAreasPageContent() {
   const [politicalAreaStats, setPoliticalAreaStats] = useState<
     PoliticalAreaStats[]
   >([]);
-  const [politicalAreaRows, setPoliticalAreaRows] = useState<any[]>([]);
+  const [politicalAreaRows, setPoliticalAreaRows] = useState<
+    PoliticalAreaEpisodeRow[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const currentYear = new Date().getFullYear();

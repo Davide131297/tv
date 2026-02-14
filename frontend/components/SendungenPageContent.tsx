@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useUrlUpdater } from "@/hooks/useUrlUpdater";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
 import type { EpisodeData, Statistics } from "@/types";
@@ -19,8 +19,7 @@ import { useYearList } from "@/hooks/useYearList";
 
 export default function SendungenPageContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
+
   const [episodes, setEpisodes] = useState<EpisodeData[]>([]);
   const [statistics, setStatistics] = useState<Statistics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -170,16 +169,15 @@ export default function SendungenPageContent() {
             <NativeSelect
               value={selectedYear}
               onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                handleYearChange && handleYearChange(e.target.value)
+                handleYearChange(e.target.value)
               }
             >
               <NativeSelectOption value="all">Insgesamt</NativeSelectOption>
-              {years &&
-                years.map((y) => (
-                  <NativeSelectOption key={y} value={y}>
-                    {y}
-                  </NativeSelectOption>
-                ))}
+              {years.map((y) => (
+                <NativeSelectOption key={y} value={y}>
+                  {y}
+                </NativeSelectOption>
+              ))}
             </NativeSelect>
           </div>
         </div>

@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useUrlUpdater } from "@/hooks/useUrlUpdater";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
 import { Card, CardContent } from "@/components/ui/card";
 import { Eye } from "lucide-react";
 import { FETCH_HEADERS } from "@/lib/utils";
-import { BADGE_PARTY_COLORS } from "@/types";
+import { BADGE_PARTY_COLORS, SHOW_OPTIONS } from "@/types";
 import {
   Tooltip,
   TooltipContent,
@@ -42,15 +42,6 @@ interface PoliticianRankingsResponse {
   };
 }
 
-const SHOW_OPTIONS = [
-  { value: "all", label: "Alle Shows" },
-  { value: "Markus Lanz", label: "Markus Lanz" },
-  { value: "Maybrit Illner", label: "Maybrit Illner" },
-  { value: "Caren Miosga", label: "Caren Miosga" },
-  { value: "Maischberger", label: "Maischberger" },
-  { value: "Hart aber fair", label: "Hart aber fair" },
-];
-
 // Badge Komponente
 const Badge = ({
   children,
@@ -79,8 +70,6 @@ const Badge = ({
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function PoliticianRankings() {
-  const router = useRouter();
-  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [rankings, setRankings] = useState<PoliticianRanking[]>([]);
   const [loading, setLoading] = useState(true);

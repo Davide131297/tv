@@ -120,6 +120,7 @@ export default function PartiesPageContent() {
   };
 
   const displayedStats = getUnionStats(partyStats);
+  const totalAppearances = displayedStats.reduce((sum, p) => sum + p.count, 0);
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -178,10 +179,6 @@ export default function PartiesPageContent() {
               {displayedStats
                 .sort((a, b) => b.count - a.count)
                 .map((party) => {
-                  const totalAppearances = displayedStats.reduce(
-                    (sum, p) => sum + p.count,
-                    0,
-                  );
                   const percentage = (
                     (party.count / totalAppearances) *
                     100
@@ -226,10 +223,6 @@ export default function PartiesPageContent() {
                 {displayedStats
                   .sort((a, b) => b.count - a.count)
                   .map((party, index) => {
-                    const totalAppearances = displayedStats.reduce(
-                      (sum, p) => sum + p.count,
-                      0,
-                    );
                     const percentage = (
                       (party.count / totalAppearances) *
                       100

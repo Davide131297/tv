@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { useUrlUpdater } from "@/hooks/useUrlUpdater";
 import type { SummaryData } from "@/types";

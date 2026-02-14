@@ -67,8 +67,7 @@ export interface PoliticalAreaEpisodeRow {
   } | null;
 }
 
-export interface PoliticalAreasChartPropsExtended
-  extends PoliticalAreasChartProps {
+export interface PoliticalAreasChartPropsExtended extends PoliticalAreasChartProps {
   rows?: PoliticalAreaEpisodeRow[];
 }
 
@@ -159,33 +158,9 @@ export const SHOW_OPTIONS: ShowOption[] = [
   },
 ];
 
-export const SHOW_OPTIONS_WITHOUT_ALL: ShowOption[] = [
-  {
-    value: "Markus Lanz",
-    label: "Markus Lanz",
-    btnColor: "bg-orange-100 text-orange-800 hover:bg-orange-200",
-  },
-  {
-    value: "Maybrit Illner",
-    label: "Maybrit Illner",
-    btnColor: "bg-purple-100 text-purple-800 hover:bg-purple-200",
-  },
-  {
-    value: "Caren Miosga",
-    label: "Caren Miosga",
-    btnColor: "bg-green-100 text-green-800 hover:bg-green-200",
-  },
-  {
-    value: "Maischberger",
-    label: "Maischberger",
-    btnColor: "bg-teal-100 text-teal-800 hover:bg-teal-200",
-  },
-  {
-    value: "Hart aber fair",
-    label: "Hart aber fair",
-    btnColor: "bg-blue-100 text-blue-800 hover:bg-blue-200",
-  },
-];
+export const SHOW_OPTIONS_WITHOUT_ALL: ShowOption[] = SHOW_OPTIONS.filter(
+  (o) => o.value !== "all",
+);
 
 // =============================================================================
 // PARTY COLOR MAPPINGS

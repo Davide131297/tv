@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { getPartyBadgeClasses, getShowBadgeClasses } from "@/lib/party-colors";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useUrlUpdater } from "@/hooks/useUrlUpdater";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
 import {
@@ -59,8 +59,6 @@ function normalizeUrl(raw?: string | null) {
 }
 
 export default function PoliticianTable() {
-  const router = useRouter();
-  const pathname = usePathname();
   const searchParams = useSearchParams();
   const years = useYearList(2024);
   const selectedShow = useSelectedShow(searchParams, SHOW_OPTIONS);
@@ -271,16 +269,15 @@ export default function PoliticianTable() {
               <NativeSelect
                 value={selectedYear}
                 onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                  handleYearChange && handleYearChange(e.target.value)
+                  handleYearChange(e.target.value)
                 }
               >
                 <NativeSelectOption value="all">Insgesamt</NativeSelectOption>
-                {years &&
-                  years.map((y) => (
-                    <NativeSelectOption key={y} value={y}>
-                      {y}
-                    </NativeSelectOption>
-                  ))}
+                {years.map((y) => (
+                  <NativeSelectOption key={y} value={y}>
+                    {y}
+                  </NativeSelectOption>
+                ))}
               </NativeSelect>
             </div>
           </div>

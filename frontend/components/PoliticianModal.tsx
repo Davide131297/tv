@@ -23,6 +23,7 @@ import {
 import { format } from "date-fns";
 import { LinkPreview } from "@/components/ui/link-preview";
 import { BADGE_PARTY_COLORS } from "@/types";
+import type { AbgeordnetenwatchPolitician } from "@/types";
 import { DialogTitle } from "@radix-ui/react-dialog";
 import { LoaderOne } from "@/components/ui/loader";
 import { FETCH_HEADERS } from "@/lib/utils";
@@ -46,9 +47,8 @@ function PoliticianModal({
   className,
 }: PoliticianModalProps) {
   const [appearances, setAppearances] = useState<Appearances[]>([]);
-  const [selectedPolitician, setSelectedPolitician] = useState<any | null>(
-    null,
-  );
+  const [selectedPolitician, setSelectedPolitician] =
+    useState<AbgeordnetenwatchPolitician | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -72,7 +72,7 @@ function PoliticianModal({
       if (!res.ok) throw new Error("Fehler beim Abrufen der Daten");
 
       const contentType = (res.headers.get("content-type") || "").toLowerCase();
-      let data: any;
+      let data: { data?: AbgeordnetenwatchPolitician[] };
       if (contentType.includes("application/json")) {
         data = await res.json();
       } else {
@@ -87,7 +87,7 @@ function PoliticianModal({
       if (politicianParty) {
         selected =
           list.find(
-            (p: any) =>
+            (p: AbgeordnetenwatchPolitician) =>
               p?.party?.label &&
               p.party.label.toLowerCase() === politicianParty.toLowerCase(),
           ) ?? null;
@@ -177,7 +177,7 @@ function PoliticianModal({
             </span>
           </DialogTrigger>
 
-          <DialogContent className="w- max-h-[90vh] flex flex-col">
+          <DialogContent className="w-full max-h-[90vh] flex flex-col">
             <DialogTitle className="sr-only">{politicianName}</DialogTitle>
             <div className="px-4 py-4 overflow-y-auto flex-1">
               {isLoading ? (
