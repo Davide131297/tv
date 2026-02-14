@@ -60,11 +60,16 @@ export const POLITICIAN_OVERRIDES: Record<string, GuestDetails> = {
     party: 2,
     partyName: "CDU",
   },
+  "Kevin Kühnert": {
+    name: "Kevin Kühnert",
+    isPolitician: false,
+    politicianId: null,
+  },
 };
 
 // Füge einen Politiker zu einer TV-Sendung hinzu
 export function insertTvShowPolitician(
-  data: InsertTvShowPoliticianData
+  data: InsertTvShowPoliticianData,
 ): boolean {
   const stmt = db.prepare(`
     INSERT OR IGNORE INTO tv_show_politicians 
@@ -79,7 +84,7 @@ export function insertTvShowPolitician(
       data.politician_id,
       data.politician_name,
       data.party_id || null,
-      data.party_name || null
+      data.party_name || null,
     );
 
     return result.changes > 0;
@@ -93,7 +98,7 @@ export function insertTvShowPolitician(
 export function checkPoliticianOverride(name: string): GuestDetails | null {
   if (POLITICIAN_OVERRIDES[name]) {
     console.log(
-      `✅ Override angewendet für ${name} -> ${POLITICIAN_OVERRIDES[name].partyName}`
+      `✅ Override angewendet für ${name} -> ${POLITICIAN_OVERRIDES[name].partyName}`,
     );
     return POLITICIAN_OVERRIDES[name];
   }
@@ -109,7 +114,7 @@ export function insertMultipleTvShowPoliticians(
     politicianName: string;
     partyId?: number;
     partyName?: string;
-  }>
+  }>,
 ): number {
   let insertedCount = 0;
 
