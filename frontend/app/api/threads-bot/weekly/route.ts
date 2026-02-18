@@ -98,6 +98,7 @@ function splitTextForThreads(text: string, limit: number = 490): string[] {
 }
 
 export async function GET(request: NextRequest) {
+  let currentStep = "init";
   try {
     const { searchParams } = new URL(request.url);
     const secret = searchParams.get("secret");
@@ -109,18 +110,24 @@ export async function GET(request: NextRequest) {
     }
 
     // 2. Fetch Credentials from DB
+    currentStep = "db_config";
     const config = await getBotConfig();
     let ACCESS_TOKEN = config["THREADS_ACCESS_TOKEN"];
     const USER_ID = config["THREADS_USER_ID"];
 
     if (!ACCESS_TOKEN || !USER_ID) {
       return NextResponse.json(
-        { error: "Missing configuration in DB" },
+        {
+          error: "Missing configuration in DB",
+          hasToken: !!ACCESS_TOKEN,
+          hasUserId: !!USER_ID,
+        },
         { status: 500 },
       );
     }
 
     // 3. Refresh Token (If not dryRun)
+    currentStep = "token_refresh";
     if (!dryRun) {
       ACCESS_TOKEN = await refreshThreadsToken(ACCESS_TOKEN);
     }
@@ -152,6 +159,7 @@ export async function GET(request: NextRequest) {
     });
 
     // 5. Fetch Data
+    currentStep = "data_fetch";
     const { data: showsData, error: showsError } = await supabase
       .from("tv_show_politicians")
       .select("show_name, episode_date, politician_name, party_name")
@@ -163,7 +171,8 @@ export async function GET(request: NextRequest) {
       .neq("show_name", "Blome & Pfeffer")
       .order("episode_date", { ascending: true });
 
-    if (showsError) throw showsError;
+    if (showsError)
+      throw new Error(`Supabase query error: ${JSON.stringify(showsError)}`);
 
     // 6. Aggregate Data
     const episodes = new Map<string, ShowData>();
@@ -239,7 +248,9 @@ export async function GET(request: NextRequest) {
     const publishedIds: string[] = [];
 
     // Publish chunks sequentially
+    currentStep = "threads_publish";
     for (const textChunk of chunks) {
+      currentStep = `threads_container_chunk_${publishedIds.length + 1}`;
       const containerUrl = new URL(
         `https://graph.threads.net/v1.0/${USER_ID}/threads`,
       );
@@ -264,6 +275,7 @@ export async function GET(request: NextRequest) {
 
       const creationId = containerJson.id;
 
+      currentStep = `threads_publish_chunk_${publishedIds.length + 1}`;
       const publishUrl = new URL(
         `https://graph.threads.net/v1.0/${USER_ID}/threads_publish`,
       );
@@ -287,7 +299,14 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ success: true, publishedIds: publishedIds });
   } catch (error: any) {
-    console.error("Error in threads-bot route:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error(`Error in threads-bot route (step: ${currentStep}):`, error);
+    return NextResponse.json(
+      {
+        error: error.message,
+        step: currentStep,
+        stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+      },
+      { status: 500 },
+    );
   }
 }

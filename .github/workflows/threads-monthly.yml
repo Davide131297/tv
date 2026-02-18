@@ -12,11 +12,15 @@ jobs:
     steps:
       - name: Trigger Monthly Threads Bot API
         run: |
-          response=$(curl --write-out "%{http_code}" --silent --output /dev/null "${{ secrets.DEPLOYMENT_URL }}/api/threads-bot/monthly?secret=${{ secrets.CRON_SECRET }}")
+          http_code=$(curl --silent --max-time 120 --write-out "%{http_code}" --output /tmp/response.json "${{ secrets.DEPLOYMENT_URL }}/api/threads-bot/monthly?secret=${{ secrets.CRON_SECRET }}")
+          response_body=$(cat /tmp/response.json)
 
-          if [ "$response" -ne 200 ]; then
-            echo "::error::API request failed with status code $response"
-            exit 1
-          else
+          echo "HTTP Status: $http_code"
+          echo "Response: $response_body"
+
+          if [ "$http_code" -eq 200 ] && echo "$response_body" | grep -q '"success":true'; then
             echo "Successfully triggered Monthly Threads bot."
+          else
+            echo "::error::API request failed (HTTP $http_code). Response: $response_body"
+            exit 1
           fi

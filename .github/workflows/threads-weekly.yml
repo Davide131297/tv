@@ -13,12 +13,16 @@ jobs:
       - name: Trigger Threads Bot API
         run: |
           # The valid status code for this API is 200.
-          # We use --fail to make curl exit with code 22 if the server returns 400+
-          response=$(curl --write-out "%{http_code}" --silent --output /dev/null "${{ secrets.DEPLOYMENT_URL }}/api/threads-bot/weekly?secret=${{ secrets.CRON_SECRET }}")
+          # Capture both the response body and HTTP status code for debugging.
+          http_code=$(curl --silent --max-time 120 --write-out "%{http_code}" --output /tmp/response.json "${{ secrets.DEPLOYMENT_URL }}/api/threads-bot/weekly?secret=${{ secrets.CRON_SECRET }}")
+          response_body=$(cat /tmp/response.json)
 
-          if [ "$response" -ne 200 ]; then
-            echo "::error::API request failed with status code $response"
-            exit 1
-          else
+          echo "HTTP Status: $http_code"
+          echo "Response: $response_body"
+
+          if [ "$http_code" -eq 200 ] && echo "$response_body" | grep -q '"success":true'; then
             echo "Successfully triggered Threads bot."
+          else
+            echo "::error::API request failed (HTTP $http_code). Response: $response_body"
+            exit 1
           fi
