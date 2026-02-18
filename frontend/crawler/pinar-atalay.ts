@@ -6,7 +6,11 @@ import {
   checkPolitician,
   insertEpisodePoliticalAreas,
 } from "@/lib/supabase-server-utils";
-import { getPoliticalArea, extractGuestsWithAI } from "@/lib/ai-utils";
+import {
+  getBatchPoliticalAreas,
+  extractBatchGuestsWithAI,
+  type BatchEpisodeInput,
+} from "@/lib/ai-utils";
 
 const LIST_URL = "https://plus.rtl.de/video-tv/shows/pinar-atalay-1041381";
 
@@ -50,7 +54,7 @@ export default async function CrawlPinarAtalay() {
     // Extrahiere alle Episoden mit ihren Beschreibungen
     const episodes = await page.evaluate(() => {
       const episodeElements = document.querySelectorAll(
-        "watch-episode-list-teaser"
+        "watch-episode-list-teaser",
       );
       const results: Array<{
         url: string;
@@ -61,7 +65,7 @@ export default async function CrawlPinarAtalay() {
 
       for (const episode of episodeElements) {
         const linkElement = episode.querySelector(
-          "a.series-teaser__link"
+          "a.series-teaser__link",
         ) as HTMLAnchorElement;
         if (!linkElement) continue;
 
@@ -106,7 +110,7 @@ export default async function CrawlPinarAtalay() {
         return episodeDate > latestDbDate;
       });
       console.log(
-        `Nach Datum-Filter: ${filteredEpisodes.length}/${episodes.length} URLs (nur neuer als ${latestDbDate})`
+        `Nach Datum-Filter: ${filteredEpisodes.length}/${episodes.length} URLs (nur neuer als ${latestDbDate})`,
       );
     }
 
@@ -126,35 +130,55 @@ export default async function CrawlPinarAtalay() {
     const episodeLinksToInsert: { episodeUrl: string; episodeDate: string }[] =
       [];
 
-    // Verarbeite jede Episode
-    for (let i = 0; i < filteredEpisodes.length; i++) {
-      const episode = filteredEpisodes[i];
+    // Phase 1: Batch AI-Calls
+    const batchInputs: BatchEpisodeInput[] = filteredEpisodes
+      .filter((ep) => ep.description && ep.description.length >= 20)
+      .map((ep, i) => ({ index: i, description: ep.description }));
+
+    const [batchGuests, batchAreas] = await Promise.all([
+      extractBatchGuestsWithAI(batchInputs),
+      getBatchPoliticalAreas(batchInputs),
+    ]);
+
+    // Phase 2: Verarbeite Ergebnisse
+    const validEpisodes = filteredEpisodes.filter(
+      (ep) => ep.description && ep.description.length >= 20,
+    );
+
+    for (let i = 0; i < validEpisodes.length; i++) {
+      const episode = validEpisodes[i];
       const episodeDate = episode.episodeNumber
         ? getEpisodeDateFromNumber(episode.episodeNumber)
         : new Date().toISOString().split("T")[0];
 
       console.log(
-        `\n🎬 [${i + 1}/${filteredEpisodes.length}] Verarbeite Episode: ${
+        `\n🎬 [${i + 1}/${validEpisodes.length}] Verarbeite Episode: ${
           episode.title
-        } (${episodeDate})`
+        } (${episodeDate})`,
       );
       console.log(
-        `📝 Beschreibung: ${episode.description.substring(0, 100)}...`
+        `📝 Beschreibung: ${episode.description.substring(0, 100)}...`,
       );
 
       try {
-        // Extrahiere Gäste mit AI
-        const guestNames = await extractGuestsWithAI(episode.description);
+        const guestNames = batchGuests.get(i) ?? [];
+        const politicalAreaIds = batchAreas.get(i) ?? [];
 
         if (guestNames.length === 0) {
           console.log("   ❌ Keine Gäste gefunden");
+          // Trotzdem Themenbereiche speichern
+          if (politicalAreaIds.length > 0) {
+            const insertedAreas = await insertEpisodePoliticalAreas(
+              "Pinar Atalay",
+              episodeDate,
+              politicalAreaIds,
+            );
+            totalPoliticalAreasInserted += insertedAreas;
+          }
           continue;
         }
 
         console.log(`👥 Gefundene Gäste: ${guestNames.join(", ")}`);
-
-        // Analysiere politische Themen
-        const politicalAreaIds = await getPoliticalArea(episode.description);
 
         // Prüfe jeden Gast auf Politiker-Status
         const politicians = [];
@@ -171,7 +195,7 @@ export default async function CrawlPinarAtalay() {
             console.log(
               `      ✅ Politiker: ${details.politicianName} (ID ${
                 details.politicianId
-              }), Partei: ${details.partyName || "unbekannt"}`
+              }), Partei: ${details.partyName || "unbekannt"}`,
             );
             politicians.push({
               politicianId: details.politicianId,
@@ -193,14 +217,14 @@ export default async function CrawlPinarAtalay() {
             "NTV",
             "Pinar Atalay",
             episodeDate,
-            politicians
+            politicians,
           );
 
           totalPoliticiansInserted += inserted;
           episodesWithPoliticians++;
 
           console.log(
-            `   💾 ${inserted}/${politicians.length} Politiker gespeichert`
+            `   💾 ${inserted}/${politicians.length} Politiker gespeichert`,
           );
 
           // Füge Episode-URL zur Liste hinzu
@@ -213,21 +237,21 @@ export default async function CrawlPinarAtalay() {
         }
 
         // Speichere politische Themenbereiche
-        if (politicalAreaIds && politicalAreaIds.length > 0) {
+        if (politicalAreaIds.length > 0) {
           const insertedAreas = await insertEpisodePoliticalAreas(
             "Pinar Atalay",
             episodeDate,
-            politicalAreaIds
+            politicalAreaIds,
           );
           totalPoliticalAreasInserted += insertedAreas;
           console.log(
-            `   🏛️  ${insertedAreas}/${politicalAreaIds.length} Themenbereiche gespeichert`
+            `   🏛️  ${insertedAreas}/${politicalAreaIds.length} Themenbereiche gespeichert`,
           );
         }
       } catch (error) {
         console.error(
           `❌ Fehler beim Verarbeiten von Episode ${episode.title}:`,
-          error
+          error,
         );
       }
     }
@@ -236,10 +260,10 @@ export default async function CrawlPinarAtalay() {
     if (episodeLinksToInsert.length > 0) {
       totalEpisodeLinksInserted = await insertMultipleShowLinks(
         "Pinar Atalay",
-        episodeLinksToInsert
+        episodeLinksToInsert,
       );
       console.log(
-        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`
+        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`,
       );
     }
 

@@ -7,7 +7,7 @@ import {
 } from "@/lib/supabase-server-utils";
 import { Page } from "puppeteer";
 import { createBrowser, setupSimplePage } from "@/lib/browser-config";
-import { getPoliticalArea } from "@/lib/ai-utils";
+import { getBatchPoliticalAreas, type BatchEpisodeInput } from "@/lib/ai-utils";
 
 interface EpisodeLink {
   url: string;
@@ -376,6 +376,13 @@ export default async function crawlHartAberFair() {
     const episodeLinksToInsert: { episodeUrl: string; episodeDate: string }[] =
       [];
 
+    // Batch political areas analysis
+    const batchAreaInputs: BatchEpisodeInput[] = episodesToProcess
+      .filter((ep) => ep.description)
+      .map((ep, i) => ({ index: i, description: ep.description }));
+
+    const batchAreaResults = await getBatchPoliticalAreas(batchAreaInputs);
+
     for (const ep of episodesToProcess) {
       console.log(`\n🎬 Speichere: ${ep.title} (${ep.date})`);
       processedCount++;
@@ -439,12 +446,14 @@ export default async function crawlHartAberFair() {
         });
       }
 
-      // Topics
-      if (ep.description) {
-        const areaIds = await getPoliticalArea(ep.description);
-        if (areaIds?.length) {
-          await insertEpisodePoliticalAreas("Hart aber fair", ep.date, areaIds);
-        }
+      // Topics from batch results
+      const epBatchIndex = batchAreaInputs.findIndex(
+        (input) => input.description === ep.description,
+      );
+      const areaIds =
+        epBatchIndex >= 0 ? batchAreaResults.get(epBatchIndex) : undefined;
+      if (areaIds?.length) {
+        await insertEpisodePoliticalAreas("Hart aber fair", ep.date, areaIds);
       }
     }
 
