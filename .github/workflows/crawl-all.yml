@@ -1,0 +1,65 @@
+name: Daily Crawl All
+
+on:
+  schedule:
+    # Run at midnight daily (00:00 UTC)
+    - cron: "0 0 * * *"
+  workflow_dispatch: # Allow manual triggering from GitHub UI
+
+jobs:
+  crawl-all:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js 18
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install dependencies (root)
+        run: npm install
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm install
+
+      - name: Build Next.js application
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Start Next.js server in background
+        run: |
+          cd frontend
+          npm start &
+          # Wait for server to be ready
+          echo "Waiting for Next.js server to start..."
+          for i in {1..30}; do
+            if curl -s http://localhost:3000 > /dev/null; then
+              echo "Server is ready!"
+              break
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+
+      - name: Execute crawl/all route
+        run: |
+          response=$(curl -X POST --write-out "%{http_code}" \
+            --silent --output /tmp/crawl-response.txt \
+            http://localhost:3000/api/crawl/all)
+
+          echo "Response status code: $response"
+          echo "Response body:"
+          cat /tmp/crawl-response.txt
+
+          if [ "$response" -ne 200 ]; then
+            echo "::error::Crawl API failed with status $response"
+            exit 1
+          else
+            echo "Successfully executed crawl/all route."
+          fi
