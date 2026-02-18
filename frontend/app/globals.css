@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -118,5 +119,24 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  /* Custom table styling for markdown content in ChatBot */
+  .prose table {
+    @apply w-full border-collapse my-4 text-sm;
+  }
+
+  .prose th {
+    @apply border border-border px-3 py-2 text-left font-semibold bg-muted/50;
+  }
+
+  .prose td {
+    @apply border border-border px-3 py-2;
+  }
+
+  .prose tr:hover {
+    @apply bg-muted/30;
   }
 }

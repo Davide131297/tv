@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { X, Send, Sparkles, Minus } from "lucide-react";
+import { X, Send, Sparkles, Minus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
 
 interface Message {
   role: "user" | "assistant";
@@ -16,20 +18,13 @@ export default function ChatBot() {
     {
       role: "assistant",
       content:
-        "Hallo! Ich bin der KI-Assistent für Polittalk-Watcher.\n\n&nbsp;\n\n**Deine Nachrichten werden nicht gespeichert**. Die Zuverlässigkeit der Antworten kann wie bei jeder KI variieren und sogar von den Statistiken dieser Seite abweichen. Für genauere Informationen siehe dir die Statistiken selber an.\n\n&nbsp;\n\nWie kann ich dir helfen?",
+        "Hallo! Ich bin der KI-Assistent für Polittalk-Watcher.\n\nWie kann ich dir helfen?",
     },
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [showQuickActions, setShowQuickActions] = useState(true);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const quickQuestions = [
-    "Welche Partei hatte die meisten Auftritte?",
-    "Wer sind die Top 5 Politiker?",
-    "Was waren die letzten Sendungen?",
-    "Welche Themen werden am häufigsten diskutiert?",
-  ];
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -51,7 +46,7 @@ export default function ChatBot() {
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
-    setShowQuickActions(false); // Hide quick actions after first question
+    setIsLoading(true);
 
     try {
       const response = await fetch("/api/chat", {
@@ -145,20 +140,20 @@ export default function ChatBot() {
     }
   };
 
-  const handleQuickQuestion = (question: string) => {
-    sendMessage(question);
+  const initialMessage: Message = {
+    role: "assistant",
+    content:
+      "Hallo! Ich bin der KI-Assistent für Polittalk-Watcher.\n\n&nbsp;\n\n**Deine Nachrichten werden nicht gespeichert**.\n\n&nbsp;\n\nWie kann ich dir helfen?",
   };
 
   function handleClose() {
     setIsOpen(false);
-    setMessages([
-      {
-        role: "assistant",
-        content:
-          "Hallo! Ich bin der KI-Assistent für Polittalk-Watcher.\n\n&nbsp;\n\nIch habe Zugriff auf alle aktuellen Daten aus der Datenbank. Du kannst mir z.B. folgende Fragen stellen:\n\n&nbsp;\n\n• Welche Partei hatte die meisten Auftritte?\n\n&nbsp;\n\n• Welche Politiker waren am häufigsten zu Gast?\n\n&nbsp;\n\n• Was waren die letzten Sendungen?\n\n&nbsp;\n\n• Welche politischen Themen werden am meisten diskutiert?\n\n&nbsp;\n\n• Wie viele Auftritte gibt es insgesamt?\n\n&nbsp;\n\nDeine Nachrichten werden nicht gespeichert. Die Zuverlässigkeit der Antworten kann wie bei jeder KI variieren und sogar von den Statistiken dieser Seite abweichen. Für genauere Informationen siehe dir die Statistiken selber an.\n\n&nbsp;\n\nWie kann ich dir helfen?",
-      },
-    ]);
-    setShowQuickActions(true);
+    setMessages([initialMessage]);
+  }
+
+  function clearChat() {
+    setMessages([initialMessage]);
+    setInput("");
   }
 
   return (
@@ -183,13 +178,22 @@ export default function ChatBot() {
             </div>
             <div className="flex gap-2.5">
               <button
+                onClick={clearChat}
+                title="Chat leeren"
+                className="hover:bg-blue-700 rounded p-1"
+              >
+                <Trash2 size={18} />
+              </button>
+              <button
                 onClick={() => setIsOpen(false)}
+                title="Chat minimieren"
                 className="hover:bg-blue-700 rounded p-1"
               >
                 <Minus size={20} />
               </button>
               <button
                 onClick={() => handleClose()}
+                title="Chat schließen"
                 className="hover:bg-blue-700 rounded p-1"
               >
                 <X size={20} />
@@ -199,26 +203,6 @@ export default function ChatBot() {
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {/* Quick Action Buttons */}
-            {showQuickActions && messages.length === 1 && (
-              <div className="space-y-2 mb-4">
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                  Schnellfragen:
-                </p>
-                {quickQuestions.map((question, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleQuickQuestion(question)}
-                    disabled={isLoading}
-                    className="w-full text-left text-sm p-2 rounded-lg bg-blue-50 dark:bg-gray-700 hover:bg-blue-100 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Sparkles className="inline w-3 h-3 mr-1" />
-                    {question}
-                  </button>
-                ))}
-              </div>
-            )}
-
             {messages.map((message, index) => (
               <div
                 key={index}
@@ -227,15 +211,33 @@ export default function ChatBot() {
                 }`}
               >
                 <div
-                  className={`max-w-[80%] rounded-lg p-3 ${
+                  className={`max-w-[80%] min-w-0 overflow-hidden rounded-lg p-3 ${
                     message.role === "user"
                       ? "bg-blue-600 text-white"
                       : "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                   }`}
                 >
-                  <div className="text-sm prose prose-sm dark:prose-invert max-w-none">
+                  <div
+                    className={`text-sm ${
+                      message.role === "assistant"
+                        ? "prose prose-sm dark:prose-invert max-w-none"
+                        : ""
+                    }`}
+                  >
                     {message.role === "assistant" ? (
-                      <ReactMarkdown>{message.content}</ReactMarkdown>
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        rehypePlugins={[rehypeRaw]}
+                        components={{
+                          table: ({ children }) => (
+                            <div className="overflow-x-auto">
+                              <table>{children}</table>
+                            </div>
+                          ),
+                        }}
+                      >
+                        {message.content}
+                      </ReactMarkdown>
                     ) : (
                       message.content
                     )}
@@ -276,6 +278,10 @@ export default function ChatBot() {
                 <Send size={20} />
               </Button>
             </div>
+            <p className="text-xs text-center text-gray-500 dark:text-gray-400 mt-2">
+              Der KI-Assistent kann Fehler machen. Bitte überprüfe wichtige
+              Informationen.
+            </p>
           </div>
         </div>
       )}

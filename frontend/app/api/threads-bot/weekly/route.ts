@@ -101,38 +101,24 @@ export async function GET(request: NextRequest) {
   let currentStep = "init";
   try {
     const { searchParams } = new URL(request.url);
-    const secret = searchParams.get("secret");
     const dryRun = searchParams.get("dryRun") === "true";
 
-    // 1. Verify Secret
-    if (secret !== process.env.CRON_SECRET) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // 2. Fetch Credentials from DB
+    // 1. Fetch Credentials from DB
     currentStep = "db_config";
     const config = await getBotConfig();
-    let ACCESS_TOKEN = config["THREADS_ACCESS_TOKEN"];
     const USER_ID = config["THREADS_USER_ID"];
 
-    if (!ACCESS_TOKEN || !USER_ID) {
+    if (!USER_ID) {
       return NextResponse.json(
         {
           error: "Missing configuration in DB",
-          hasToken: !!ACCESS_TOKEN,
           hasUserId: !!USER_ID,
         },
         { status: 500 },
       );
     }
 
-    // 3. Refresh Token (If not dryRun)
-    currentStep = "token_refresh";
-    if (!dryRun) {
-      ACCESS_TOKEN = await refreshThreadsToken(ACCESS_TOKEN);
-    }
-
-    // 4. Determine Date Range (Last Week: Monday to Sunday)
+    // 2. Determine Date Range (Last Week: Monday to Sunday)
     const today = new Date();
     const dayOfWeek = today.getDay();
 
@@ -158,7 +144,7 @@ export async function GET(request: NextRequest) {
       month: "2-digit",
     });
 
-    // 5. Fetch Data
+    // 3. Fetch Data
     currentStep = "data_fetch";
     const { data: showsData, error: showsError } = await supabase
       .from("tv_show_politicians")
@@ -174,7 +160,7 @@ export async function GET(request: NextRequest) {
     if (showsError)
       throw new Error(`Supabase query error: ${JSON.stringify(showsError)}`);
 
-    // 6. Aggregate Data
+    // 4. Aggregate Data
     const episodes = new Map<string, ShowData>();
 
     showsData.forEach((row) => {
@@ -195,7 +181,7 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // 7. Format Text
+    // 5. Format Text
     let fullText = `Polit-Talks für die Woche vom ${deStartDate} bis ${deEndDate}\n\n`;
 
     if (episodes.size === 0) {
@@ -230,16 +216,15 @@ export async function GET(request: NextRequest) {
 
     const chunks = splitTextForThreads(fullText);
 
-    // 8. Publish to Threads
+    // 6. Publish to Threads
     if (dryRun) {
       return NextResponse.json({
         success: true,
         dryRun: true,
-        refreshedToken: !dryRun, // will be false
         originalLength: fullText.length,
         chunks: chunks,
         chunksCount: chunks.length,
-        configLoaded: { hasToken: !!ACCESS_TOKEN, hasUserId: !!USER_ID }, // Proof that DB read worked
+        configLoaded: { hasUserId: !!USER_ID }, // Proof that DB read worked
         data: Array.from(episodes.values()),
       });
     }
@@ -256,7 +241,6 @@ export async function GET(request: NextRequest) {
       );
       containerUrl.searchParams.append("media_type", "TEXT");
       containerUrl.searchParams.append("text", textChunk);
-      containerUrl.searchParams.append("access_token", ACCESS_TOKEN);
 
       if (lastCreationId) {
         containerUrl.searchParams.append("reply_to_id", lastCreationId);
@@ -280,7 +264,6 @@ export async function GET(request: NextRequest) {
         `https://graph.threads.net/v1.0/${USER_ID}/threads_publish`,
       );
       publishUrl.searchParams.append("creation_id", creationId);
-      publishUrl.searchParams.append("access_token", ACCESS_TOKEN);
 
       const publishRes = await fetch(publishUrl.toString(), { method: "POST" });
       const publishJson = await publishRes.json();

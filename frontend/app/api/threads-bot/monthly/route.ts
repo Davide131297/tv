@@ -95,15 +95,9 @@ function splitTextForThreads(text: string, limit: number = 490): string[] {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const secret = searchParams.get("secret");
     const dryRun = searchParams.get("dryRun") === "true";
 
-    // 1. Verify Secret
-    if (secret !== process.env.CRON_SECRET) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // 2. Fetch Credentials from DB
+    // 1. Fetch Credentials from DB
     const config = await getBotConfig();
     let ACCESS_TOKEN = config["THREADS_ACCESS_TOKEN"];
     const USER_ID = config["THREADS_USER_ID"];
@@ -115,12 +109,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 3. Refresh Token (If not dryRun)
-    if (!dryRun) {
-      ACCESS_TOKEN = await refreshThreadsToken(ACCESS_TOKEN);
-    }
-
-    // 4. Determine Date Range (Last Month)
+    // 2. Determine Date Range (Last Month)
     const now = new Date();
     // Go to the first day of the current month to avoid issues when today is the 31st and last month has 30 days
     now.setDate(1);
@@ -142,7 +131,7 @@ export async function GET(request: NextRequest) {
       year: "numeric",
     });
 
-    // 5. Fetch Data
+    // 3. Fetch Data
     const { data: showsData, error: showsError } = await supabase
       .from("tv_show_politicians")
       .select("party_name")
@@ -155,7 +144,7 @@ export async function GET(request: NextRequest) {
 
     if (showsError) throw showsError;
 
-    // 6. Aggregate Data (Count appearances per party)
+    // 4. Aggregate Data (Count appearances per party)
     const partyCounts: Record<string, number> = {};
     let totalGuests = 0;
 
@@ -171,7 +160,7 @@ export async function GET(request: NextRequest) {
       (a, b) => b[1] - a[1],
     );
 
-    // 7. Format Text
+    // 5. Format Text
     let fullText = `Talkshow-Präsenz der Parteien im ${monthName} 📊\n\n`;
 
     if (sortedParties.length === 0) {
@@ -187,7 +176,7 @@ export async function GET(request: NextRequest) {
 
     const chunks = splitTextForThreads(fullText);
 
-    // 8. Publish to Threads
+    // 6. Publish to Threads
     if (dryRun) {
       return NextResponse.json({
         success: true,

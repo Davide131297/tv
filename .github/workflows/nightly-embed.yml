@@ -1,0 +1,33 @@
+name: Nightly Embed Documents
+
+on:
+  schedule:
+    # Jeden Tag um 02:00 Uhr UTC (= 03:00 Uhr MEZ / 04:00 Uhr MESZ)
+    - cron: "0 2 * * *"
+  workflow_dispatch: # Manueller Trigger über GitHub UI möglich
+
+jobs:
+  embed:
+    name: Embed Documents
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Embed-Documents API aufrufen
+        run: |
+          echo "🚀 Starte Embed-Documents Job..."
+          RESPONSE=$(curl --silent --show-error --fail \
+            --max-time 1800 \
+            --request GET \
+            --header "Authorization: Bearer ${{ secrets.NEXT_PUBLIC_CRAWL_API_KEY }}" \
+            --header "Content-Type: application/json" \
+            "https://polittalk-watcher.de/api/embed-documents")
+
+          echo "✅ Antwort erhalten:"
+          echo "$RESPONSE" | python3 -m json.tool || echo "$RESPONSE"
+
+      - name: Fehler melden
+        if: failure()
+        run: |
+          echo "❌ Embed-Documents Job fehlgeschlagen!"
+          exit 1

@@ -17,7 +17,9 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/api/database-entries") ||
     pathname.startsWith("/api/party-timeline") ||
     pathname.startsWith("/api/political-areas") ||
-    pathname.startsWith("/api/politician-details");
+    pathname.startsWith("/api/politician-details") ||
+    pathname.startsWith("/api/threads-bot") ||
+    pathname.startsWith("/api/embed-documents");
 
   if (!isProtectedAPIRoute) {
     return NextResponse.next();
@@ -94,7 +96,11 @@ function handleAPIProtection(request: NextRequest) {
     let requireAuth = false;
     let expectedApiKey = "";
 
-    if (pathname.startsWith("/api/crawl/")) {
+    if (
+      pathname.startsWith("/api/crawl/") ||
+      pathname.startsWith("/api/threads-bot") ||
+      pathname.startsWith("/api/embed-documents")
+    ) {
       requireAuth = !!(CRAWL_API_KEY && CRAWL_API_KEY !== "default-dev-key");
       expectedApiKey = CRAWL_API_KEY || "";
     } else if (pathname.startsWith("/api/politics")) {
@@ -141,7 +147,12 @@ function handleAPIProtection(request: NextRequest) {
 
 // Configure which paths the middleware should run on
 export const config = {
-  matcher: ["/api/crawl/:path*", "/api/politics"],
+  matcher: [
+    "/api/crawl/:path*",
+    "/api/politics",
+    "/api/threads-bot/:path*",
+    "/api/embed-documents/:path*",
+  ],
 };
 
 // Cleanup function for rate limit store (should be called periodically)

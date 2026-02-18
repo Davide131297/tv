@@ -3,109 +3,160 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { supabase } from "@/lib/supabase";
-import { DATABASE_SCHEMA } from "@/lib/db-schema";
 
 interface Message {
   role: "user" | "assistant" | "system";
   content: string;
 }
 
+const USE_LOCAL_LLM = process.env.LokalLLM === "true";
+const LOCAL_LLM_URL = "http://127.0.0.1:1234";
+
 const googleApiKey = process.env.GOOGLE_GENAI_API_KEY;
 const ai = new GoogleGenAI({ apiKey: googleApiKey });
 const MODEL = process.env.GOOGLE_AI_MODEL;
 
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
 /**
- * Generiert eine SQL-Abfrage aus der Nutzerfrage
+ * Streamt eine Antwort vom lokalen LM Studio (OpenAI-kompatibel)
  */
-async function generateSQLQuery(userQuestion: string): Promise<string | null> {
-  const sqlPrompt = `Du bist ein SQL-Experte. Generiere eine PostgreSQL-Abfrage basierend auf der Nutzerfrage.
-      ${DATABASE_SCHEMA}
+async function streamLocalLLM(
+  systemPrompt: string,
+  conversationMessages: Message[],
+  controller: ReadableStreamDefaultController,
+  encoder: TextEncoder,
+): Promise<void> {
+  // OpenAI-Format: system + bisherige Nachrichten
+  const openAiMessages = [
+    { role: "system", content: systemPrompt },
+    ...conversationMessages.map((m) => ({
+      role: m.role,
+      content: m.content,
+    })),
+  ];
 
-      WICHTIGE REGELN:
-      - Verwende nur SELECT-Abfragen (keine INSERT, UPDATE, DELETE)
-      - Nutze nur die oben genannten Tabellen und Spalten
-      - Verwende deutsche Datumswerte im Format 'YYYY-MM-DD'
-      - Bei Datumsvergleichen nutze episode_date
-      - Für Joins zwischen Tabellen nutze show_name und episode_date
-      - Bei Aggregationen (COUNT, SUM, etc.) nutze GROUP BY
-      - KEIN Semikolon am Ende der Abfrage
-      - Antworte NUR mit der SQL-Abfrage, keine Erklärungen
-      - Wenn die Frage nicht mit SQL beantwortbar ist, antworte mit "NO_SQL"
-    `;
+  const response = await fetch(`${LOCAL_LLM_URL}/v1/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      messages: openAiMessages,
+      stream: true,
+      temperature: 0.7,
+      max_tokens: 500,
+    }),
+  });
 
-  if (!MODEL) {
-    throw new Error("Modell ist nicht definiert");
+  if (!response.ok || !response.body) {
+    throw new Error(`LM Studio Fehler: ${response.status}`);
   }
 
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    const text = decoder.decode(value);
+    const lines = text.split("\n");
+
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      const data = line.slice(6).trim();
+      if (data === "[DONE]") break;
+
+      try {
+        const parsed = JSON.parse(data);
+        const content = parsed.choices?.[0]?.delta?.content || "";
+        if (content) {
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ content })}\n\n`),
+          );
+        }
+      } catch {
+        // Unvollständige Chunks ignorieren
+      }
+    }
+  }
+}
+
+/**
+ * Generiert ein Embedding für den gegebenen Text via Supabase Edge Function (gte-small, 384 dims)
+ */
+async function generateEmbedding(text: string): Promise<number[] | null> {
   try {
-    const response = await ai.models.generateContent({
-      model: MODEL,
-      contents: `${sqlPrompt}\n\nNutzerfrage: ${userQuestion}`,
-      config: {
-        temperature: 0.1,
-        maxOutputTokens: 300,
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/embed`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json",
       },
+      body: JSON.stringify({ input: text }),
     });
 
-    const sqlQuery = response.text?.trim() || "";
-
-    // Bereinige die SQL-Abfrage
-    let cleanedSQL = sqlQuery
-      .replace(/```sql/g, "")
-      .replace(/```/g, "")
-      .replace(/;\s*$/g, "") // Entferne Semikolon am Ende
-      .trim();
-
-    // Prüfe ob SQL generiert wurde
-    if (
-      cleanedSQL.toUpperCase().includes("NO_SQL") ||
-      !cleanedSQL.toLowerCase().startsWith("select")
-    ) {
+    if (!response.ok) {
+      console.error(
+        "❌ Embedding-Fehler:",
+        response.status,
+        await response.text(),
+      );
       return null;
     }
-    return cleanedSQL;
+
+    const { embedding } = await response.json();
+    return embedding ?? null;
   } catch (error) {
-    console.error("❌ Fehler bei SQL-Generierung:", error);
-    // Rethrow 429 errors so they can be handled by the caller
-    if (
-      error &&
-      typeof error === "object" &&
-      "status" in error &&
-      error.status === 429
-    ) {
-      throw error;
-    }
+    console.error("❌ Fehler bei Embedding-Generierung:", error);
     return null;
   }
 }
 
 /**
- * Führt eine SQL-Abfrage sicher gegen Supabase aus
+ * Sucht relevante Dokumente via Vektorähnlichkeit (RAG)
  */
-async function executeSQLQuery(sqlQuery: string): Promise<any> {
+async function searchRelevantDocuments(
+  queryEmbedding: number[],
+  matchThreshold = 0.35,
+  matchCount = 5,
+): Promise<string> {
   try {
-    const { data, error } = await supabase.rpc("execute_sql", {
-      query: sqlQuery,
+    const { data, error } = await supabase.rpc("match_documents", {
+      query_embedding: queryEmbedding,
+      match_threshold: matchThreshold,
+      match_count: matchCount,
     });
 
     if (error) {
-      console.error("❌ Supabase SQL Fehler:", error);
-      return null;
+      console.error("❌ match_documents Fehler:", error);
+      return "";
     }
-    return data;
+
+    if (!data || data.length === 0) {
+      console.log("ℹ️ RAG: Keine relevanten Dokumente gefunden");
+      return "";
+    }
+
+    const contextParts = data.map(
+      (doc: { content: string; similarity: number }) =>
+        `- ${doc.content} (Ähnlichkeit: ${(doc.similarity * 100).toFixed(0)}%)`,
+    );
+
+    return `\n\nRELEVANTE WISSENSBASIS (RAG):\n${contextParts.join("\n")}`;
   } catch (error) {
-    console.error("❌ Fehler beim Ausführen der SQL-Abfrage:", error);
-    return null;
+    console.error("❌ Fehler bei Dokumentensuche:", error);
+    return "";
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    if (!googleApiKey) {
+    if (!USE_LOCAL_LLM && !googleApiKey) {
       console.error("❌ GOOGLE_GENAI_API_KEY fehlt in .env");
       return NextResponse.json(
         { error: "API-Konfigurationsfehler: Google AI API Key fehlt" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -114,47 +165,27 @@ export async function POST(request: NextRequest) {
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json(
         { error: "Ungültiges Nachrichtenformat" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // Versuche SQL-Abfrage aus der letzten Nutzernachricht zu generieren
+    // Letzte Nutzernachricht
     const lastUserMessage = messages
       .filter((m: Message) => m.role === "user")
       .pop();
 
-    let sqlQueryResult = "";
+    let ragContext = "";
     let rateLimitError = false;
 
     if (lastUserMessage) {
-      try {
-        const sqlQuery = await generateSQLQuery(lastUserMessage.content);
-
-        if (sqlQuery) {
-          const queryData = await executeSQLQuery(sqlQuery);
-
-          if (queryData) {
-            sqlQueryResult = `\n\nAKTUELLE DATENBANK-ABFRAGE:
-            SQL: ${sqlQuery}
-            Ergebnis: ${JSON.stringify(queryData, null, 2)}
-
-            Nutze diese Daten für deine Antwort.`;
-          }
-        }
-      } catch (sqlError) {
-        // Check if it's a rate limit error (429)
-        if (
-          sqlError &&
-          typeof sqlError === "object" &&
-          "status" in sqlError &&
-          sqlError.status === 429
-        ) {
-          rateLimitError = true;
-        }
+      // RAG-Embedding immer ausführen (Supabase, kein Gemini)
+      const embeddingResult = await generateEmbedding(lastUserMessage.content);
+      if (embeddingResult !== null) {
+        ragContext = await searchRelevantDocuments(embeddingResult);
       }
     }
 
-    // If rate limit error occurred during SQL generation, return error immediately
+    // Bei Rate-Limit-Fehler sofort abbrechen
     if (rateLimitError) {
       const encoder = new TextEncoder();
       const stream = new ReadableStream({
@@ -189,7 +220,7 @@ export async function POST(request: NextRequest) {
       year: "numeric",
     });
 
-    // System Prompt mit Datenbank-Kontext
+    // System Prompt mit RAG + SQL Kontext
     const systemPrompt = `Du bist ein hilfreicher KI-Assistent für den "Polittalk-Watcher", eine Plattform zur Analyse deutscher politischer Talkshows.
 
       WICHTIGER KONTEXT:
@@ -207,20 +238,14 @@ export async function POST(request: NextRequest) {
       - Phoenix Persönlich (Phoenix)
       - Pinar Atalay (NTV)
       - Blome & Pfeffer (NTV)
-      ${sqlQueryResult}
-
-      WICHTIG:
-      - Dies ist eine fortlaufende Konversation - beziehe dich auf vorherige Nachrichten im Chat-Verlauf
-      - Antworte direkt auf die aktuelle Frage ohne unnötige Begrüßungen wie "Hallo!" bei jeder Antwort
-      - Nur bei der ersten Nachricht einer neuen Konversation solltest du mit einer Begrüßung beginnen
-      - Beantworte Fragen basierend auf den obigen aktuellen Daten
-      - Bei Fragen zu Statistiken, nutze die konkreten Zahlen aus den Daten
-      - Wenn SQL-Abfrageergebnisse vorhanden sind, priorisiere diese für deine Antwort
+      ${ragContext}
+      - Wenn RAG-Wissensbasis vorhanden ist, nutze diese als primäre Informationsquelle
       - Wenn Daten nicht verfügbar sind, sage das ehrlich
       - Antworte präzise, informativ und freundlich auf Deutsch
-      - Formatiere deine Antworten mit Markdown
+      - Formatiere deine Antworten mit Markdown. Stelle tabellarische Daten IMMER als Markdown-Tabelle dar (z.B. | Spalte 1 | Spalte 2 | ...).
       - Themen außerhalb politischer Talkshows solltest du höflich ablehnen
       - Daten sind von 2024 bis heute
+      - FÜGE KEINE AUTOMATISCHE QUELLENANGABE ODER SIGNATUR AM ENDE DEINER NACHRICHTEN HINZU (z.B. "(Quelle: ...)").
       
       BEACHTE: Du bist Teil eines Systems, das deutsche politische Talkshows analysiert. Andere Fragen sind nicht relevant und sollten höflich abgelehnt werden.
 `;
@@ -231,7 +256,7 @@ export async function POST(request: NextRequest) {
 
     // Füge alle bisherigen Nachrichten hinzu (außer system messages)
     const conversationMessages = messages.filter(
-      (m: Message) => m.role !== "system"
+      (m: Message) => m.role !== "system",
     );
     for (const msg of conversationMessages) {
       if (msg.role === "user") {
@@ -244,50 +269,55 @@ export async function POST(request: NextRequest) {
     conversationHistory +=
       "---ENDE KONVERSATIONSVERLAUF---\n\nBitte antworte auf die letzte USER-Nachricht unter Berücksichtigung des gesamten Konversationsverlaufs.";
 
-    if (!MODEL) {
-      throw new Error("Modell ist nicht definiert");
-    }
-
     // Create ReadableStream for SSE
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          // Use streaming for faster response
-          const aiStream = await ai.models.generateContentStream({
-            model: MODEL,
-            contents: conversationHistory,
-            config: {
-              temperature: 0.7,
-              maxOutputTokens: 500,
-              systemInstruction:
-                "Beantworte die Anfrage präzise und informativ auf Deutsch und mit Markdown.",
-            },
-          });
+          if (USE_LOCAL_LLM) {
+            // --- LM Studio (lokal) ---
+            console.log("🤖 Nutze lokales LLM (LM Studio)");
+            await streamLocalLLM(
+              systemPrompt,
+              conversationMessages,
+              controller,
+              encoder,
+            );
+          } else {
+            // --- Google Gemini ---
+            if (!MODEL) throw new Error("Modell ist nicht definiert");
 
-          // Stream the response to the client
-          for await (const chunk of aiStream) {
-            const content = chunk.text || "";
-            if (content) {
-              // Send each chunk as SSE
-              const data = `data: ${JSON.stringify({ content })}\n\n`;
-              controller.enqueue(encoder.encode(data));
+            const aiStream = await ai.models.generateContentStream({
+              model: MODEL,
+              contents: conversationHistory,
+              config: {
+                temperature: 0.7,
+                maxOutputTokens: 500,
+                systemInstruction:
+                  "Beantworte die Anfrage präzise und informativ auf Deutsch und mit Markdown. Tabellen immer als Markdown-Tabelle.",
+              },
+            });
+
+            for await (const chunk of aiStream) {
+              const content = chunk.text || "";
+              if (content) {
+                const data = `data: ${JSON.stringify({ content })}\n\n`;
+                controller.enqueue(encoder.encode(data));
+              }
             }
           }
 
-          // Send done signal
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
         } catch (aiError) {
-          console.error("❌ Google AI API Fehler:", aiError);
+          console.error("❌ LLM Fehler:", aiError);
 
-          // Check if it's a rate limit error (429)
           let errorMessage = "KI-Service nicht erreichbar";
           if (
             aiError &&
             typeof aiError === "object" &&
             "status" in aiError &&
-            aiError.status === 429
+            (aiError as { status: number }).status === 429
           ) {
             errorMessage =
               "Die KI-Kapazität ist aktuell ausgeschöpft. Bitte versuchen Sie es in einigen Minuten erneut.";
@@ -321,7 +351,7 @@ export async function POST(request: NextRequest) {
         details:
           process.env.NODE_ENV === "development" ? errorMessage : undefined,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
