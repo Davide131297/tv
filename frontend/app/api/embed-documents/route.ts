@@ -45,28 +45,6 @@ async function generateEmbedding(text: string): Promise<number[] | null> {
   }
 }
 
-// Batch-Insert mit Embedding-Generierung
-async function insertDoc(
-  content: string,
-  metadata: Record<string, unknown>,
-  results: Results,
-  resultKey: keyof Results,
-) {
-  const embedding = await generateEmbedding(content);
-  if (!embedding) return;
-
-  const { error } = await supabase
-    .from("documents")
-    .insert({ content, embedding, metadata });
-  if (error) {
-    (results.errors as string[]).push(
-      `[${String(resultKey)}] ${error.message}: ${content.slice(0, 80)}`,
-    );
-  } else {
-    (results[resultKey] as number)++;
-  }
-}
-
 interface Results {
   deleted: number;
   partyStats: number;
@@ -78,6 +56,89 @@ interface Results {
   episodes: number;
   summary: number;
   errors: string[];
+}
+
+interface DocTask {
+  content: string;
+  metadata: Record<string, unknown>;
+  resultKey: keyof Results;
+}
+
+// Batch-Processor für effizientere Abarbeitung
+class BatchProcessor {
+  private queue: DocTask[] = [];
+
+  add(
+    content: string,
+    metadata: Record<string, unknown>,
+    resultKey: keyof Results,
+  ) {
+    this.queue.push({ content, metadata, resultKey });
+  }
+
+  async flush(this: BatchProcessor, results: Results) {
+    const BATCH_SIZE = 50;
+    const CONCURRENCY = 5; // Gleichzeitige Embedding-Requests
+
+    console.log(
+      `🚀 Starte Batch-Verarbeitung für ${this.queue.length} Dokumente...`,
+    );
+
+    for (let i = 0; i < this.queue.length; i += BATCH_SIZE) {
+      const batch = this.queue.slice(i, i + BATCH_SIZE);
+      const validItems: {
+        task: DocTask;
+        embedding: number[];
+      }[] = [];
+
+      // 1. Embeddings generieren (limitiert parallel)
+      for (let j = 0; j < batch.length; j += CONCURRENCY) {
+        const subBatch = batch.slice(j, j + CONCURRENCY);
+        await Promise.all(
+          subBatch.map(async (task) => {
+            const embedding = await generateEmbedding(task.content);
+            if (embedding) {
+              validItems.push({ task, embedding });
+            } else {
+              results.errors.push(
+                `Embedding failed: ${task.content.slice(0, 50)}...`,
+              );
+            }
+          }),
+        );
+      }
+
+      // 2. Batch Insert in Supabase
+      if (validItems.length > 0) {
+        const { error } = await supabase.from("documents").insert(
+          validItems.map((vi) => ({
+            content: vi.task.content,
+            metadata: vi.task.metadata,
+            embedding: vi.embedding,
+          })),
+        );
+
+        if (error) {
+          results.errors.push(`Database error: ${error.message}`);
+          console.error("❌ Batch Insert Error:", error);
+        } else {
+          // Stats updaten
+          validItems.forEach((vi) => {
+            const key = vi.task.resultKey;
+            // TS Check: keyof Results -> number check
+            if (typeof results[key] === "number") {
+              (results[key] as number)++;
+            }
+          });
+        }
+      }
+
+      // Fortschritt loggen
+      const currentBatchNum = Math.ceil((i + 1) / BATCH_SIZE);
+      const outputTotal = Math.ceil(this.queue.length / BATCH_SIZE);
+      console.log(`✅ Batch ${currentBatchNum}/${outputTotal} verarbeitet`);
+    }
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -96,6 +157,21 @@ export async function GET(request: NextRequest) {
     episodes: 0,
     summary: 0,
     errors: [],
+  };
+
+  // Batcher initialisieren und lokale Helper-Funktion definieren
+  const batcher = new BatchProcessor();
+  // Wrapper, damit der restliche Code nicht geändert werden muss
+  const insertDoc = (
+    content: string,
+    metadata: Record<string, unknown>,
+    _results: Results,
+    resultKey: keyof Results,
+  ) => {
+    // _results wird ignoriert, da der Batcher die Ergebnisse am Ende in `flush` schreibt
+    batcher.add(content, metadata, resultKey);
+    // Sync return, da wir nur zur Queue hinzufügen
+    return Promise.resolve();
   };
 
   try {
@@ -619,6 +695,9 @@ export async function GET(request: NextRequest) {
         "episodes",
       );
     }
+
+    // ── 10. Batch-Verarbeitung ausführen ──────────────────────────────────
+    await batcher.flush(results);
 
     const elapsedMs = Date.now() - startTime;
     const elapsedMin = Math.floor(elapsedMs / 60000);
