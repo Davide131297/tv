@@ -21,7 +21,7 @@ jobs:
             --request GET \
             --header "Authorization: Bearer ${{ secrets.NEXT_PUBLIC_CRAWL_API_KEY }}" \
             --header "Content-Type: application/json" \
-            "https://polittalk-watcher.de/api/embed-documents")
+            "${{ secrets.DEPLOYMENT_URL }}/api/embed-documents")
 
           echo "✅ Antwort erhalten:"
           echo "$RESPONSE" | python3 -m json.tool || echo "$RESPONSE"

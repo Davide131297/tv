@@ -4,7 +4,7 @@ on:
   schedule:
     # Run daily at 2 AM UTC (0 2 * * *)
     - cron: "0 2 * * *"
-  workflow_dispatch:  # Allow manual triggering from GitHub UI
+  workflow_dispatch: # Allow manual triggering from GitHub UI
 
 jobs:
   run-crawl:
@@ -19,7 +19,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: "18"
 
       - name: Install dependencies
         run: |
@@ -30,12 +30,11 @@ jobs:
         run: |
           # Make API call with Bearer token
           CRAWL_URL="${{ secrets.DEPLOYMENT_URL }}/api/crawl/all"
-          CRAWL_KEY="${{ secrets.CRAWL_API_KEY }}"
 
           response=$(curl --write-out "%{http_code}" \
             --silent --output /dev/null \
             -X POST \
-            -H "Authorization: Bearer $CRAWL_KEY" \
+            --header "Authorization: Bearer ${{ secrets.NEXT_PUBLIC_CRAWL_API_KEY }}" \
             "$CRAWL_URL")
 
           if [ "$response" -ne 200 ]; then
