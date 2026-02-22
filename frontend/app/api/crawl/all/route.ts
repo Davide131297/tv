@@ -11,64 +11,43 @@ import CrawlBlomePfeffer from "@/crawler/blome-pfeffer";
 export async function POST() {
   console.info("Starting sequential crawling process...");
 
-  try {
-    console.info("1/8 - Starting Markus Lanz crawler...");
-    await CrawlLanz();
-    console.info("✅ Markus Lanz crawler completed");
+  const results: Record<string, { success: boolean; error?: string }> = {};
 
-    console.info("2/8 - Starting Maybrit Illner crawler...");
-    await crawlNewMaybritIllnerEpisodes();
-    console.info("✅ Maybrit Illner crawler completed");
+  // Helper to run a crawler safely
+  const runCrawler = async (name: string, crawlerFn: () => Promise<any>) => {
+    try {
+      console.info(`Starting ${name} crawler...`);
+      await crawlerFn();
+      console.info(`✅ ${name} crawler completed`);
+      results[name] = { success: true };
+    } catch (error) {
+      console.error(`❌ ${name} crawler failed:`, error);
+      results[name] = { 
+        success: false, 
+        error: error instanceof Error ? error.message : String(error) 
+      };
+    }
+  };
 
-    console.info("3/8 - Starting Maischberger crawler...");
-    await crawlNewMaischbergerEpisodes();
-    console.info("✅ Maischberger crawler completed");
+  // 2. Run crawlers sequentially (to avoid resource exhaustion)
+  await runCrawler("Markus Lanz", CrawlLanz);
+  await runCrawler("Maybrit Illner", crawlNewMaybritIllnerEpisodes);
+  await runCrawler("Maischberger", crawlNewMaischbergerEpisodes);
+  await runCrawler("Caren Miosga", crawlIncrementalCarenMiosgaEpisodes);
+  await runCrawler("Hart aber Fair", crawlHartAberFair);
+  await runCrawler("Pinar Atalay", CrawlPinarAtalay);
+  await runCrawler("Phoenix Runde", CrawlPhoenixRunde);
+  await runCrawler("Blome & Pfeffer", CrawlBlomePfeffer);
 
-    console.info("4/8 - Starting Caren Miosga crawler...");
-    await crawlIncrementalCarenMiosgaEpisodes();
-    console.info("✅ Caren Miosga crawler completed");
+  const successCount = Object.values(results).filter(r => r.success).length;
+  const failureCount = Object.values(results).filter(r => !r.success).length;
 
-    console.info("5/8 - Starting Hart aber Fair crawler...");
-    await crawlHartAberFair();
-    console.info("✅ Hart aber Fair crawler completed");
+  console.info(`🎉 Crawling finished. Success: ${successCount}, Failures: ${failureCount}`);
 
-    console.info("6/8 - Starting Pinar Atalay crawler...");
-    await CrawlPinarAtalay();
-    console.info("✅ Pinar Atalay crawler completed");
-
-    console.info("7/8 - Starting Phoenix Runde crawler...");
-    await CrawlPhoenixRunde();
-    console.info("✅ Phoenix Runde crawler completed");
-
-    console.info("8/8 - Starting Blome & Pfeffer crawler...");
-    await CrawlBlomePfeffer();
-    console.info("✅ Blome & Pfeffer crawler completed");
-
-    console.info("🎉 All crawlers completed successfully!");
-
-    return NextResponse.json({
-      success: true,
-      message: "All crawlers finished successfully",
-      completedCrawlers: [
-        "Markus Lanz",
-        "Maybrit Illner",
-        "Maischberger",
-        "Caren Miosga",
-        "Hart aber Fair",
-        "Pinar Atalay",
-        "Phoenix Runde",
-        "Blome & Pfeffer",
-      ],
-    });
-  } catch (error) {
-    console.error({ error }, "❌ Error during crawling process");
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to complete all crawlers",
-        details: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 }
-    );
-  }
+  // 3. Return summary response
+  return NextResponse.json({
+    success: failureCount === 0,
+    message: `Crawling finished with ${successCount} successes and ${failureCount} failures`,
+    results,
+  }, { status: 200 });
 }

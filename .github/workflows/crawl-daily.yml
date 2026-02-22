@@ -30,16 +30,23 @@ jobs:
         run: |
           # Make API call with Bearer token
           CRAWL_URL="${{ secrets.DEPLOYMENT_URL }}/api/crawl/all"
+          
+          # Use a temporary file to store the response body
+          RESPONSE_BODY=$(mktemp)
 
-          response=$(curl --write-out "%{http_code}" \
-            --silent --output /dev/null \
+          http_code=$(curl --write-out "%{http_code}" \
+            --silent --output "$RESPONSE_BODY" \
             -X POST \
             --header "Authorization: Bearer ${{ secrets.NEXT_PUBLIC_CRAWL_API_KEY }}" \
             "$CRAWL_URL")
 
-          if [ "$response" -ne 200 ]; then
-            echo "::error::Crawl API request failed with status code $response"
+          if [ "$http_code" -ne 200 ]; then
+            echo "::error::Crawl API request failed with status code $http_code"
+            echo "Response body:"
+            cat "$RESPONSE_BODY"
+            rm "$RESPONSE_BODY"
             exit 1
           else
             echo "Successfully triggered crawl script."
+            rm "$RESPONSE_BODY"
           fi
