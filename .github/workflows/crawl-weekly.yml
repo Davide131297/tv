@@ -1,9 +1,9 @@
-name: Daily Crawl Script
+name: Weekly Crawl Script
 
 on:
   schedule:
-    # Run daily at 2 AM UTC (0 2 * * *)
-    - cron: "0 2 * * *"
+    # Run every Monday at 2 AM UTC (0 2 * * 1)
+    - cron: "0 2 * * 1"
   workflow_dispatch: # Allow manual triggering from GitHub UI
 
 jobs:
