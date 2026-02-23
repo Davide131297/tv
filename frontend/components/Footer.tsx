@@ -1,9 +1,16 @@
+"use client";
+
 import Link from "next/link";
 import { FaSquareThreads } from "react-icons/fa6";
 import { format } from "date-fns";
+import { Cookie } from "lucide-react";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
+
+  const openCookieSettings = () => {
+    window.dispatchEvent(new Event("open-cookie-banner"));
+  };
 
   return (
     <footer className="bg-white border-t mt-auto">
@@ -45,6 +52,13 @@ export default function Footer() {
             >
               API
             </Link>
+            <button
+              onClick={openCookieSettings}
+              className="flex items-center gap-1 text-black/70 hover:text-black/90 hover:underline"
+            >
+              <Cookie className="size-4" />
+              Cookies
+            </button>
             <Link
               href="https://www.threads.net/@polittalk.watcher"
               target="_blank"
