@@ -6,9 +6,20 @@ import axios from "axios";
 
 dotenv.config();
 
-// Google GenAI setup (matching frontend ai-utils.ts)
-const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_GENAI_API_KEY || "" });
-const googleModel = process.env.GOOGLE_AI_MODEL || "gemini-2.0-flash";
+// Google GenAI setup (Lazy Initialization)
+let ai: GoogleGenAI | null = null;
+const googleModel = process.env.GOOGLE_AI_MODEL || "gemini-2.5-flash";
+
+function getGenAI(): GoogleGenAI {
+  if (!ai) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("GEMINI_API_KEY environment variable is not set");
+    }
+    ai = new GoogleGenAI({ apiKey });
+  }
+  return ai;
+}
 
 // Rate-Limiting für AI-Requests
 let aiRequestCount = 0;
@@ -166,7 +177,7 @@ export async function getPoliticalArea(
   try {
     console.log("🤖 Erkenne Themen der Episode");
 
-    const response = await ai.models.generateContent({
+    const response = await getGenAI().models.generateContent({
       model: googleModel,
       contents: prompt,
       config: {
@@ -585,7 +596,7 @@ Gib mir die Namen der Gäste im Text ausschließlich als JSON Array mit Strings 
       `🤖 Extrahiere Gäste mit AI (Request ${aiRequestCount}/150)...`,
     );
 
-    const response = await ai.models.generateContent({
+    const response = await getGenAI().models.generateContent({
       model: googleModel,
       contents: prompt,
       config: {

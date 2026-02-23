@@ -44,8 +44,13 @@ RUN npm ci
 COPY . .
 
 # TypeScript kompilieren
-RUN npm run build \
-    && npm prune --production
+RUN rm -rf dist && npm run build
+
+ENV NODE_ENV=production
+
+# DANACH erst dev-dependencies entfernen
+RUN npm prune --production
+
 
 # Non-root user für Chrome
 RUN groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser \
