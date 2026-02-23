@@ -12,17 +12,19 @@ jobs:
     steps:
       - name: Trigger Threads Bot API
         run: |
-          # The valid status code for this API is 200.
-          # Capture both the response body and HTTP status code for debugging.
-          http_code=$(curl --silent --max-time 120 --write-out "%{http_code}" --output /tmp/response.json "${{ secrets.DEPLOYMENT_URL }}/api/threads-bot/weekly?secret=${{ secrets.CRON_SECRET }}")
-          response_body=$(cat /tmp/response.json)
+          echo "🚀 Starte Threads Bot..."
+          RESPONSE=$(curl --silent --show-error --fail \
+            --max-time 1800 \
+            --request GET \
+            --header "Authorization: Bearer ${{ secrets.NEXT_PUBLIC_CRAWL_API_KEY }}" \
+            --header "Content-Type: application/json" \
+            "${{ secrets.DEPLOYMENT_URL }}/api/threads-bot/weekly")
 
-          echo "HTTP Status: $http_code"
-          echo "Response: $response_body"
+          echo "✅:"
+          echo "$RESPONSE" | python3 -m json.tool || echo "$RESPONSE"
 
-          if [ "$http_code" -eq 200 ] && echo "$response_body" | grep -q '"success":true'; then
-            echo "Successfully triggered Threads bot."
-          else
-            echo "::error::API request failed (HTTP $http_code). Response: $response_body"
-            exit 1
-          fi
+      - name: Fehler melden
+        if: failure()
+        run: |
+          echo "❌ Threads Bot Job fehlgeschlagen!"
+          exit 1
