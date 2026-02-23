@@ -37,10 +37,7 @@ jobs:
       - name: Build Docker Image
         working-directory: ./backend
         run: |
-          docker build \
-            -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/polittalk-crawler/backend:${{ github.sha }} \
-            -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/polittalk-crawler/backend:latest \
-            .
+          docker build -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/polittalk-crawler/backend:${{ github.sha }} -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/polittalk-crawler/backend:latest .
 
       - name: Push Docker Image
         run: |
