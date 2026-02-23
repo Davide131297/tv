@@ -24,6 +24,8 @@ RUN apt-get update && apt-get install -y \
     libxkbcommon0 \
     libxrandr2 \
     xdg-utils \
+    libxshmfence1 \
+    libglu1-mesa \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
@@ -44,24 +46,21 @@ RUN npm ci
 COPY . .
 
 # TypeScript kompilieren
-RUN rm -rf dist && npm run build
+RUN npm run build
 
-ENV NODE_ENV=production
-
-# DANACH erst dev-dependencies entfernen
+# Dev-dependencies entfernen
 RUN npm prune --production
 
+# Cloud Run läuft als non-root, aber Chrome braucht spezielle Configs
+# Erstelle tmp directories mit richtigen Permissions
+RUN mkdir -p /tmp/.X11-unix /tmp/.chromium-tmp \
+    && chmod 1777 /tmp/.X11-unix /tmp/.chromium-tmp
 
-# Non-root user für Chrome
-RUN groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser \
-    && mkdir -p /home/pptruser/Downloads \
-    && chown -R pptruser:pptruser /home/pptruser \
-    && chown -R pptruser:pptruser /app
-
-USER pptruser
-
-# Cloud Run nutzt PORT Umgebungsvariable
 ENV PORT=8080
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV CHROME_BIN=/usr/bin/google-chrome-stable
+
 EXPOSE 8080
 
+# Als root laufen lassen (Cloud Run isoliert ohnehin)
 CMD ["node", "dist/app.js"]
