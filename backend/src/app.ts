@@ -27,7 +27,7 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 8080;
 
 // ============================================
 // Authentication Middleware
@@ -266,11 +266,8 @@ app.post("/api/crawl/blome-pfeffer", async (req, res) => {
 // ============================================
 // Start Server
 // ============================================
-app.listen(PORT, () => {
-  console.log(`🚀 Backend Server läuft auf Port ${PORT}`);
-  console.log(
-    `📡 Crawler API verfügbar unter http://localhost:${PORT}/api/crawl/`,
-  );
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server läuft auf Port ${PORT}`);
 });
 
 export default app;
