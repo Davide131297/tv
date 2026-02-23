@@ -69,10 +69,10 @@ app.post("/api/crawl/all", async (req, res) => {
   await runCrawler("Hart aber Fair", crawlHartAberFair);
   await runCrawler("Maischberger", crawlNewMaischbergerEpisodes);
   await runCrawler("Caren Miosga", crawlIncrementalCarenMiosgaEpisodes);
-  await runCrawler("Pinar Atalay", CrawlPinarAtalay);
-  await runCrawler("Phoenix Runde", CrawlPhoenixRunde);
-  await runCrawler("Phoenix Persönlich", CrawlPhoenixPersoenlich);
-  await runCrawler("Blome & Pfeffer", CrawlBlomePfeffer);
+  // await runCrawler("Pinar Atalay", CrawlPinarAtalay);
+  // await runCrawler("Phoenix Runde", CrawlPhoenixRunde);
+  // await runCrawler("Phoenix Persönlich", CrawlPhoenixPersoenlich);
+  // await runCrawler("Blome & Pfeffer", CrawlBlomePfeffer);
 
   const durationMs = Date.now() - startTime;
   const durationMin = Math.floor(durationMs / 60000);
