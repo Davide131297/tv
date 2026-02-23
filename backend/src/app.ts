@@ -30,40 +30,6 @@ app.use(express.json());
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 8080;
 
 // ============================================
-// Authentication Middleware
-// ============================================
-function authMiddleware(
-  req: express.Request,
-  res: express.Response,
-  next: express.NextFunction,
-): void {
-  const apiKey = process.env.CRAWL_API_KEY;
-
-  if (!apiKey) {
-    console.error("❌ CRAWL_API_KEY nicht konfiguriert");
-    res.status(500).json({ error: "Server configuration error" });
-    return;
-  }
-
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    res.status(401).json({ error: "Missing or invalid Authorization header" });
-    return;
-  }
-
-  const token = authHeader.substring(7);
-  if (token !== apiKey) {
-    res.status(403).json({ error: "Invalid API key" });
-    return;
-  }
-
-  next();
-}
-
-// Apply auth middleware to all /api/crawl routes
-app.use("/api/crawl", authMiddleware);
-
-// ============================================
 // Health Check
 // ============================================
 app.get("/", (req, res) => {
