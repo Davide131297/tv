@@ -12,7 +12,7 @@ jobs:
     steps:
       - name: Trigger Monthly Threads Bot API
         run: |
-          http_code=$(curl --silent --max-time 120 --write-out "%{http_code}" --output /tmp/response.json "${{ secrets.DEPLOYMENT_URL }}/api/threads-bot/monthly?secret=${{ secrets.CRON_SECRET }}")
+          http_code=$(curl --silent --max-time 120 --write-out "%{http_code}" --output /tmp/response.json -H "Authorization: Bearer ${{ secrets.NEXT_PUBLIC_CRAWL_API_KEY }}" "${{ secrets.DEPLOYMENT_URL }}/api/threads-bot/monthly")
           response_body=$(cat /tmp/response.json)
 
           echo "HTTP Status: $http_code"
