@@ -50,7 +50,7 @@ export default async function CrawlPinarAtalay() {
     // Extrahiere alle Episoden mit ihren Beschreibungen
     const episodes = await page.evaluate(() => {
       const episodeElements = document.querySelectorAll(
-        "watch-episode-list-teaser"
+        "watch-episode-list-teaser",
       );
       const results: Array<{
         url: string;
@@ -61,7 +61,7 @@ export default async function CrawlPinarAtalay() {
 
       for (const episode of episodeElements) {
         const linkElement = episode.querySelector(
-          "a.series-teaser__link"
+          "a.series-teaser__link",
         ) as HTMLAnchorElement;
         if (!linkElement) continue;
 
@@ -100,13 +100,13 @@ export default async function CrawlPinarAtalay() {
     // Filtere nur neue Episoden
     let filteredEpisodes = episodes;
     if (latestDbDate) {
-      filteredEpisodes = episodes.filter((ep) => {
+      filteredEpisodes = episodes.filter((ep: any) => {
         if (!ep.episodeNumber) return true; // Wenn keine Episode-Nummer, behalte sie
         const episodeDate = getEpisodeDateFromNumber(ep.episodeNumber);
         return episodeDate > latestDbDate;
       });
       console.log(
-        `Nach Datum-Filter: ${filteredEpisodes.length}/${episodes.length} URLs (nur neuer als ${latestDbDate})`
+        `Nach Datum-Filter: ${filteredEpisodes.length}/${episodes.length} URLs (nur neuer als ${latestDbDate})`,
       );
     }
 
@@ -136,10 +136,10 @@ export default async function CrawlPinarAtalay() {
       console.log(
         `\n🎬 [${i + 1}/${filteredEpisodes.length}] Verarbeite Episode: ${
           episode.title
-        } (${episodeDate})`
+        } (${episodeDate})`,
       );
       console.log(
-        `📝 Beschreibung: ${episode.description.substring(0, 100)}...`
+        `📝 Beschreibung: ${episode.description.substring(0, 100)}...`,
       );
 
       try {
@@ -171,7 +171,7 @@ export default async function CrawlPinarAtalay() {
             console.log(
               `      ✅ Politiker: ${details.politicianName} (ID ${
                 details.politicianId
-              }), Partei: ${details.partyName || "unbekannt"}`
+              }), Partei: ${details.partyName || "unbekannt"}`,
             );
             politicians.push({
               politicianId: details.politicianId,
@@ -193,14 +193,14 @@ export default async function CrawlPinarAtalay() {
             "NTV",
             "Pinar Atalay",
             episodeDate,
-            politicians
+            politicians,
           );
 
           totalPoliticiansInserted += inserted;
           episodesWithPoliticians++;
 
           console.log(
-            `   💾 ${inserted}/${politicians.length} Politiker gespeichert`
+            `   💾 ${inserted}/${politicians.length} Politiker gespeichert`,
           );
 
           // Füge Episode-URL zur Liste hinzu
@@ -217,17 +217,17 @@ export default async function CrawlPinarAtalay() {
           const insertedAreas = await insertEpisodePoliticalAreas(
             "Pinar Atalay",
             episodeDate,
-            politicalAreaIds
+            politicalAreaIds,
           );
           totalPoliticalAreasInserted += insertedAreas;
           console.log(
-            `   🏛️  ${insertedAreas}/${politicalAreaIds.length} Themenbereiche gespeichert`
+            `   🏛️  ${insertedAreas}/${politicalAreaIds.length} Themenbereiche gespeichert`,
           );
         }
       } catch (error) {
         console.error(
           `❌ Fehler beim Verarbeiten von Episode ${episode.title}:`,
-          error
+          error,
         );
       }
     }
@@ -236,10 +236,10 @@ export default async function CrawlPinarAtalay() {
     if (episodeLinksToInsert.length > 0) {
       totalEpisodeLinksInserted = await insertMultipleShowLinks(
         "Pinar Atalay",
-        episodeLinksToInsert
+        episodeLinksToInsert,
       );
       console.log(
-        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`
+        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`,
       );
     }
 

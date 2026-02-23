@@ -51,12 +51,12 @@ export default async function CrawlPhoenixRunde() {
     while (clickedLoadMore && loadMoreAttempts < maxLoadMoreAttempts) {
       try {
         const loadMoreButton = await page.$(
-          '.c-btn a[ng-click*="next(nexturl)"]'
+          '.c-btn a[ng-click*="next(nexturl)"]',
         );
 
         if (loadMoreButton) {
           console.log(
-            `📥 Lade weitere Episoden... (Versuch ${loadMoreAttempts + 1})`
+            `📥 Lade weitere Episoden... (Versuch ${loadMoreAttempts + 1})`,
           );
           await loadMoreButton.click();
           await new Promise((resolve) => setTimeout(resolve, 2000)); // Warte auf das Laden der neuen Inhalte
@@ -65,7 +65,7 @@ export default async function CrawlPhoenixRunde() {
           // Prüfe ob das älteste sichtbare Datum noch im aktuellen Jahr ist
           const oldestDate = await page.evaluate(() => {
             const dates = Array.from(
-              document.querySelectorAll(".c-teaser__item__body__info__date")
+              document.querySelectorAll(".c-teaser__item__body__info__date"),
             ).map((el) => el.textContent?.trim() || "");
             return dates[dates.length - 1] || "";
           });
@@ -76,7 +76,7 @@ export default async function CrawlPhoenixRunde() {
             const episodeYear = parseInt(year);
             if (episodeYear < currentYear) {
               console.log(
-                `⏹️  Erreicht Episode aus ${episodeYear}, stoppe Laden`
+                `⏹️  Erreicht Episode aus ${episodeYear}, stoppe Laden`,
               );
               break;
             }
@@ -92,7 +92,7 @@ export default async function CrawlPhoenixRunde() {
     // Extrahiere alle Episoden mit ihren URLs und Daten
     const episodes = await page.evaluate(() => {
       const episodeElements = document.querySelectorAll(
-        'div[phnx-teaser][teaser="teaser"]'
+        'div[phnx-teaser][teaser="teaser"]',
       );
       const results: Array<{
         url: string;
@@ -103,7 +103,7 @@ export default async function CrawlPhoenixRunde() {
       for (const episode of episodeElements) {
         // Finde den ersten Link mit dem Episode-Titel
         const linkElement = episode.querySelector(
-          'a[ng-href*="/sendungen/gespraeche/phoenix-runde/"]'
+          'a[ng-href*="/sendungen/gespraeche/phoenix-runde/"]',
         ) as HTMLAnchorElement;
         if (!linkElement) continue;
 
@@ -111,13 +111,13 @@ export default async function CrawlPhoenixRunde() {
 
         // Extrahiere Untertitel (eigentlicher Episode-Titel)
         const titleElement = episode.querySelector(
-          ".c-teaser__item__body__title__subline"
+          ".c-teaser__item__body__title__subline",
         );
         const title = titleElement?.textContent?.trim() || "";
 
         // Extrahiere Datum
         const dateElement = episode.querySelector(
-          ".c-teaser__item__body__info__date"
+          ".c-teaser__item__body__info__date",
         );
         const dateText = dateElement?.textContent?.trim() || "";
 
@@ -140,33 +140,33 @@ export default async function CrawlPhoenixRunde() {
     }
 
     // Konvertiere deutsche Datumsformate zu YYYY-MM-DD
-    const episodesWithFormattedDates = episodes.map((ep) => {
+    const episodesWithFormattedDates = episodes.map((ep: any) => {
       const [day, month, year] = ep.date.split(".");
       const formattedDate = `${year}-${month.padStart(2, "0")}-${day.padStart(
         2,
-        "0"
+        "0",
       )}`;
       return { ...ep, formattedDate };
     });
 
     // Filtere nur Episoden aus dem aktuellen Jahr
-    const currentYearEpisodes = episodesWithFormattedDates.filter((ep) => {
+    const currentYearEpisodes = episodesWithFormattedDates.filter((ep: any) => {
       const episodeYear = parseInt(ep.formattedDate.split("-")[0]);
       return episodeYear === currentYear;
     });
 
     console.log(
-      `📅 ${currentYearEpisodes.length}/${episodes.length} Episoden aus ${currentYear}`
+      `📅 ${currentYearEpisodes.length}/${episodes.length} Episoden aus ${currentYear}`,
     );
 
     // Filtere nur neue Episoden
     let filteredEpisodes = currentYearEpisodes;
     if (latestDbDate) {
       filteredEpisodes = currentYearEpisodes.filter(
-        (ep) => ep.formattedDate > latestDbDate
+        (ep: any) => ep.formattedDate > latestDbDate,
       );
       console.log(
-        `Nach Datum-Filter: ${filteredEpisodes.length}/${currentYearEpisodes.length} URLs (nur neuer als ${latestDbDate})`
+        `Nach Datum-Filter: ${filteredEpisodes.length}/${currentYearEpisodes.length} URLs (nur neuer als ${latestDbDate})`,
       );
     }
 
@@ -194,7 +194,7 @@ export default async function CrawlPhoenixRunde() {
       console.log(
         `\n🎬 [${i + 1}/${filteredEpisodes.length}] Verarbeite Episode: ${
           episode.title
-        } (${episodeDate})`
+        } (${episodeDate})`,
       );
 
       try {
@@ -224,7 +224,7 @@ export default async function CrawlPhoenixRunde() {
         console.log(
           `📝 Gäste-Text: ${guestsText
             .substring(0, 200)
-            .replace(/\n/g, " ")}...`
+            .replace(/\n/g, " ")}...`,
         );
 
         // Extrahiere Gäste mit AI
@@ -239,7 +239,7 @@ export default async function CrawlPhoenixRunde() {
 
         // Analysiere politische Themen (verwende den Titel)
         const politicalAreaIds = await getPoliticalArea(
-          episode.title + " " + guestsText
+          episode.title + " " + guestsText,
         );
 
         // Prüfe jeden Gast auf Politiker-Status
@@ -251,8 +251,8 @@ export default async function CrawlPhoenixRunde() {
           const roleMatch = guestsText.match(
             new RegExp(
               `${guestName}[^\\n]*?([A-ZÄÖÜ][^,\\n]*?)(?:,|\\n|$)`,
-              "i"
-            )
+              "i",
+            ),
           );
           const role = roleMatch ? roleMatch[1].trim() : undefined;
 
@@ -266,7 +266,7 @@ export default async function CrawlPhoenixRunde() {
             console.log(
               `      ✅ Politiker: ${details.politicianName} (ID ${
                 details.politicianId
-              }), Partei: ${details.partyName || "unbekannt"}`
+              }), Partei: ${details.partyName || "unbekannt"}`,
             );
             politicians.push({
               politicianId: details.politicianId,
@@ -288,14 +288,14 @@ export default async function CrawlPhoenixRunde() {
             "Phoenix",
             "Phoenix Runde",
             episodeDate,
-            politicians
+            politicians,
           );
 
           totalPoliticiansInserted += inserted;
           episodesWithPoliticians++;
 
           console.log(
-            `   💾 ${inserted}/${politicians.length} Politiker gespeichert`
+            `   💾 ${inserted}/${politicians.length} Politiker gespeichert`,
           );
 
           // Füge Episode-URL zur Liste hinzu
@@ -312,17 +312,17 @@ export default async function CrawlPhoenixRunde() {
           const insertedAreas = await insertEpisodePoliticalAreas(
             "Phoenix Runde",
             episodeDate,
-            politicalAreaIds
+            politicalAreaIds,
           );
           totalPoliticalAreasInserted += insertedAreas;
           console.log(
-            `   🏛️  ${insertedAreas}/${politicalAreaIds.length} Themenbereiche gespeichert`
+            `   🏛️  ${insertedAreas}/${politicalAreaIds.length} Themenbereiche gespeichert`,
           );
         }
       } catch (error) {
         console.error(
           `❌ Fehler beim Verarbeiten von Episode ${episode.title}:`,
-          error
+          error,
         );
       }
     }
@@ -331,10 +331,10 @@ export default async function CrawlPhoenixRunde() {
     if (episodeLinksToInsert.length > 0) {
       totalEpisodeLinksInserted = await insertMultipleShowLinks(
         "Phoenix Runde",
-        episodeLinksToInsert
+        episodeLinksToInsert,
       );
       console.log(
-        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`
+        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`,
       );
     }
 

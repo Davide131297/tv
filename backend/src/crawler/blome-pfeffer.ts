@@ -32,8 +32,8 @@ export default async function CrawlBlomePfeffer() {
     // Neue Extraktion und Verarbeitung der Episoden:
     const rawEpisodes = await page.$$eval(
       "podcast-episode-teaser a.episode",
-      (anchors) =>
-        anchors.map((a) => {
+      (anchors: any[]) =>
+        anchors.map((a: any) => {
           const titleEl = a.querySelector(".title");
           const metaEl = a.querySelector(".metadata");
           const descEl = a.querySelector(".description");
@@ -43,7 +43,7 @@ export default async function CrawlBlomePfeffer() {
           // metaText example: "28.10.25 • 41 Min."
           let dateText = "";
           let duration = "";
-          const metaParts = metaText.split("•").map((s) => s.trim());
+          const metaParts = metaText.split("•").map((s: any) => s.trim());
           if (metaParts.length >= 1) dateText = metaParts[0];
           if (metaParts.length >= 2) duration = metaParts[1];
           return {
@@ -55,7 +55,7 @@ export default async function CrawlBlomePfeffer() {
             description: descEl?.textContent?.trim() || "",
             image: imgEl?.getAttribute("src") || "",
           };
-        })
+        }),
     );
 
     // Hilfsfunktion: dd.mm.yy oder dd.mm.yyyy -> ISO
@@ -72,9 +72,9 @@ export default async function CrawlBlomePfeffer() {
     const latestDateObj = latestDbDate ? new Date(latestDbDate) : null;
 
     const episodes = rawEpisodes
-      .map((ep) => ({ ...ep, isoDate: parseDateToISO(ep.dateText) }))
-      .filter((ep) => ep.isoDate) // only keep if date parsed
-      .filter((ep) => {
+      .map((ep: any) => ({ ...ep, isoDate: parseDateToISO(ep.dateText) }))
+      .filter((ep: any) => ep.isoDate) // only keep if date parsed
+      .filter((ep: any) => {
         if (!latestDateObj) return true;
         return new Date(ep.isoDate!) > latestDateObj;
       });
@@ -85,7 +85,7 @@ export default async function CrawlBlomePfeffer() {
       console.log(`✨ Gefundene neue Episoden: ${episodes.length}`);
 
       // Prepare payload for insertMultipleShowLinks (backend expects { episodeUrl, episodeDate })
-      const episodeLinksToInsert = episodes.map((ep) => ({
+      const episodeLinksToInsert = episodes.map((ep: any) => ({
         episodeUrl: ep.url,
         episodeDate: ep.isoDate!,
       }));
@@ -93,12 +93,12 @@ export default async function CrawlBlomePfeffer() {
       try {
         const inserted = await insertMultipleShowLinks(
           "Blome & Pfeffer",
-          episodeLinksToInsert
+          episodeLinksToInsert,
         );
         // inserted enthält Anzahl eingefügter Links
         totalEpisodeLinksInserted += inserted;
         console.log(
-          `✅ Neue Episoden-Links in DB eingefügt: ${inserted}/${episodeLinksToInsert.length}`
+          `✅ Neue Episoden-Links in DB eingefügt: ${inserted}/${episodeLinksToInsert.length}`,
         );
       } catch (err) {
         console.error("❌ Fehler beim Einfügen der Show-Links:", err);
@@ -126,23 +126,23 @@ export default async function CrawlBlomePfeffer() {
             // trotzdem versuchen Themenbereiche zu speichern
             try {
               const areaIds = await getPoliticalArea(
-                ep.description || ep.title
+                ep.description || ep.title,
               );
               if (Array.isArray(areaIds) && areaIds.length > 0) {
                 const insertedAreas = await insertEpisodePoliticalAreas(
                   "Blome & Pfeffer",
                   ep.isoDate!,
-                  areaIds
+                  areaIds,
                 );
                 totalPoliticalAreasInserted += insertedAreas;
                 console.log(
-                  `🏷️ Themenbereiche für Folge "${ep.title}" gespeichert: ${insertedAreas}/${areaIds.length}`
+                  `🏷️ Themenbereiche für Folge "${ep.title}" gespeichert: ${insertedAreas}/${areaIds.length}`,
                 );
               }
             } catch (areaErr) {
               console.error(
                 `❌ Fehler beim Ermitteln/Speichern der Themenbereiche für ${ep.title}:`,
-                areaErr
+                areaErr,
               );
             }
             continue;
@@ -175,7 +175,7 @@ export default async function CrawlBlomePfeffer() {
             } catch (err) {
               console.error(
                 `❌ Fehler beim Prüfen von Politiker ${guestName}:`,
-                err
+                err,
               );
             }
 
@@ -189,12 +189,12 @@ export default async function CrawlBlomePfeffer() {
                 "NTV",
                 "Blome & Pfeffer",
                 ep.isoDate!,
-                politicians
+                politicians,
               );
               totalPoliticiansInserted += insertedPols;
               if (insertedPols > 0) episodesWithPoliticians += 1;
               console.log(
-                `🧾 Politiker für Folge "${ep.title}" gespeichert (${insertedPols}/${politicians.length}).`
+                `🧾 Politiker für Folge "${ep.title}" gespeichert (${insertedPols}/${politicians.length}).`,
               );
             } catch (insErr) {
               console.error("❌ Fehler beim Speichern der Politiker:", insErr);
@@ -208,17 +208,17 @@ export default async function CrawlBlomePfeffer() {
               const insertedAreas = await insertEpisodePoliticalAreas(
                 "Blome & Pfeffer",
                 ep.isoDate!,
-                areaIds
+                areaIds,
               );
               totalPoliticalAreasInserted += insertedAreas;
               console.log(
-                `🏷️ Themenbereiche für Folge "${ep.title}" gespeichert: ${insertedAreas}/${areaIds.length}`
+                `🏷️ Themenbereiche für Folge "${ep.title}" gespeichert: ${insertedAreas}/${areaIds.length}`,
               );
             }
           } catch (areaErr) {
             console.error(
               `❌ Fehler beim Ermitteln/Speichern der Themenbereiche für ${ep.title}:`,
-              areaErr
+              areaErr,
             );
           }
         } catch (aiErr) {
@@ -231,7 +231,7 @@ export default async function CrawlBlomePfeffer() {
     console.log(`Episoden mit Politikern: ${episodesWithPoliticians}`);
     console.log(`Politiker gesamt eingefügt: ${totalPoliticiansInserted}`);
     console.log(
-      `Politische Themenbereiche gesamt eingefügt: ${totalPoliticalAreasInserted}`
+      `Politische Themenbereiche gesamt eingefügt: ${totalPoliticalAreasInserted}`,
     );
     console.log(`Episode-URLs gesamt eingefügt: ${totalEpisodeLinksInserted}`);
 

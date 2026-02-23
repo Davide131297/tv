@@ -38,13 +38,14 @@ WORKDIR /app
 
 # Dependencies installieren
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci
 
 # Source code kopieren
 COPY . .
 
 # TypeScript kompilieren
-RUN npm run build
+RUN npm run build \
+    && npm prune --production
 
 # Non-root user für Chrome
 RUN groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser \
