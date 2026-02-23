@@ -7,8 +7,6 @@ const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
 const CRAWL_API_KEY = process.env.NEXT_PUBLIC_CRAWL_API_KEY;
 const POLITICS_API_KEY = process.env.NEXT_PUBLIC_POLITICS_API_KEY;
 
-console.log("NEXT_PUBLIC_CRAWL_API_KEY last 5 chars: ", CRAWL_API_KEY ? CRAWL_API_KEY.slice(-5) : "Not defined");
-
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
