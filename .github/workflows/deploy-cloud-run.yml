@@ -62,6 +62,5 @@ jobs:
             --min-instances=0 \
             --no-allow-unauthenticated \
             --port=8080 \
-            --startup-cpu-boost \
             --set-env-vars="NODE_ENV=production" \
             --update-secrets="SUPABASE_URL=SUPABASE_URL:latest,SUPABASE_ANON_KEY=SUPABASE_ANON_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest"
