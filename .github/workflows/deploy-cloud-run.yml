@@ -55,7 +55,7 @@ jobs:
             --image=${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/polittalk-crawler/backend:${{ github.sha }} \
             --platform=managed \
             --region=${{ env.REGION }} \
-            --memory=2Gi \
+            --memory=4Gi \
             --cpu=2 \
             --timeout=3600 \
             --max-instances=1 \
