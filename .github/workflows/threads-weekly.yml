@@ -14,7 +14,7 @@ jobs:
         run: |
           # The valid status code for this API is 200.
           # Capture both the response body and HTTP status code for debugging.
-          http_code=$(curl --silent --max-time 120 --write-out "%{http_code}" --output /tmp/response.json "${{ secrets.DEPLOYMENT_URL }}/api/threads-bot/weekly?secret=${{ secrets.CRON_SECRET }}")
+          http_code=$(curl --silent --max-time 120 --write-out "%{http_code}" --output /tmp/response.json -H "Authorization: Bearer ${{ secrets.NEXT_PUBLIC_CRAWL_API_KEY }}" "${{ secrets.DEPLOYMENT_URL }}/api/threads-bot/weekly")
           response_body=$(cat /tmp/response.json)
 
           echo "HTTP Status: $http_code"
