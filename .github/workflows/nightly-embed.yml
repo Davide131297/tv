@@ -19,7 +19,7 @@ jobs:
           RESPONSE=$(curl --silent --show-error --fail \
             --max-time 1800 \
             --request GET \
-            --header "Authorization: Bearer ${{ secrets.NEXT_PUBLIC_CRAWL_API_KEY }}" \
+            --header "Authorization: Bearer ${{ secrets.CRAWL_API_KEY }}" \
             --header "Content-Type: application/json" \
             "${{ secrets.DEPLOYMENT_URL }}/api/embed-documents")
 

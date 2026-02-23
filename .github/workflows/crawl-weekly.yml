@@ -37,7 +37,7 @@ jobs:
           http_code=$(curl --write-out "%{http_code}" \
             --silent --output "$RESPONSE_BODY" \
             -X POST \
-            --header "Authorization: Bearer ${{ secrets.NEXT_PUBLIC_CRAWL_API_KEY }}" \
+            --header "Authorization: Bearer ${{ secrets.CRAWL_API_KEY }}" \
             "$CRAWL_URL")
 
           if [ "$http_code" -ne 200 ]; then

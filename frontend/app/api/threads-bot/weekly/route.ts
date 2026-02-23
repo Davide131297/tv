@@ -107,15 +107,23 @@ export async function GET(request: NextRequest) {
     currentStep = "db_config";
     const config = await getBotConfig();
     const USER_ID = config["THREADS_USER_ID"];
+    let ACCESS_TOKEN = config["THREADS_ACCESS_TOKEN"];
 
-    if (!USER_ID) {
+    if (!USER_ID || !ACCESS_TOKEN) {
       return NextResponse.json(
         {
           error: "Missing configuration in DB",
           hasUserId: !!USER_ID,
+          hasAccessToken: !!ACCESS_TOKEN,
         },
         { status: 500 },
       );
+    }
+
+    // 1b. Refresh Access Token
+    if (!dryRun) {
+      currentStep = "token_refresh";
+      ACCESS_TOKEN = await refreshThreadsToken(ACCESS_TOKEN);
     }
 
     // 2. Determine Date Range (Last Week: Monday to Sunday)
@@ -241,6 +249,7 @@ export async function GET(request: NextRequest) {
       );
       containerUrl.searchParams.append("media_type", "TEXT");
       containerUrl.searchParams.append("text", textChunk);
+      containerUrl.searchParams.append("access_token", ACCESS_TOKEN);
 
       if (lastCreationId) {
         containerUrl.searchParams.append("reply_to_id", lastCreationId);
@@ -259,11 +268,15 @@ export async function GET(request: NextRequest) {
 
       const creationId = containerJson.id;
 
+      // Wait for container to be ready
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
       currentStep = `threads_publish_chunk_${publishedIds.length + 1}`;
       const publishUrl = new URL(
         `https://graph.threads.net/v1.0/${USER_ID}/threads_publish`,
       );
       publishUrl.searchParams.append("creation_id", creationId);
+      publishUrl.searchParams.append("access_token", ACCESS_TOKEN);
 
       const publishRes = await fetch(publishUrl.toString(), { method: "POST" });
       const publishJson = await publishRes.json();

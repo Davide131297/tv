@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
 
 // Environment variables
-const CRAWL_API_KEY = process.env.NEXT_PUBLIC_CRAWL_API_KEY;
+const CRAWL_API_KEY = process.env.CRAWL_API_KEY;
 const POLITICS_API_KEY = process.env.NEXT_PUBLIC_POLITICS_API_KEY;
 
 export async function proxy(request: NextRequest) {
