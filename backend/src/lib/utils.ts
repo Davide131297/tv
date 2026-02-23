@@ -1,10 +1,34 @@
-import { InferenceClient } from "@huggingface/inference";
+import { GoogleGenAI } from "@google/genai";
 import { supabase } from "../supabase.js";
 import dotenv from "dotenv";
 import { AbgeordnetenwatchPolitician } from "../types/abgeordnetenwatch.js";
 import axios from "axios";
 
 dotenv.config();
+
+// Google GenAI setup (matching frontend ai-utils.ts)
+const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_GENAI_API_KEY || "" });
+const googleModel = process.env.GOOGLE_AI_MODEL || "gemini-2.0-flash";
+
+// Rate-Limiting für AI-Requests
+let aiRequestCount = 0;
+let lastRequestTime = 0;
+const REQUEST_DELAY_MS = 4000;
+const MAX_RETRIES = 3;
+
+async function waitForRateLimit(): Promise<void> {
+  const now = Date.now();
+  const timeSinceLastRequest = now - lastRequestTime;
+
+  if (timeSinceLastRequest < REQUEST_DELAY_MS) {
+    const waitTime = REQUEST_DELAY_MS - timeSinceLastRequest;
+    console.log(`   ⏱️ Warte ${waitTime}ms wegen Rate Limit...`);
+    await new Promise((resolve) => setTimeout(resolve, waitTime));
+  }
+
+  lastRequestTime = Date.now();
+  aiRequestCount++;
+}
 
 interface InsertShowLinkData {
   show_name: string;
@@ -13,6 +37,7 @@ interface InsertShowLinkData {
 }
 
 interface InsertTvShowPoliticianData {
+  tv_channel?: string;
   show_name: string;
   episode_date: string;
   politician_id: number;
@@ -94,7 +119,7 @@ export const POLITICAL_AREA = [
 // Hilfsfunktion zur Disambiguierung basierend auf Partei-Info
 function disambiguateByRole(
   politicians: AbgeordnetenwatchPolitician[],
-  role: string
+  role: string,
 ): AbgeordnetenwatchPolitician | null {
   const roleUpper = role.toUpperCase();
 
@@ -113,7 +138,7 @@ function disambiguateByRole(
   for (const [party, variants] of Object.entries(partyMappings)) {
     if (variants.some((variant) => roleUpper.includes(variant))) {
       const partyMatch = politicians.find(
-        (p) => p.party && p.party.label.toUpperCase().includes(party)
+        (p) => p.party && p.party.label.toUpperCase().includes(party),
       );
       if (partyMatch) {
         console.log(`✅ Partei-Match gefunden: ${party}`);
@@ -132,17 +157,8 @@ function splitFirstLast(name: string) {
 }
 
 export async function getPoliticalArea(
-  description: string
+  description: string,
 ): Promise<number[] | []> {
-  const token = process.env.HF_ACCESS_TOKEN;
-  const MODEL = process.env.AI_MODEL_NAME;
-  if (!token) {
-    console.error("❌ HF_ACCESS_TOKEN fehlt in .env");
-    return [];
-  }
-
-  const hf = new InferenceClient(token);
-
   // Prompt ähnlich wie in test-ai-connection.ts
   const prompt = `Text: ${description}
   Gib die Themengebiete wieder die in der Talkshow besprochen wurden. Die Vorhandenen Themenfelder sind vorgegeben. Gib die Antowrt als Array [id] zurück. Mögliche Themenfelder: 1. Energie, Klima und Versorgungssicherheit 2. Wirtschaft, Innovation und Wettbewerbsfähigkeit 3. Sicherheit, Verteidigung und Außenpolitik 4. Migration, Integration und gesellschaftlicher Zusammenhalt 5. Haushalt, öffentliche Finanzen und Sozialpolitik 6. Digitalisierung, Medien und Demokratie 7. Kultur, Identität und Erinnerungspolitik`;
@@ -150,21 +166,16 @@ export async function getPoliticalArea(
   try {
     console.log("🤖 Erkenne Themen der Episode");
 
-    const chat = await hf.chatCompletion({
-      model: MODEL,
-      messages: [
-        {
-          role: "system",
-          content:
-            "Du antwortest nur mit einem gültigen JSON Array von numbers (z.B. [1,2,...]). Keine zusätzlichen Zeichen.",
-        },
-        { role: "user", content: prompt },
-      ],
-      temperature: 0.0,
-      provider: "publicai",
+    const response = await ai.models.generateContent({
+      model: googleModel,
+      contents: prompt,
+      config: {
+        systemInstruction:
+          "Du antwortest nur mit einem gültigen JSON Array von numbers (z.B. [1,2,...]). Keine zusätzlichen Zeichen.",
+      },
     });
 
-    const content = chat.choices?.[0]?.message?.content?.trim() ?? "";
+    const content = response.text?.trim() ?? "";
 
     try {
       const parsed = JSON.parse(content);
@@ -188,7 +199,7 @@ export async function getPoliticalArea(
 
 // Hole das Datum der neuesten Episode für eine bestimmte Sendung (Supabase Version)
 export async function getLatestEpisodeDate(
-  showName: string
+  showName: string,
 ): Promise<string | null> {
   try {
     const { data, error } = await supabase
@@ -216,7 +227,7 @@ export async function insertMultipleShowLinks(
   episodes: Array<{
     episodeUrl: string;
     episodeDate: string;
-  }>
+  }>,
 ): Promise<number> {
   if (episodes.length === 0) return 0;
 
@@ -275,7 +286,7 @@ export async function insertMultipleShowLinks(
 
 // Füge Episode-URL zur show_links Tabelle hinzu (Supabase Version)
 export async function insertShowLink(
-  data: InsertShowLinkData
+  data: InsertShowLinkData,
 ): Promise<boolean> {
   try {
     const { error } = await supabase.from("show_links").upsert(
@@ -287,7 +298,7 @@ export async function insertShowLink(
       {
         onConflict: "show_name,episode_date",
         ignoreDuplicates: true,
-      }
+      },
     );
 
     if (error) {
@@ -304,6 +315,7 @@ export async function insertShowLink(
 
 // Füge mehrere Politiker zu einer Sendung hinzu (Supabase Version)
 export async function insertMultipleTvShowPoliticians(
+  tvChannel: string,
   showName: string,
   episodeDate: string,
   politicians: Array<{
@@ -311,12 +323,13 @@ export async function insertMultipleTvShowPoliticians(
     politicianName: string;
     partyId?: number;
     partyName?: string;
-  }>
+  }>,
 ): Promise<number> {
   let insertedCount = 0;
 
   // Batch insert für bessere Performance
   const dataToInsert = politicians.map((politician) => ({
+    tv_channel: tvChannel,
     show_name: showName,
     episode_date: episodeDate,
     politician_id: politician.politicianId,
@@ -374,7 +387,7 @@ export async function insertMultipleTvShowPoliticians(
 
 // Füge einen Politiker zu einer TV-Sendung hinzu (Supabase Version)
 export async function insertTvShowPolitician(
-  data: InsertTvShowPoliticianData
+  data: InsertTvShowPoliticianData,
 ): Promise<boolean> {
   try {
     const { error } = await supabase.from("tv_show_politicians").upsert(
@@ -390,7 +403,7 @@ export async function insertTvShowPolitician(
       {
         onConflict: "show_name,episode_date,politician_id",
         ignoreDuplicates: false,
-      }
+      },
     );
 
     if (error) {
@@ -409,7 +422,7 @@ export async function insertTvShowPolitician(
 export async function checkPolitician(
   name: string,
   role?: string,
-  retries = 3
+  retries = 3,
 ): Promise<GuestDetails> {
   // Prüfe zuerst Override-Cases
   const override = checkPoliticianOverride(name);
@@ -427,7 +440,7 @@ export async function checkPolitician(
   }
 
   const url = `https://www.abgeordnetenwatch.de/api/v2/politicians?first_name=${encodeURIComponent(
-    first
+    first,
   )}&last_name=${encodeURIComponent(last)}`;
 
   for (let attempt = 1; attempt <= retries; attempt++) {
@@ -466,20 +479,20 @@ export async function checkPolitician(
       // Mehrere Treffer - versuche Disambiguierung
       if (role && politicians.length > 1) {
         console.log(
-          `🔍 Disambiguierung für ${name}: ${politicians.length} Treffer gefunden, Rolle: "${role}"`
+          `🔍 Disambiguierung für ${name}: ${politicians.length} Treffer gefunden, Rolle: "${role}"`,
         );
 
         const selectedPolitician = disambiguateByRole(politicians, role);
         if (selectedPolitician) {
           console.log(
-            `✅ Politiker ausgewählt: ${selectedPolitician.label} (${selectedPolitician.party?.label})`
+            `✅ Politiker ausgewählt: ${selectedPolitician.label} (${selectedPolitician.party?.label})`,
           );
 
           // Korrektur: Bayernpartei → CSU
           let correctedPartyName = selectedPolitician.party?.label;
           if (correctedPartyName === "Bayernpartei") {
             console.log(
-              `🔧 Korrigiere Bayernpartei → CSU für ${selectedPolitician.label}`
+              `🔧 Korrigiere Bayernpartei → CSU für ${selectedPolitician.label}`,
             );
             correctedPartyName = "CSU";
           }
@@ -497,7 +510,7 @@ export async function checkPolitician(
 
       // Fallback: ersten Treffer verwenden
       console.log(
-        `⚠️  Keine eindeutige Zuordnung für ${name}, verwende ersten Treffer`
+        `⚠️  Keine eindeutige Zuordnung für ${name}, verwende ersten Treffer`,
       );
       const hit = politicians[0];
 
@@ -519,7 +532,7 @@ export async function checkPolitician(
     } catch (error) {
       console.error(
         `❌ API-Fehler für ${name} (Versuch ${attempt}/${retries}):`,
-        error
+        error,
       );
 
       if (attempt === retries) {
@@ -544,52 +557,45 @@ export async function checkPolitician(
 export function checkPoliticianOverride(name: string): GuestDetails | null {
   if (POLITICIAN_OVERRIDES[name]) {
     console.log(
-      `✅ Override angewendet für ${name} -> ${POLITICIAN_OVERRIDES[name].partyName}`
+      `✅ Override angewendet für ${name} -> ${POLITICIAN_OVERRIDES[name].partyName}`,
     );
     return POLITICIAN_OVERRIDES[name];
   }
   return null;
 }
 
-// Hilfsfunktion: AI-Extraktion der Gäste aus dem Teasertext
+// Hilfsfunktion: AI-Extraktion der Gäste aus dem Teasertext (Google GenAI)
 export async function extractGuestsWithAI(
-  teaserText: string
+  description: string,
+  retryCount = 0,
 ): Promise<string[]> {
-  const token = process.env.NEXT_PUBLIC_HF_ACCESS_TOKEN;
-  const MODEL = "swiss-ai/Apertus-70B-Instruct-2509";
-
-  if (!token) {
-    console.error("❌ HF_ACCESS_TOKEN fehlt in .env");
+  // Nach 150 Requests direkt zum Fallback wechseln
+  if (aiRequestCount >= 150) {
+    console.log("⚠️  AI Rate Limit erreicht");
     return [];
   }
 
-  const hf = new InferenceClient(token);
+  await waitForRateLimit();
 
-  // Prompt ähnlich wie in test-ai-connection.ts
-  const prompt = `Text: ${teaserText}
-Gib mir die Namen der Gäste ohne Rollen im Text ausschließlich als JSON Array mit Strings zurück. Keine Erklärungen, kein Codeblock, nichts davor oder danach.`;
+  const prompt = `Text: ${description}
+Gib mir die Namen der Gäste im Text ausschließlich als JSON Array mit Strings zurück. Keine Erklärungen, kein Codeblock, nichts davor oder danach.`;
 
   try {
-    console.log("🤖 Extrahiere Gäste mit AI...");
+    console.log(
+      `🤖 Extrahiere Gäste mit AI (Request ${aiRequestCount}/150)...`,
+    );
 
-    const chat = await hf.chatCompletion({
-      model: MODEL,
-      messages: [
-        {
-          role: "system",
-          content:
-            'Du extrahierst ausschließlich Personennamen und antwortest nur mit einem gültigen JSON Array von Strings (z.B. ["Name1","Name2",...]). Keine zusätzlichen Zeichen.',
-        },
-        { role: "user", content: prompt },
-      ],
-      max_tokens: 150,
-      temperature: 0.0,
-      provider: "publicai",
+    const response = await ai.models.generateContent({
+      model: googleModel,
+      contents: prompt,
+      config: {
+        systemInstruction:
+          'Du extrahierst ausschließlich Personennamen und antwortest nur mit einem gültigen JSON Array von Strings (z.B. ["Name1","Name2",...]). Keine zusätzlichen Zeichen.',
+      },
     });
 
-    const content = chat.choices?.[0]?.message?.content?.trim() ?? "";
+    const content = response.text ?? "";
 
-    // Versuch das erste JSON-Array zu parsen
     const arrayMatch = content.match(/\[[\s\S]*\]/);
     if (arrayMatch) {
       try {
@@ -602,15 +608,36 @@ Gib mir die Namen der Gäste ohne Rollen im Text ausschließlich als JSON Array 
           return parsed;
         }
       } catch {
-        // ignorieren, fallback unten
+        // ignorieren
       }
     }
 
-    console.log("⚠️  AI-Extraktion unerwartetes Format, verwende Fallback");
-    return extractGuestsFallback(teaserText);
-  } catch {
-    console.error("❌ AI-Extraktion fehlgeschlagen, verwende Fallback");
-    return extractGuestsFallback(teaserText);
+    console.log("⚠️  AI-Extraktion unerwartetes Format");
+    return [];
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unbekannter Fehler";
+    console.error(
+      `❌ AI-Extraktion fehlgeschlagen (Versuch ${
+        retryCount + 1
+      }/${MAX_RETRIES}): ${errorMessage}`,
+    );
+
+    // Retry bei bestimmten Fehlern
+    if (
+      retryCount < MAX_RETRIES - 1 &&
+      (errorMessage.includes("rate") ||
+        errorMessage.includes("timeout") ||
+        errorMessage.includes("503") ||
+        errorMessage.includes("502"))
+    ) {
+      const backoffDelay = Math.pow(2, retryCount) * 2000;
+      console.log(`   🔄 Retry in ${backoffDelay}ms...`);
+      await new Promise((resolve) => setTimeout(resolve, backoffDelay));
+      return extractGuestsWithAI(description, retryCount + 1);
+    }
+
+    return [];
   }
 }
 
@@ -618,7 +645,7 @@ Gib mir die Namen der Gäste ohne Rollen im Text ausschließlich als JSON Array 
 export async function insertEpisodePoliticalAreas(
   showName: string,
   episodeDate: string,
-  politicalAreaIds: number[]
+  politicalAreaIds: number[],
 ): Promise<number> {
   if (!politicalAreaIds.length) return 0;
 
@@ -639,7 +666,7 @@ export async function insertEpisodePoliticalAreas(
     if (error) {
       console.error(
         "Fehler beim Speichern der politischen Themenbereiche:",
-        error
+        error,
       );
       return 0;
     }
@@ -648,7 +675,7 @@ export async function insertEpisodePoliticalAreas(
   } catch (error) {
     console.error(
       "Fehler beim Speichern der politischen Themenbereiche:",
-      error
+      error,
     );
     return 0;
   }
@@ -673,7 +700,7 @@ function extractGuestsFallback(teaserText: string): string[] {
   for (const part of parts) {
     // Extrahiere Namen (mindestens 2 Wörter, beginnend mit Großbuchstaben)
     const nameMatch = part.match(
-      /([A-ZÄÖÜ][a-zäöü\-]+\s+[A-ZÄÖÜ][a-zäöü\-]+(?:\s+[a-zäöü\-]+)*)/
+      /([A-ZÄÖÜ][a-zäöü\-]+\s+[A-ZÄÖÜ][a-zäöü\-]+(?:\s+[a-zäöü\-]+)*)/,
     );
     if (nameMatch) {
       const name = nameMatch[1].trim();

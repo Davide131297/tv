@@ -1,14 +1,13 @@
-import { createBrowser, setupSimplePage } from "../lib/browser-configs.js";
-import {
-  getLatestEpisodeDate,
-  getPoliticalArea,
-  insertMultipleShowLinks,
-  extractGuestsWithAI,
-  checkPolitician,
-  insertEpisodePoliticalAreas,
-  insertMultipleTvShowPoliticians,
-} from "../lib/utils.js";
 import { Page } from "puppeteer";
+import {
+  insertMultipleTvShowPoliticians,
+  getLatestEpisodeDate,
+  insertMultipleShowLinks,
+  insertEpisodePoliticalAreas,
+  checkPolitician,
+} from "../lib/utils.js";
+import { createBrowser, setupSimplePage } from "../lib/browser-configs.js";
+import { extractGuestsWithAI, getPoliticalArea } from "../lib/utils.js";
 
 interface MaischbergerEpisode {
   url: string;
@@ -18,237 +17,88 @@ interface MaischbergerEpisode {
   detailedDescription?: string;
 }
 
-const LIST_URL =
-  "https://www.daserste.de/information/talk/maischberger/sendung/index.html";
-const BASE_URL = "https://www.daserste.de";
-
-// Extrahiere nur NEUE Maischberger Episoden (seit letztem DB-Eintrag)
-async function getNewMaischbergerEpisodes(
-  page: Page,
-  latestDbDate: string | null
-): Promise<MaischbergerEpisode[]> {
-  console.log("🔍 Lade neue Maischberger Episoden...");
-  console.log(`📅 Suche nach Episoden seit: ${latestDbDate || "Beginn"}`);
-
-  await page.goto(LIST_URL, { waitUntil: "networkidle2" });
-
-  // Cookie-Banner akzeptieren falls vorhanden
-  try {
-    await page.waitForSelector('button:contains("Akzeptieren")');
-    await page.click('button:contains("Akzeptieren")');
-    console.log("Cookie-Banner akzeptiert");
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-  } catch {
-    console.log("Kein Cookie-Banner gefunden");
-  }
-
-  // Warte auf Content
-  await page.waitForSelector(".boxCon");
-
-  const allEpisodes: MaischbergerEpisode[] = [];
-  const newEpisodes: MaischbergerEpisode[] = [];
-  let currentPage = 1;
-  let hasMorePages = true;
-  let reachedLatestDbDate = false; // Flag um zu stoppen wenn wir das letzte DB-Datum erreicht haben
-
-  while (hasMorePages && currentPage <= 20 && !reachedLatestDbDate) {
-    // Max 20 Seiten
-    console.log(`📄 Crawle Seite ${currentPage}...`);
-
-    const episodes = await page.evaluate((baseUrl) => {
-      const episodes: MaischbergerEpisode[] = [];
-
-      // Finde alle Episode-Boxen
-      const boxes = document.querySelectorAll(".box.viewA");
-      console.log(`Gefunden: ${boxes.length} Episoden-Boxen auf Seite`);
-
-      for (let i = 0; i < boxes.length; i++) {
-        const box = boxes[i];
-
-        // Datum extrahieren
-        const dateElement = box.querySelector("h3.ressort");
-        const dateText = dateElement?.textContent || "";
-        const dateMatch = dateText.match(
-          /Sendung vom (\d{2})\.(\d{2})\.(\d{4})/
-        );
-
-        if (!dateMatch) {
-          console.log("Kein Datum gefunden in:", dateText);
-          continue;
-        }
-
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const [_, day, month, year] = dateMatch;
-        const isoDate = `${year}-${month}-${day}`;
-
-        // URL extrahieren
-        const linkElement = box.querySelector(
-          ".teasertext a"
-        ) as HTMLAnchorElement;
-        if (!linkElement) {
-          console.log("Kein Link gefunden in Box");
-          continue;
-        }
-
-        let url = linkElement.href;
-        if (url.startsWith("/")) {
-          url = baseUrl + url;
-        }
-
-        // Titel extrahieren
-        const titleElement = box.querySelector("h4.headline a");
-        const title = titleElement?.textContent?.trim() || "maischberger";
-
-        // Teasertext extrahieren (wichtig für Gäste!)
-        const teaserElement = box.querySelector(".teasertext a");
-        const teaserText = teaserElement?.textContent?.trim() || "";
-
-        console.log(`Episode gefunden: ${isoDate}, Teaser: "${teaserText}"`);
-
-        episodes.push({
-          url,
-          date: isoDate,
-          title,
-          teaserText,
-        });
-      }
-
-      return episodes;
-    }, BASE_URL);
-
-    // Füge Episoden zur Gesamtliste hinzu
-    allEpisodes.push(...episodes);
-
-    // Filtere neue Episoden basierend auf dem letzten DB-Datum
-    const pageNewEpisodes = episodes.filter((ep) => {
-      // Falls kein DB-Datum vorhanden, sind alle Episoden neu
-      if (!latestDbDate) return true;
-
-      // Prüfe ob Episode nach dem letzten DB-Datum liegt
-      const isNewer = ep.date > latestDbDate;
-
-      if (!isNewer && ep.date <= latestDbDate) {
-        console.log(
-          `Episode erreicht bekanntes Datum: ${ep.date} <= ${latestDbDate}`
-        );
-        reachedLatestDbDate = true;
-      }
-
-      return isNewer;
-    });
-
-    // Nur gültige neue Episoden mit Gäste-Informationen hinzufügen
-    const validPageNewEpisodes = pageNewEpisodes.filter((ep) => {
-      if (!ep.teaserText || ep.teaserText.length < 10) {
-        console.log(`Episode übersprungen (kein Teasertext): ${ep.date}`);
-        return false;
-      }
-
-      if (ep.teaserText.includes("Zu Gast:")) {
-        return true; // Hat Gäste-Info
-      }
-
-      if (ep.teaserText.length > 50 && !ep.teaserText.match(/^\s*mehr\s*$/)) {
-        return true; // Hat substantiellen Content
-      }
-
-      console.log(`Episode übersprungen (keine Gäste-Info): ${ep.date}`);
-      return false;
-    });
-
-    newEpisodes.push(...validPageNewEpisodes);
-
-    console.log(
-      `   ✅ ${episodes.length} Episoden gefunden, ${validPageNewEpisodes.length} davon neu und gültig (Gesamt neu: ${newEpisodes.length})`
-    );
-
-    // Stoppe wenn wir das letzte DB-Datum erreicht haben
-    if (reachedLatestDbDate) {
-      console.log(
-        `🛑 Erreicht bekanntes Datum ${latestDbDate} - Stoppe Crawling`
-      );
-      break;
-    }
-
-    // Prüfe ob es eine nächste Seite gibt
-    const nextPageLink = await page.$('.button.right a[href*="seite"]');
-
-    if (nextPageLink) {
-      console.log(`🔄 Navigiere zur nächsten Seite...`);
-
-      // Klicke auf "weiter" Button
-      await nextPageLink.click();
-      await page.waitForSelector(".boxCon");
-      await new Promise((resolve) => setTimeout(resolve, 2000)); // Kurz warten
-
-      currentPage++;
-    } else {
-      console.log(`📄 Keine weitere Seite gefunden`);
-      hasMorePages = false;
-    }
-  }
-
-  console.log(
-    `📺 Gesamt durchsucht: ${allEpisodes.length} Episoden auf ${currentPage} Seiten`
-  );
-  console.log(`🆕 Neue gültige Episoden: ${newEpisodes.length}`);
-
-  return newEpisodes.sort((a, b) => b.date.localeCompare(a.date)); // Neueste zuerst
+interface GuestDetails {
+  name: string;
+  isPolitician: boolean;
+  politicianId: number | null;
+  politicianName?: string;
+  party?: number;
+  partyName?: string;
 }
 
-// Hilfsfunktion: Hole detaillierte Beschreibung von der Episodenseite
-async function getEpisodeDetailedDescription(
+const BASE_URL = "https://www.ardmediathek.de";
+const LIST_URL =
+  "https://www.ardmediathek.de/sendung/maischberger/Y3JpZDovL2Rhc2Vyc3RlLmRlL21lbnNjaGVuIGJlaSBtYWlzY2hiZXJnZXI";
+
+// Hilfsfunktion: Hole Beschreibung von der Episodenseite für Gäste UND politische Themen
+async function getEpisodeDetails(
   page: Page,
-  episodeUrl: string
-): Promise<number[] | [] | null> {
+  episodeUrl: string,
+): Promise<{ description: string; politicalAreas: number[] | [] | null }> {
   try {
-    await page.goto(episodeUrl, { waitUntil: "networkidle2" });
+    await page.goto(episodeUrl, { waitUntil: "networkidle2", timeout: 30000 });
 
-    // Extrahiere alle Beschreibungstexte
-    const descriptions = await page.evaluate(() => {
-      const texts: string[] = [];
+    // Extrahiere die Beschreibung von der ARD Mediathek Episodenseite
+    const description = await page.evaluate(() => {
+      // Suche nach dem spezifischen Beschreibungs-Paragraph
+      // <p class="b1ja19fa b11cvmny b4tg6yv i75j54i">
+      const descriptionEl = document.querySelector("p.b1ja19fa.b11cvmny");
 
-      // Finde alle <p class="text small"> Elemente, die Beschreibungen enthalten
-      const paragraphs = document.querySelectorAll("p.text.small");
+      if (descriptionEl?.textContent) {
+        return descriptionEl.textContent.trim();
+      }
 
+      // Fallback: Suche nach anderen Paragraphen
+      const paragraphs = document.querySelectorAll("p");
       for (const p of paragraphs) {
         const text = p.textContent?.trim() || "";
 
-        // Filtere relevante Beschreibungen (nicht die Produktionsinfo)
+        // Filtere relevante Beschreibungen (mit Gäste-Info)
         if (
           text &&
-          text.length > 20 &&
+          text.length > 50 &&
           !text.includes("Gemeinschaftsproduktion") &&
           !text.includes("hergestellt vom") &&
-          !text.includes("Vincent productions")
+          !text.includes("Vincent productions") &&
+          !text.includes("Minuten verfügbar") &&
+          !text.includes("©") &&
+          !text.includes("Video verfügbar")
         ) {
-          texts.push(text);
+          return text;
         }
       }
 
-      return texts;
+      return "";
     });
 
-    const combinedDescription = descriptions.join(" ");
+    if (!description || description.length < 20) {
+      console.log(`⚠️  Keine Beschreibung gefunden für ${episodeUrl}`);
+      return { description: "", politicalAreas: null };
+    }
 
-    const res = await getPoliticalArea(combinedDescription);
-    return res;
+    console.log(`📄 Beschreibung gefunden (${description.length} Zeichen)`);
+
+    // Extrahiere politische Themenbereiche
+    const politicalAreas = await getPoliticalArea(description);
+
+    return { description, politicalAreas };
   } catch (error) {
     console.error(
       `❌ Fehler beim Laden der Episodenseite ${episodeUrl}:`,
-      error
+      error,
     );
-    return null;
+    return { description: "", politicalAreas: null };
   }
 }
 
+// Hauptfunktion: Crawle nur NEUE Maischberger Episoden (inkrementell) - ab 2025
 export async function crawlNewMaischbergerEpisodes(): Promise<void> {
   console.log("🚀 Starte inkrementellen Maischberger Crawler...");
   console.log(`📅 Datum: ${new Date().toISOString()}`);
-  console.log(`🎯 Filterung: Nur Episoden aus dem Jahr 2025`);
+  console.log(`🎯 Filterung: Episoden ab dem Jahr 2025`);
 
   // Hole das letzte Datum aus der DB
-  const latestDbDate = await getLatestEpisodeDate("Maischberger");
+  const latestDbDate = await await getLatestEpisodeDate("Maischberger");
   console.log(`🗃️  Letzte Episode in DB: ${latestDbDate || "Keine"}`);
 
   const browser = await createBrowser();
@@ -264,25 +114,25 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
       return;
     }
 
-    // Filtere nur Episoden aus 2025
-    const episodes2025 = newEpisodes.filter((episode) => {
+    // Filtere Episoden ab 2025
+    const recentEpisodes = newEpisodes.filter((episode) => {
       const year = parseInt(episode.date.split("-")[0]);
-      return year === 2025;
+      return year >= 2025;
     });
 
-    if (episodes2025.length === 0) {
-      console.log("✅ Keine neuen 2025 Episoden gefunden!");
+    if (recentEpisodes.length === 0) {
+      console.log("✅ Keine neuen Episoden ab 2025 gefunden!");
       return;
     }
 
     console.log(
-      `🆕 Gefunden: ${episodes2025.length} neue 2025 Episoden (von ${newEpisodes.length} gesamt)`
+      `🆕 Gefunden: ${recentEpisodes.length} neue Episoden ab 2025 (von ${newEpisodes.length} gesamt)`,
     );
-    if (episodes2025.length > 0) {
+    if (recentEpisodes.length > 0) {
       console.log(
-        `📅 2025 Zeitraum: ${episodes2025[episodes2025.length - 1]?.date} bis ${
-          episodes2025[0]?.date
-        }`
+        `📅 Zeitraum: ${recentEpisodes[recentEpisodes.length - 1]?.date} bis ${
+          recentEpisodes[0]?.date
+        }`,
       );
     }
 
@@ -292,7 +142,7 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
     let episodesWithErrors = 0;
 
     // Sammle Episode-URLs für Batch-Insert
-    const episodeLinksToInsert = episodes2025.map((episode) => ({
+    const episodeLinksToInsert = recentEpisodes.map((episode) => ({
       episodeUrl: episode.url,
       episodeDate: episode.date,
     }));
@@ -301,17 +151,17 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
     if (episodeLinksToInsert.length > 0) {
       totalEpisodeLinksInserted = await insertMultipleShowLinks(
         "Maischberger",
-        episodeLinksToInsert
+        episodeLinksToInsert,
       );
       console.log(
-        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`
+        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`,
       );
     }
 
     // Verarbeite jede Episode (älteste zuerst für chronologische Reihenfolge)
-    const sortedEpisodes = episodes2025.sort(
+    const sortedEpisodes = recentEpisodes.sort(
       (a: MaischbergerEpisode, b: MaischbergerEpisode) =>
-        a.date.localeCompare(b.date)
+        a.date.localeCompare(b.date),
     );
 
     for (let i = 0; i < sortedEpisodes.length; i++) {
@@ -319,24 +169,26 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
 
       try {
         console.log(
-          `\n🎬 [${i + 1}/${
-            sortedEpisodes.length
-          }] Verarbeite 2025 Episode vom ${episode.date}: ${episode.title}`
+          `\n🎬 [${i + 1}/${sortedEpisodes.length}] Verarbeite Episode vom ${
+            episode.date
+          }: ${episode.title}`,
         );
 
-        if (!episode.teaserText || episode.teaserText.length < 10) {
-          console.log("   ❌ Kein verwertbarer Teasertext");
+        // Hole detaillierte Beschreibung und politische Themen von der Episodenseite
+        const { description, politicalAreas } = await getEpisodeDetails(
+          page,
+          episode.url,
+        );
+
+        if (!description || description.length < 20) {
+          console.log("   ❌ Keine verwertbare Beschreibung gefunden");
           continue;
         }
 
-        // Hole detaillierte Beschreibung von der Episodenseite
-        const politicalAreaIds = await getEpisodeDetailedDescription(
-          page,
-          episode.url
-        );
+        console.log(`📝 Beschreibung: ${description.substring(0, 150)}...`);
 
-        // Extrahiere Gäste mit AI aus dem kombinierten Text
-        const guestNames = await extractGuestsWithAI(episode.teaserText);
+        // Extrahiere Gäste mit AI aus der Beschreibung
+        const guestNames = await extractGuestsWithAI(description);
 
         if (guestNames.length === 0) {
           console.log("   ❌ Keine Gäste extrahiert");
@@ -360,7 +212,7 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
             console.log(
               `      ✅ Politiker: ${details.politicianName} (ID ${
                 details.politicianId
-              }), Partei: ${details.partyName || "unbekannt"}`
+              }), Partei: ${details.partyName || "unbekannt"}`,
             );
             politicians.push({
               politicianId: details.politicianId,
@@ -379,20 +231,21 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
         // Speichere Politiker in die Datenbank
         if (politicians.length > 0) {
           const inserted = await insertMultipleTvShowPoliticians(
+            "Das Erste",
             "Maischberger",
             episode.date,
-            politicians
+            politicians,
           );
 
           totalPoliticiansInserted += inserted;
           console.log(
-            `   💾 ${inserted}/${politicians.length} Politiker in DB gespeichert`
+            `   💾 ${inserted}/${politicians.length} Politiker in DB gespeichert`,
           );
 
           console.log("   🏛️  Politiker in dieser Episode:");
           politicians.forEach((pol) => {
             console.log(
-              `      - ${pol.politicianName} (${pol.partyName || "unbekannt"})`
+              `      - ${pol.politicianName} (${pol.partyName || "unbekannt"})`,
             );
           });
         } else {
@@ -400,14 +253,14 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
         }
 
         // Speichere politische Themenbereiche
-        if (politicalAreaIds && politicalAreaIds.length > 0) {
+        if (politicalAreas && politicalAreas.length > 0) {
           const insertedAreas = await insertEpisodePoliticalAreas(
             "Maischberger",
             episode.date,
-            politicalAreaIds
+            politicalAreas,
           );
           console.log(
-            `   🏛️  ${insertedAreas}/${politicalAreaIds.length} Themenbereiche gespeichert`
+            `   🏛️  ${insertedAreas}/${politicalAreas.length} Themenbereiche gespeichert`,
           );
         }
 
@@ -416,13 +269,13 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
         // Fortschritt alle 5 Episoden
         if ((i + 1) % 5 === 0) {
           console.log(
-            `\n📊 Zwischenstand: ${episodesProcessed}/${sortedEpisodes.length} Episoden, ${totalPoliticiansInserted} Politiker in DB`
+            `\n📊 Zwischenstand: ${episodesProcessed}/${sortedEpisodes.length} Episoden, ${totalPoliticiansInserted} Politiker in DB`,
           );
         }
       } catch (error) {
         console.error(
           `❌ Fehler beim Verarbeiten von Episode ${episode.date}:`,
-          error
+          error,
         );
         episodesWithErrors++;
       }
@@ -432,16 +285,18 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
     if (episodeLinksToInsert.length > 0) {
       totalEpisodeLinksInserted = await insertMultipleShowLinks(
         "Maischberger",
-        episodeLinksToInsert
+        episodeLinksToInsert,
       );
       console.log(
-        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`
+        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`,
       );
     }
 
-    console.log(`\n🎉 Inkrementeller Maischberger 2025 Crawl abgeschlossen!`);
     console.log(
-      `📊 2025 Episoden verarbeitet: ${episodesProcessed}/${sortedEpisodes.length}`
+      `\n🎉 Inkrementeller Maischberger Crawl (ab 2025) abgeschlossen!`,
+    );
+    console.log(
+      `📊 Episoden verarbeitet: ${episodesProcessed}/${sortedEpisodes.length}`,
     );
     console.log(`👥 Politiker in DB gespeichert: ${totalPoliticiansInserted}`);
     console.log(`📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
@@ -449,10 +304,609 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
 
     if (episodesWithErrors > 0) {
       console.log(
-        `⚠️  ${episodesWithErrors} Episoden hatten Fehler und wurden übersprungen`
+        `⚠️  ${episodesWithErrors} Episoden hatten Fehler und wurden übersprungen`,
       );
     }
   } finally {
     await browser.close().catch(() => {});
   }
+}
+
+// Hauptfunktion: Crawle ALLE Maischberger Episoden ab 2025 und speichere in DB (Vollständiger Crawl)
+export async function crawlMaischbergerFull(): Promise<void> {
+  console.log("🚀 Starte VOLLSTÄNDIGEN Maischberger Crawler (ab 2025)...");
+  console.log(`📅 Datum: ${new Date().toISOString()}`);
+  console.log(`🎯 Ziel: Alle Episoden ab 21.01.2025 bis heute`);
+
+  const browser = await createBrowser();
+
+  try {
+    const page = await setupSimplePage(browser);
+
+    // Crawle ALLE verfügbaren Episoden bis 2025 erreicht ist
+    const allRecentEpisodes = await getAllMaischbergerEpisodes(page);
+
+    if (allRecentEpisodes.length === 0) {
+      console.log("❌ Keine Episoden ab 2025 gefunden");
+      return;
+    }
+
+    console.log(`📺 Gefunden: ${allRecentEpisodes.length} Episoden ab 2025`);
+    if (allRecentEpisodes.length > 0) {
+      console.log(
+        `📅 Zeitraum: ${
+          allRecentEpisodes[allRecentEpisodes.length - 1]?.date
+        } bis ${allRecentEpisodes[0]?.date}`,
+      );
+    }
+
+    let totalPoliticiansInserted = 0;
+    let totalEpisodeLinksInserted = 0;
+    let episodesProcessed = 0;
+    let episodesWithErrors = 0;
+
+    // Sammle Episode-URLs nur von Episoden mit politischen Gästen für Batch-Insert
+    const episodeLinksToInsert: { episodeUrl: string; episodeDate: string }[] =
+      [];
+
+    // Verarbeite jede Episode (älteste zuerst für chronologische Reihenfolge)
+    const sortedEpisodes = allRecentEpisodes.sort(
+      (a: MaischbergerEpisode, b: MaischbergerEpisode) =>
+        a.date.localeCompare(b.date),
+    );
+
+    for (let i = 0; i < sortedEpisodes.length; i++) {
+      const episode = sortedEpisodes[i];
+
+      try {
+        console.log(
+          `\n🎬 [${i + 1}/${sortedEpisodes.length}] Verarbeite Episode vom ${
+            episode.date
+          }: ${episode.title}`,
+        );
+
+        if (!episode.teaserText || episode.teaserText.length < 10) {
+          console.log("   ❌ Kein verwertbarer Teasertext");
+          continue;
+        }
+
+        // Hole detaillierte Beschreibung und politische Themenbereiche von der Episodenseite
+        const { description: detailedDescription, politicalAreas } =
+          await getEpisodeDetails(page, episode.url);
+
+        console.log(
+          `📝 Beschreibung: ${detailedDescription.substring(0, 100)}...`,
+        );
+
+        // Extrahiere Gäste mit AI
+        const guestNames = await extractGuestsWithAI(detailedDescription);
+
+        if (guestNames.length === 0) {
+          console.log("   ❌ Keine Gäste extrahiert");
+          continue;
+        }
+
+        console.log(`👥 Gefundene Gäste: ${guestNames.join(", ")}`);
+
+        // Prüfe jeden Gast auf Politiker-Status
+        const politicians = [];
+        for (const guestName of guestNames) {
+          console.log(`   🔍 Prüfe: ${guestName}`);
+
+          const details = await checkPolitician(guestName);
+
+          if (
+            details.isPolitician &&
+            details.politicianId &&
+            details.politicianName
+          ) {
+            console.log(
+              `      ✅ Politiker: ${details.politicianName} (ID ${
+                details.politicianId
+              }), Partei: ${details.partyName || "unbekannt"}`,
+            );
+            politicians.push({
+              politicianId: details.politicianId,
+              politicianName: details.politicianName,
+              partyId: details.party,
+              partyName: details.partyName,
+            });
+          } else {
+            console.log(`      ❌ Kein Politiker`);
+          }
+
+          // Pause zwischen API-Calls
+          await new Promise((resolve) => setTimeout(resolve, 300));
+        }
+
+        // Speichere Politiker in die Datenbank
+        if (politicians.length > 0) {
+          const inserted = await insertMultipleTvShowPoliticians(
+            "Das Erste",
+            "Maischberger",
+            episode.date,
+            politicians,
+          );
+
+          totalPoliticiansInserted += inserted;
+          console.log(
+            `   💾 ${inserted}/${politicians.length} Politiker in DB gespeichert`,
+          );
+
+          // Nur wenn Episode Politiker hat, füge URL zur Liste hinzu
+          episodeLinksToInsert.push({
+            episodeUrl: episode.url,
+            episodeDate: episode.date,
+          });
+
+          console.log("   🏛️  Politiker in dieser Episode:");
+          politicians.forEach((pol) => {
+            console.log(
+              `      - ${pol.politicianName} (${pol.partyName || "unbekannt"})`,
+            );
+          });
+        } else {
+          console.log(`   📝 Keine Politiker in dieser Episode`);
+        }
+
+        // Speichere politische Themenbereiche
+        if (politicalAreas && politicalAreas.length > 0) {
+          const insertedAreas = await insertEpisodePoliticalAreas(
+            "Maischberger",
+            episode.date,
+            politicalAreas,
+          );
+          console.log(
+            `   🏛️  ${insertedAreas}/${politicalAreas.length} Themenbereiche gespeichert`,
+          );
+        }
+
+        episodesProcessed++;
+
+        // Fortschritt alle 5 Episoden
+        if ((i + 1) % 5 === 0) {
+          console.log(
+            `\n📊 Zwischenstand: ${episodesProcessed}/${sortedEpisodes.length} Episoden, ${totalPoliticiansInserted} Politiker in DB`,
+          );
+        }
+      } catch (error) {
+        console.error(
+          `❌ Fehler beim Verarbeiten von Episode ${episode.date}:`,
+          error,
+        );
+        episodesWithErrors++;
+      }
+    }
+
+    // Speichere Episode-URLs am Ende
+    if (episodeLinksToInsert.length > 0) {
+      totalEpisodeLinksInserted = await insertMultipleShowLinks(
+        "Maischberger",
+        episodeLinksToInsert,
+      );
+      console.log(
+        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`,
+      );
+    }
+
+    console.log(
+      `\n🎉 VOLLSTÄNDIGER Maischberger Crawl (ab 2025) abgeschlossen!`,
+    );
+    console.log(
+      `📊 Episoden verarbeitet: ${episodesProcessed}/${sortedEpisodes.length}`,
+    );
+    console.log(`👥 Politiker in DB gespeichert: ${totalPoliticiansInserted}`);
+    console.log(`📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
+    console.log(`❌ Episoden mit Fehlern: ${episodesWithErrors}`);
+
+    if (episodesWithErrors > 0) {
+      console.log(
+        `⚠️  ${episodesWithErrors} Episoden hatten Fehler und wurden übersprungen`,
+      );
+    }
+  } finally {
+    await browser.close().catch(() => {});
+  }
+}
+
+// Extrahiere ALLE Maischberger Episoden ab 2025 (ab 21.01.2025)
+async function getAllMaischbergerEpisodes(
+  page: Page,
+): Promise<MaischbergerEpisode[]> {
+  console.log("🔍 Lade ALLE Maischberger Episoden ab 2025...");
+
+  await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 60000 });
+
+  // Warte auf die Episode-Liste
+  await page.waitForSelector('[data-testid="virtuoso-item-list"]', {
+    timeout: 15000,
+  });
+
+  console.log("📜 Scrolle durch die Liste, um alle Episoden zu laden...");
+
+  // Scrolle mehrmals nach unten, um die virtualisierte Liste zu laden
+  let previousHeight = 0;
+  let scrollAttempts = 0;
+  const maxScrolls = 100; // Maximale Anzahl an Scroll-Versuchen
+
+  while (scrollAttempts < maxScrolls) {
+    await page.evaluate(() => {
+      window.scrollTo(0, document.body.scrollHeight);
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    const currentHeight = await page.evaluate(() => document.body.scrollHeight);
+
+    // Prüfe ob wir 2024 Episoden erreicht haben
+    const reachedPre2025 = await page.evaluate(() => {
+      const dates = Array.from(
+        document.querySelectorAll('[itemprop="dateCreated"]'),
+      ).map((el) => el.getAttribute("content") || "");
+
+      const hasPre2025 = dates.some((date) => {
+        if (!date) return false;
+        const year = parseInt(date.split("-")[0]);
+        return year < 2025;
+      });
+
+      return hasPre2025;
+    });
+
+    if (reachedPre2025) {
+      console.log("🛑 Erreicht Episoden vor 2025 - Stoppe Scrolling");
+      break;
+    }
+
+    if (currentHeight === previousHeight) {
+      console.log("📄 Keine weiteren Episoden gefunden");
+      break;
+    }
+
+    previousHeight = currentHeight;
+    scrollAttempts++;
+
+    if (scrollAttempts % 5 === 0) {
+      console.log(`   📜 Scroll-Versuch ${scrollAttempts}/${maxScrolls}...`);
+    }
+  }
+
+  console.log("🔍 Extrahiere Episode-Daten...");
+
+  const episodes = await page.evaluate(() => {
+    const episodes: Array<{
+      url: string;
+      date: string;
+      title: string;
+      teaserText: string;
+      duration: number; // Dauer in Minuten
+    }> = [];
+
+    // Finde alle Episode-Items in der virtualisierten Liste
+    const items = document.querySelectorAll('[itemprop="itemListElement"]');
+
+    console.log(`Gefunden: ${items.length} Episode-Items`);
+
+    for (const item of items) {
+      try {
+        // Extrahiere Datum aus dem meta-Tag
+        const dateEl = item.querySelector('[itemprop="dateCreated"]');
+        const dateStr = dateEl?.getAttribute("content") || "";
+
+        if (!dateStr) continue;
+
+        // Konvertiere ISO-Datum zu YYYY-MM-DD
+        const date = dateStr.split("T")[0];
+
+        // Extrahiere URL
+        const linkEl = item.querySelector('a[itemprop="url"]');
+        const href = linkEl?.getAttribute("href") || "";
+
+        if (!href) continue;
+
+        const url = href.startsWith("http")
+          ? href
+          : `https://www.ardmediathek.de${href}`;
+
+        // Extrahiere Titel
+        const titleEl = item.querySelector('h3[itemprop="name"]');
+        const title = titleEl?.textContent?.trim() || "";
+
+        if (!title) continue;
+
+        // Extrahiere Dauer (z.B. "75 Min.")
+        const durationEl = item.querySelector(".b1ja19fa.ip1vmgq");
+        const durationText = durationEl?.textContent?.trim() || "";
+        const durationMatch = durationText.match(/(\d+)\s*Min/);
+        const duration = durationMatch ? parseInt(durationMatch[1]) : 0;
+
+        // Verwende Titel als teaserText
+        const teaserText = title;
+
+        episodes.push({
+          url,
+          date,
+          title,
+          teaserText,
+          duration,
+        });
+      } catch (error) {
+        console.error("Fehler beim Verarbeiten einer Episode:", error);
+      }
+    }
+
+    return episodes;
+  });
+
+  console.log(`📺 Gesamt gefunden: ${episodes.length} Episoden`);
+
+  // Filtere Episoden ab 2025 (ab 21.01.2025)
+  const recentEpisodes = episodes.filter((ep) => {
+    const episodeYear = parseInt(ep.date.split("-")[0]);
+    if (episodeYear > 2025) return true; // Zukünftige Jahre
+    if (episodeYear < 2025) return false; // Vor 2025
+    // 2025: Prüfe ob nach 21.01.2025
+    return ep.date >= "2025-01-21";
+  });
+
+  console.log(`📅 Episoden ab 2025 (ab 21.01.): ${recentEpisodes.length}`);
+
+  // Filtere Episoden mit "(mit Gebärdensprache)" aus dem Titel
+  const withoutSignLanguage = recentEpisodes.filter((ep) => {
+    if (ep.title.toLowerCase().includes("gebärdensprache")) {
+      console.log(
+        `Episode übersprungen (Gebärdensprache-Version): ${ep.date} - ${ep.title}`,
+      );
+      return false;
+    }
+    return true;
+  });
+
+  console.log(`📋 Ohne Gebärdensprache: ${withoutSignLanguage.length}`);
+
+  // Gruppiere nach Datum und wähle nur die längste Episode pro Tag (Hauptsendung)
+  const episodesByDate = new Map<string, (typeof recentEpisodes)[0]>();
+
+  for (const ep of withoutSignLanguage) {
+    const existing = episodesByDate.get(ep.date);
+
+    if (!existing || ep.duration > existing.duration) {
+      // Wenn keine Episode für dieses Datum existiert ODER diese länger ist
+      episodesByDate.set(ep.date, ep);
+
+      if (existing) {
+        console.log(
+          `📺 ${ep.date}: Wähle längere Episode (${ep.duration} Min statt ${existing.duration} Min)`,
+        );
+      }
+    } else {
+      console.log(
+        `⏭️  ${ep.date}: Überspringe kürzeren Ausschnitt (${
+          ep.duration
+        } Min) - ${ep.title.substring(0, 50)}...`,
+      );
+    }
+  }
+
+  const mainEpisodes = Array.from(episodesByDate.values());
+
+  console.log(`📋 Hauptsendungen (längste pro Tag): ${mainEpisodes.length}`);
+
+  return mainEpisodes.sort((a, b) => b.date.localeCompare(a.date)); // Neueste zuerst
+}
+
+// Extrahiere nur NEUE Maischberger Episoden (seit letztem DB-Eintrag)
+async function getNewMaischbergerEpisodes(
+  page: Page,
+  latestDbDate: string | null,
+): Promise<MaischbergerEpisode[]> {
+  console.log("🔍 Lade neue Maischberger Episoden...");
+  console.log(`📅 Suche nach Episoden seit: ${latestDbDate || "Beginn"}`);
+
+  await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 60000 });
+
+  // Warte auf die Episode-Liste
+  await page.waitForSelector('[data-testid="virtuoso-item-list"]', {
+    timeout: 15000,
+  });
+
+  console.log("📜 Scrolle durch die Liste, um neue Episoden zu finden...");
+
+  // Scrolle mehrmals nach unten, um die virtualisierte Liste zu laden
+  let previousHeight = 0;
+  let scrollAttempts = 0;
+  const maxScrolls = 30; // Weniger Scrolls für inkrementellen Crawler
+
+  while (scrollAttempts < maxScrolls) {
+    await page.evaluate(() => {
+      window.scrollTo(0, document.body.scrollHeight);
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    const currentHeight = await page.evaluate(() => document.body.scrollHeight);
+
+    // Prüfe ob wir das letzte DB-Datum erreicht haben
+    const reachedDbDate = await page.evaluate((dbDate) => {
+      if (!dbDate) return false;
+
+      const dates = Array.from(
+        document.querySelectorAll('[itemprop="dateCreated"]'),
+      ).map((el) => el.getAttribute("content") || "");
+
+      const hasOlderDate = dates.some((date) => {
+        if (!date) return false;
+        const episodeDate = date.split("T")[0];
+        return episodeDate <= dbDate;
+      });
+
+      return hasOlderDate;
+    }, latestDbDate);
+
+    if (reachedDbDate) {
+      console.log(
+        `🛑 Erreicht bekanntes Datum ${latestDbDate} - Stoppe Scrolling`,
+      );
+      break;
+    }
+
+    if (currentHeight === previousHeight) {
+      console.log("📄 Keine weiteren Episoden gefunden");
+      break;
+    }
+
+    previousHeight = currentHeight;
+    scrollAttempts++;
+
+    if (scrollAttempts % 5 === 0) {
+      console.log(`   📜 Scroll-Versuch ${scrollAttempts}/${maxScrolls}...`);
+    }
+  }
+
+  console.log("🔍 Extrahiere neue Episode-Daten...");
+
+  const episodes = await page.evaluate(() => {
+    const episodes: Array<{
+      url: string;
+      date: string;
+      title: string;
+      teaserText: string;
+      duration: number; // Dauer in Minuten
+    }> = [];
+
+    // Finde alle Episode-Items in der virtualisierten Liste
+    const items = document.querySelectorAll('[itemprop="itemListElement"]');
+
+    console.log(`Gefunden: ${items.length} Episode-Items`);
+
+    for (const item of items) {
+      try {
+        // Extrahiere Datum aus dem meta-Tag
+        const dateEl = item.querySelector('[itemprop="dateCreated"]');
+        const dateStr = dateEl?.getAttribute("content") || "";
+
+        if (!dateStr) continue;
+
+        // Konvertiere ISO-Datum zu YYYY-MM-DD
+        const date = dateStr.split("T")[0];
+
+        // Extrahiere URL
+        const linkEl = item.querySelector('a[itemprop="url"]');
+        const href = linkEl?.getAttribute("href") || "";
+
+        if (!href) continue;
+
+        const url = href.startsWith("http")
+          ? href
+          : `https://www.ardmediathek.de${href}`;
+
+        // Extrahiere Titel
+        const titleEl = item.querySelector('h3[itemprop="name"]');
+        const title = titleEl?.textContent?.trim() || "";
+
+        if (!title) continue;
+
+        // Extrahiere Dauer (z.B. "75 Min.")
+        const durationEl = item.querySelector(".b1ja19fa.ip1vmgq");
+        const durationText = durationEl?.textContent?.trim() || "";
+        const durationMatch = durationText.match(/(\d+)\s*Min/);
+        const duration = durationMatch ? parseInt(durationMatch[1]) : 0;
+
+        // Verwende Titel als teaserText
+        const teaserText = title;
+
+        episodes.push({
+          url,
+          date,
+          title,
+          teaserText,
+          duration,
+        });
+      } catch (error) {
+        console.error("Fehler beim Verarbeiten einer Episode:", error);
+      }
+    }
+
+    return episodes;
+  });
+
+  console.log(`📺 Gesamt gefunden: ${episodes.length} Episoden`);
+
+  // Filtere neue Episoden basierend auf dem letzten DB-Datum
+  const newEpisodes = episodes.filter((ep) => {
+    // Falls kein DB-Datum vorhanden, sind alle Episoden neu
+    if (!latestDbDate) return true;
+
+    // Prüfe ob Episode nach dem letzten DB-Datum liegt
+    return ep.date > latestDbDate;
+  });
+
+  console.log(`🆕 Neue Episoden seit ${latestDbDate}: ${newEpisodes.length}`);
+
+  // Filtere Episoden mit "(mit Gebärdensprache)" aus dem Titel
+  const withoutSignLanguage = newEpisodes.filter((ep) => {
+    if (ep.title.toLowerCase().includes("gebärdensprache")) {
+      console.log(
+        `Episode übersprungen (Gebärdensprache-Version): ${ep.date} - ${ep.title}`,
+      );
+      return false;
+    }
+    return true;
+  });
+
+  console.log(`📋 Ohne Gebärdensprache: ${withoutSignLanguage.length}`);
+
+  // Gruppiere nach Datum und wähle nur die längste Episode pro Tag (Hauptsendung)
+  const episodesByDate = new Map<string, (typeof newEpisodes)[0]>();
+
+  for (const ep of withoutSignLanguage) {
+    const existing = episodesByDate.get(ep.date);
+
+    if (!existing || ep.duration > existing.duration) {
+      // Wenn keine Episode für dieses Datum existiert ODER diese länger ist
+      episodesByDate.set(ep.date, ep);
+
+      if (existing) {
+        console.log(
+          `📺 ${ep.date}: Wähle längere Episode (${ep.duration} Min statt ${existing.duration} Min)`,
+        );
+      }
+    } else {
+      console.log(
+        `⏭️  ${ep.date}: Überspringe kürzeren Ausschnitt (${
+          ep.duration
+        } Min) - ${ep.title.substring(0, 50)}...`,
+      );
+    }
+  }
+
+  const mainEpisodes = Array.from(episodesByDate.values());
+
+  console.log(
+    `🆕 Neue Hauptsendungen (längste pro Tag): ${mainEpisodes.length}`,
+  );
+
+  return mainEpisodes.sort((a, b) => b.date.localeCompare(a.date)); // Neueste zuerst
+}
+
+// Funktion zum Löschen aller Maischberger-Daten aus der Tabelle
+export async function clearMaischbergerData(): Promise<number> {
+  console.log("🗑️  Lösche alle Maischberger-Daten aus tv_show_politicians...");
+
+  const { supabase } = await import("../supabase.js");
+
+  const { error, count } = await supabase
+    .from("tv_show_politicians")
+    .delete({ count: "exact" })
+    .eq("show_name", "Maischberger");
+
+  if (error) {
+    console.error("❌ Fehler beim Löschen:", error);
+    throw error;
+  }
+
+  const deletedCount = count || 0;
+  console.log(`✅ ${deletedCount} Maischberger-Einträge gelöscht`);
+
+  return deletedCount;
 }

@@ -12,8 +12,7 @@
     "watch": "tsc --watch"
   },
   "dependencies": {
-    "@google/genai": "^1.30.0",
-    "@huggingface/inference": "^4.9.0",
+    "@google/genai": "^1.42.0",
     "@sparticuz/chromium": "^141.0.0",
     "@supabase/supabase-js": "^2.75.0",
     "axios": "^1.12.2",
@@ -21,7 +20,6 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
     "express": "^4.21.2",
-    "node-cron": "^4.2.1",
     "p-limit": "^7.1.1",
     "puppeteer": "^24.22.3"
   },

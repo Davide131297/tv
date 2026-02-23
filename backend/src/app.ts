@@ -1,138 +1,276 @@
 import express from "express";
 import dotenv from "dotenv";
-import cron from "node-cron";
+
+// Crawler imports
 import CrawlLanz from "./crawler/lanz.js";
-import { crawlNewMaybritIllnerEpisodes } from "./crawler/illner.js";
-import { crawlNewMaischbergerEpisodes } from "./crawler/maischberger.js";
-import { crawlIncrementalCarenMiosgaEpisodes } from "./crawler/miosga.js";
+import {
+  crawlNewMaybritIllnerEpisodes,
+  crawlAllMaybritIllnerEpisodes,
+} from "./crawler/illner.js";
 import crawlHartAberFair from "./crawler/haf.js";
+import {
+  crawlNewMaischbergerEpisodes,
+  crawlMaischbergerFull,
+  clearMaischbergerData,
+} from "./crawler/maischberger.js";
+import {
+  crawlIncrementalCarenMiosgaEpisodes,
+  crawlAllCarenMiosgaEpisodes,
+} from "./crawler/miosga.js";
 import CrawlPinarAtalay from "./crawler/atalay.js";
 import CrawlPhoenixRunde from "./crawler/phoenix-runde.js";
-import { handleChatRequest } from "./chat/chat.js";
-import cors from "cors";
+import CrawlPhoenixPersoenlich from "./crawler/phoenix-persoenlich.js";
+import CrawlBlomePfeffer from "./crawler/blome-pfeffer.js";
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 9000;
-
-app.use(
-  cors({
-    origin: [
-      "https://tv-git-dev-davide131297s-projects.vercel.app",
-      "https://www.polittalk-watcher.de",
-      "https://polittalk-watcher.de",
-      "http://localhost:3000",
-    ],
-  })
-);
-
-// Middleware für JSON-Body-Parsing
 app.use(express.json());
 
-// // Lanz: Mittwochs, Donnerstags und Freitags um 2 Uhr morgens
-// cron.schedule("0 2 * * 3,4,5", async () => {
-//   console.log("Starte Lanz Crawl...");
-//   await CrawlLanz();
-//   console.log("Lanz Crawl abgeschlossen.");
-// });
+const PORT = process.env.PORT || 3001;
 
-// // Hart aber Fair: Dienstags um 1 Uhr morgens
-// cron.schedule("0 1 * * 2", async () => {
-//   console.log("Starte Hart aber Fair Crawl...");
-//   await crawlHartAberFair();
-//   console.log("Hart aber Fair Crawl abgeschlossen.");
-// });
+// ============================================
+// Authentication Middleware
+// ============================================
+function authMiddleware(
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction,
+): void {
+  const apiKey = process.env.CRAWL_API_KEY;
 
-// // Illner: Freitags um 2 Uhr morgens
-// cron.schedule("0 2 * * 5", async () => {
-//   console.log("Starte Illner Crawl...");
-//   await crawlNewMaybritIllnerEpisodes();
-//   console.log("Illner Crawl abgeschlossen.");
-// });
+  if (!apiKey) {
+    console.error("❌ CRAWL_API_KEY nicht konfiguriert");
+    res.status(500).json({ error: "Server configuration error" });
+    return;
+  }
 
-// // Maischberger: Mittwochs und Donnerstags um 2 Uhr morgens
-// cron.schedule("0 2 * * 3,4", async () => {
-//   console.log("Starte Maischberger Crawl...");
-//   await crawlNewMaischbergerEpisodes();
-//   console.log("Maischberger Crawl abgeschlossen.");
-// });
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    res.status(401).json({ error: "Missing or invalid Authorization header" });
+    return;
+  }
 
-// // Miosga: Montags um 1 Uhr morgens
-// cron.schedule("0 1 * * 1", async () => {
-//   console.log("Starte Caren Miosga Crawl...");
-//   await crawlIncrementalCarenMiosgaEpisodes();
-//   console.log("Caren Miosga Crawl abgeschlossen.");
-// });
+  const token = authHeader.substring(7);
+  if (token !== apiKey) {
+    res.status(403).json({ error: "Invalid API key" });
+    return;
+  }
 
-// // Pinar Atalay: Jede 14 Tage Dienstags um 2 Uhr morgens
-// cron.schedule("0 2 * * 2", async () => {
-//   console.log("Starte Pinar Atalay Crawl...");
-//   await CrawlPinarAtalay();
-//   console.log("Pinar Atalay Crawl abgeschlossen.");
-// });
+  next();
+}
 
-// cron.schedule("0 3 * * 3,4,5", async () => {
-//   console.log("Starte Phoenix Runde Crawl...");
-//   await CrawlPhoenixRunde();
-//   console.log("Phoenix Runde Crawl abgeschlossen.");
-// });
+// Apply auth middleware to all /api/crawl routes
+app.use("/api/crawl", authMiddleware);
 
+// ============================================
+// Health Check
+// ============================================
 app.get("/", (req, res) => {
-  res.send("Hello World!");
+  res.json({
+    status: "Backend is running",
+    timestamp: new Date().toISOString(),
+  });
 });
 
-// app.post("/api/chat", handleChatRequest);
+// ============================================
+// Crawler API Routes
+// ============================================
 
-// app.post("/api/crawl-lanz", async (req, res) => {
-//   console.log("Starte Lanz Crawl...");
-//   await CrawlLanz();
-//   console.log("Lanz Crawl abgeschlossen.");
-//   res.send("Lanz Crawl gestartet.");
-// });
+// POST /api/crawl/all - Run all crawlers sequentially
+app.post("/api/crawl/all", async (req, res) => {
+  console.log("🚀 Starte alle Crawler...");
+  const startTime = Date.now();
 
-// app.post("/api/crawl-haf", async (req, res) => {
-//   console.log("Starte Hart aber Fair Crawl...");
-//   await crawlHartAberFair();
-//   console.log("Hart aber Fair Crawl abgeschlossen.");
-//   res.send("Hart aber Fair Crawl gestartet.");
-// });
+  const results: Record<string, { success: boolean; error?: string }> = {};
 
-// app.post("/api/crawl-illner", async (req, res) => {
-//   console.log("Starte Illner Crawl...");
-//   await crawlNewMaybritIllnerEpisodes();
-//   console.log("Illner Crawl abgeschlossen.");
-//   res.send("Illner Crawl gestartet.");
-// });
+  const runCrawler = async (name: string, crawlerFn: () => Promise<any>) => {
+    try {
+      console.log(`\n🔄 Starte ${name} Crawler...`);
+      await crawlerFn();
+      results[name] = { success: true };
+      console.log(`✅ ${name} Crawler abgeschlossen`);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      results[name] = { success: false, error: errorMessage };
+      console.error(`❌ ${name} Crawler fehlgeschlagen:`, errorMessage);
+    }
+  };
 
-// app.post("/api/crawl-maischberger", async (req, res) => {
-//   console.log("Starte Maischberger Crawl...");
-//   await crawlNewMaischbergerEpisodes();
-//   console.log("Maischberger Crawl abgeschlossen.");
-//   res.send("Maischberger Crawl gestartet.");
-// });
+  await runCrawler("Markus Lanz", CrawlLanz);
+  await runCrawler("Maybrit Illner", crawlNewMaybritIllnerEpisodes);
+  await runCrawler("Hart aber Fair", crawlHartAberFair);
+  await runCrawler("Maischberger", crawlNewMaischbergerEpisodes);
+  await runCrawler("Caren Miosga", crawlIncrementalCarenMiosgaEpisodes);
+  await runCrawler("Pinar Atalay", CrawlPinarAtalay);
+  await runCrawler("Phoenix Runde", CrawlPhoenixRunde);
+  await runCrawler("Phoenix Persönlich", CrawlPhoenixPersoenlich);
+  await runCrawler("Blome & Pfeffer", CrawlBlomePfeffer);
 
-// app.post("/api/crawl-miosga", async (req, res) => {
-//   console.log("Starte Caren Miosga Crawl...");
-//   await crawlIncrementalCarenMiosgaEpisodes();
-//   console.log("Caren Miosga Crawl abgeschlossen.");
-//   res.send("Caren Miosga Crawl gestartet.");
-// });
+  const durationMs = Date.now() - startTime;
+  const durationMin = Math.floor(durationMs / 60000);
+  const durationSec = Math.floor((durationMs % 60000) / 1000);
 
-// app.post("/api/crawl-atalay", async (req, res) => {
-//   console.log("Starte Pinar Atalay Crawl...");
-//   await CrawlPinarAtalay();
-//   console.log("Pinar Atalay Crawl abgeschlossen.");
-//   res.send("Pinar Atalay Crawl gestartet.");
-// });
+  const successful = Object.values(results).filter((r) => r.success).length;
+  const failed = Object.values(results).filter((r) => !r.success).length;
 
-// app.post("/api/crawl-phoenix-runde", async (req, res) => {
-//   console.log("Starte Phoenix Runde Crawl...");
-//   await CrawlPhoenixRunde();
-//   console.log("Phoenix Runde Crawl abgeschlossen.");
-//   res.send("Phoenix Runde Crawl gestartet.");
-// });
+  console.log(
+    `\n🎉 Alle Crawler abgeschlossen in ${durationMin}m ${durationSec}s`,
+  );
+  console.log(`✅ Erfolgreich: ${successful} | ❌ Fehlgeschlagen: ${failed}`);
 
+  res.json({
+    message: "All crawlers completed",
+    duration: `${durationMin}m ${durationSec}s`,
+    successful,
+    failed,
+    results,
+  });
+});
+
+// POST /api/crawl/lanz
+app.post("/api/crawl/lanz", async (req, res) => {
+  try {
+    const result = await CrawlLanz();
+    res.json(result);
+  } catch (error) {
+    console.error("❌ Lanz Crawler Fehler:", error);
+    res.status(500).json({ error: "Lanz crawler failed" });
+  }
+});
+
+// POST /api/crawl/illner
+app.post("/api/crawl/illner", async (req, res) => {
+  try {
+    const { runType } = req.body || {};
+
+    if (runType === "full") {
+      await crawlAllMaybritIllnerEpisodes();
+      res.json({ message: "Illner full crawl completed" });
+    } else {
+      await crawlNewMaybritIllnerEpisodes();
+      res.json({ message: "Illner incremental crawl completed" });
+    }
+  } catch (error) {
+    console.error("❌ Illner Crawler Fehler:", error);
+    res.status(500).json({ error: "Illner crawler failed" });
+  }
+});
+
+// POST /api/crawl/haf
+app.post("/api/crawl/haf", async (req, res) => {
+  try {
+    const result = await crawlHartAberFair();
+    res.json(result);
+  } catch (error) {
+    console.error("❌ Hart aber Fair Crawler Fehler:", error);
+    res.status(500).json({ error: "Hart aber Fair crawler failed" });
+  }
+});
+
+// POST /api/crawl/maischberger
+app.post("/api/crawl/maischberger", async (req, res) => {
+  try {
+    const { runType } = req.body || {};
+
+    if (runType === "full") {
+      await crawlMaischbergerFull();
+      res.json({ message: "Maischberger full crawl completed" });
+    } else {
+      await crawlNewMaischbergerEpisodes();
+      res.json({ message: "Maischberger incremental crawl completed" });
+    }
+  } catch (error) {
+    console.error("❌ Maischberger Crawler Fehler:", error);
+    res.status(500).json({ error: "Maischberger crawler failed" });
+  }
+});
+
+// DELETE /api/crawl/maischberger
+app.delete("/api/crawl/maischberger", async (req, res) => {
+  try {
+    const deletedCount = await clearMaischbergerData();
+    res.json({
+      message: `${deletedCount} Maischberger entries deleted`,
+      deletedCount,
+    });
+  } catch (error) {
+    console.error("❌ Maischberger Lösch-Fehler:", error);
+    res.status(500).json({ error: "Maischberger data deletion failed" });
+  }
+});
+
+// POST /api/crawl/miosga
+app.post("/api/crawl/miosga", async (req, res) => {
+  try {
+    const { runType } = req.body || {};
+
+    if (runType === "full") {
+      await crawlAllCarenMiosgaEpisodes();
+      res.json({ message: "Miosga full crawl completed" });
+    } else {
+      await crawlIncrementalCarenMiosgaEpisodes();
+      res.json({ message: "Miosga incremental crawl completed" });
+    }
+  } catch (error) {
+    console.error("❌ Miosga Crawler Fehler:", error);
+    res.status(500).json({ error: "Miosga crawler failed" });
+  }
+});
+
+// POST /api/crawl/atalay
+app.post("/api/crawl/atalay", async (req, res) => {
+  try {
+    const result = await CrawlPinarAtalay();
+    res.json(result);
+  } catch (error) {
+    console.error("❌ Pinar Atalay Crawler Fehler:", error);
+    res.status(500).json({ error: "Pinar Atalay crawler failed" });
+  }
+});
+
+// POST /api/crawl/phoenix-runde
+app.post("/api/crawl/phoenix-runde", async (req, res) => {
+  try {
+    const result = await CrawlPhoenixRunde();
+    res.json(result);
+  } catch (error) {
+    console.error("❌ Phoenix Runde Crawler Fehler:", error);
+    res.status(500).json({ error: "Phoenix Runde crawler failed" });
+  }
+});
+
+// POST /api/crawl/phoenix-persoenlich
+app.post("/api/crawl/phoenix-persoenlich", async (req, res) => {
+  try {
+    const result = await CrawlPhoenixPersoenlich();
+    res.json(result);
+  } catch (error) {
+    console.error("❌ Phoenix Persönlich Crawler Fehler:", error);
+    res.status(500).json({ error: "Phoenix Persönlich crawler failed" });
+  }
+});
+
+// POST /api/crawl/blome-pfeffer
+app.post("/api/crawl/blome-pfeffer", async (req, res) => {
+  try {
+    const result = await CrawlBlomePfeffer();
+    res.json(result);
+  } catch (error) {
+    console.error("❌ Blome & Pfeffer Crawler Fehler:", error);
+    res.status(500).json({ error: "Blome & Pfeffer crawler failed" });
+  }
+});
+
+// ============================================
+// Start Server
+// ============================================
 app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+  console.log(`🚀 Backend Server läuft auf Port ${PORT}`);
+  console.log(
+    `📡 Crawler API verfügbar unter http://localhost:${PORT}/api/crawl/`,
+  );
 });
+
+export default app;

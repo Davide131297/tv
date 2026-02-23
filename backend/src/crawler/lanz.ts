@@ -1,25 +1,25 @@
 import {
-  getLatestEpisodeDate,
-  getPoliticalArea,
-  insertMultipleShowLinks,
-  checkPolitician,
-  insertEpisodePoliticalAreas,
   insertMultipleTvShowPoliticians,
+  insertMultipleShowLinks,
+  insertEpisodePoliticalAreas,
+  checkPolitician,
+  getLatestEpisodeDate,
 } from "../lib/utils.js";
 import { createBrowser, setupSimplePage } from "../lib/browser-configs.js";
 import {
   parseISODateFromUrl,
-  toISOFromDDMMYYYY,
   extractDateISO,
   seemsLikePersonName,
   acceptCookieBanner,
   gentleScroll,
   GuestWithRole,
+  GuestDetails,
   EpisodeResult,
 } from "../lib/crawler-utils.js";
 import { Page } from "puppeteer";
+import { getPoliticalArea } from "../lib/utils.js";
 
-const LIST_URL = "https://www.zdf.de/talk/markus-lanz-114";
+const LIST_URL = `https://www.zdf.de/talk/markus-lanz-114?staffel=$%7BcurrentYear%7D`;
 
 // ---------------- Lade mehr / Episoden-Links ----------------
 
@@ -31,7 +31,7 @@ async function clickLoadMoreUntilDone(
   console.log("Beginne mit intelligentem Laden der Episoden...");
 
   // Warte erstmal dass die Seite vollständig geladen ist
-  await page.waitForSelector("main").catch(() => {});
+  await page.waitForSelector("main", { timeout: 15000 }).catch(() => {});
 
   // Initial count
   let currentCount = await page.$$eval(
@@ -107,7 +107,8 @@ async function clickLoadMoreUntilDone(
           page.waitForResponse(
             (res) =>
               res.url().includes("graphql") &&
-              res.url().includes("seasonByCanonical")
+              res.url().includes("seasonByCanonical"),
+            { timeout: 15000 }
           ),
           hasButton.click(),
         ]);
@@ -217,11 +218,11 @@ async function extractGuestsFromEpisode(
   page: Page,
   episodeUrl: string
 ): Promise<GuestWithRole[]> {
-  await page.goto(episodeUrl, { waitUntil: "networkidle2" });
+  await page.goto(episodeUrl, { waitUntil: "networkidle2", timeout: 60000 });
   await page.setExtraHTTPHeaders({
     "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
   });
-  await page.waitForSelector("main").catch(() => {});
+  await page.waitForSelector("main", { timeout: 15000 }).catch(() => {});
 
   // Sanft scrollen, um Lazy-Content zu triggern
   await gentleScroll(page);
@@ -368,7 +369,7 @@ export default async function CrawlLanz() {
 
   try {
     const page = await setupSimplePage(browser);
-    await page.goto(LIST_URL, { waitUntil: "networkidle2" });
+    await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 60000 });
 
     // Cookie-Banner akzeptieren falls vorhanden
     await acceptCookieBanner(page);
@@ -591,6 +592,7 @@ export default async function CrawlLanz() {
       // Speichere Politiker
       if (politicians.length > 0) {
         const inserted = await insertMultipleTvShowPoliticians(
+          "ZDF",
           "Markus Lanz",
           episode.date,
           politicians
@@ -627,10 +629,15 @@ export default async function CrawlLanz() {
       `Politische Themenbereiche gesamt eingefügt: ${totalPoliticalAreasInserted}`
     );
     console.log(`Episode-URLs gesamt eingefügt: ${totalEpisodeLinksInserted}`);
-  } catch (error) {
-    console.error("Schwerer Fehler im Crawl-Prozess:", error);
-    throw error; // Werfe den Fehler weiter, damit er im Log erscheint
-  } finally {
-    await browser.close().catch(() => {});
+
+    return {
+      message: "Lanz Crawling erfolgreich",
+      status: 200,
+    };
+  } catch {
+    return {
+      message: "Fehler beim Lanz Crawling",
+      status: 500,
+    };
   }
 }

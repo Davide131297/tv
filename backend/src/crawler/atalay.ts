@@ -5,19 +5,18 @@ import {
   insertMultipleShowLinks,
   checkPolitician,
   insertEpisodePoliticalAreas,
-  getPoliticalArea,
-  extractGuestsWithAI,
 } from "../lib/utils.js";
+import { getPoliticalArea, extractGuestsWithAI } from "../lib/utils.js";
 
 const LIST_URL = "https://plus.rtl.de/video-tv/shows/pinar-atalay-1041381";
 
 // Datum aus Episode-Nummer extrahieren (Folge 1 = 17.03.2025)
 function getEpisodeDateFromNumber(episodeNumber: number): string {
-  // Startdatum: 17. März 2025
-  const startDate = new Date("2025-03-17");
+  // Startdatum: 06. Oktober 2025
+  const startDate = new Date("2025-10-06");
 
-  // Episoden erscheinen wöchentlich (jeden Montag)
-  const daysToAdd = (episodeNumber - 1) * 7;
+  // Episoden erscheinen alle 2 Wochen (jeden 2. Montag)
+  const daysToAdd = (episodeNumber - 1) * 14;
   const episodeDate = new Date(startDate);
   episodeDate.setDate(episodeDate.getDate() + daysToAdd);
 
@@ -30,7 +29,7 @@ function getEpisodeDateFromNumber(episodeNumber: number): string {
 }
 
 // Haupt-Crawler-Funktion
-export default async function CrawlPinarAtalay(): Promise<void> {
+export default async function CrawlPinarAtalay() {
   console.log("🚀 Starte Pinar Atalay Crawler...");
   console.log(`📅 Datum: ${new Date().toISOString()}`);
 
@@ -41,10 +40,10 @@ export default async function CrawlPinarAtalay(): Promise<void> {
 
   try {
     const page = await setupSimplePage(browser);
-    await page.goto(LIST_URL, { waitUntil: "networkidle2" });
+    await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 60000 });
 
     // Warte auf die Episode-Liste
-    await page.waitForSelector(".episode-list");
+    await page.waitForSelector(".episode-list", { timeout: 15000 });
 
     console.log("🔍 Extrahiere Episode-Links und Beschreibungen...");
 
@@ -92,6 +91,10 @@ export default async function CrawlPinarAtalay(): Promise<void> {
 
     if (episodes.length === 0) {
       console.log("❌ Keine Episoden gefunden");
+      return {
+        message: "Keine Episoden gefunden",
+        status: 404,
+      };
     }
 
     // Filtere nur neue Episoden
@@ -109,6 +112,10 @@ export default async function CrawlPinarAtalay(): Promise<void> {
 
     if (filteredEpisodes.length === 0) {
       console.log("✅ Keine neuen Episoden zu crawlen");
+      return {
+        message: "Keine neuen Episoden zu crawlen",
+        status: 200,
+      };
     }
 
     let totalPoliticiansInserted = 0;
@@ -183,6 +190,7 @@ export default async function CrawlPinarAtalay(): Promise<void> {
         // Speichere Politiker
         if (politicians.length > 0) {
           const inserted = await insertMultipleTvShowPoliticians(
+            "NTV",
             "Pinar Atalay",
             episodeDate,
             politicians
@@ -241,9 +249,17 @@ export default async function CrawlPinarAtalay(): Promise<void> {
     console.log(`👥 Politiker eingefügt: ${totalPoliticiansInserted}`);
     console.log(`🏛️  Themenbereiche eingefügt: ${totalPoliticalAreasInserted}`);
     console.log(`📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
+
+    return {
+      message: "Pinar Atalay Crawling erfolgreich",
+      status: 200,
+    };
   } catch (error) {
     console.error("❌ Fehler beim Pinar Atalay Crawling:", error);
-    return;
+    return {
+      message: "Fehler beim Pinar Atalay Crawling",
+      status: 500,
+    };
   } finally {
     await browser.close().catch(() => {});
   }

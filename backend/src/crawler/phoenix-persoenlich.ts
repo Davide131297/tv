@@ -9,14 +9,14 @@ import {
 import { getPoliticalArea, extractGuestsWithAI } from "../lib/utils.js";
 
 const LIST_URL =
-  "https://www.phoenix.de/sendungen/gespraeche/phoenix-runde-s-121346.html";
+  "https://www.phoenix.de/sendungen/gespraeche/phoenix-persoenlich-s-121511.html";
 
 // Haupt-Crawler-Funktion
-export default async function CrawlPhoenixRunde() {
-  console.log("🚀 Starte Phoenix Runde Crawler...");
+export default async function CrawlPhoenixPersönlich() {
+  console.log("🚀 Starte Phoenix Persönlich Crawler...");
   console.log(`📅 Datum: ${new Date().toISOString()}`);
 
-  const latestDbDate = await getLatestEpisodeDate("Phoenix Runde");
+  const latestDbDate = await getLatestEpisodeDate("Phoenix Persönlich");
   console.log(`🗃️  Letzte Episode in DB: ${latestDbDate || "Keine"}`);
 
   const browser = await createBrowser();
@@ -103,7 +103,7 @@ export default async function CrawlPhoenixRunde() {
       for (const episode of episodeElements) {
         // Finde den ersten Link mit dem Episode-Titel
         const linkElement = episode.querySelector(
-          'a[ng-href*="/sendungen/gespraeche/phoenix-runde/"]'
+          'a[ng-href*="/sendungen/gespraeche/phoenix-persoenlich/"]'
         ) as HTMLAnchorElement;
         if (!linkElement) continue;
 
@@ -286,7 +286,7 @@ export default async function CrawlPhoenixRunde() {
         if (politicians.length > 0) {
           const inserted = await insertMultipleTvShowPoliticians(
             "Phoenix",
-            "Phoenix Runde",
+            "Phoenix Persönlich",
             episodeDate,
             politicians
           );
@@ -310,7 +310,7 @@ export default async function CrawlPhoenixRunde() {
         // Speichere politische Themenbereiche
         if (politicalAreaIds && politicalAreaIds.length > 0) {
           const insertedAreas = await insertEpisodePoliticalAreas(
-            "Phoenix Runde",
+            "Phoenix Persönlich",
             episodeDate,
             politicalAreaIds
           );
@@ -330,7 +330,7 @@ export default async function CrawlPhoenixRunde() {
     // Speichere Episode-URLs
     if (episodeLinksToInsert.length > 0) {
       totalEpisodeLinksInserted = await insertMultipleShowLinks(
-        "Phoenix Runde",
+        "Phoenix Persönlich",
         episodeLinksToInsert
       );
       console.log(
@@ -338,7 +338,7 @@ export default async function CrawlPhoenixRunde() {
       );
     }
 
-    console.log(`\n🎉 Phoenix Runde Crawl abgeschlossen!`);
+    console.log(`\n🎉 Phoenix Persönlich Crawl abgeschlossen!`);
     console.log(`📊 Episoden verarbeitet: ${filteredEpisodes.length}`);
     console.log(`📺 Episoden mit Politikern: ${episodesWithPoliticians}`);
     console.log(`👥 Politiker eingefügt: ${totalPoliticiansInserted}`);
@@ -346,13 +346,13 @@ export default async function CrawlPhoenixRunde() {
     console.log(`📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
 
     return {
-      message: "Phoenix Runde Crawling erfolgreich",
+      message: "Phoenix Persönlich Crawling erfolgreich",
       status: 200,
     };
   } catch (error) {
-    console.error("❌ Fehler beim Phoenix Runde Crawling:", error);
+    console.error("❌ Fehler beim Phoenix Persönlich Crawling:", error);
     return {
-      message: "Fehler beim Phoenix Runde Crawling",
+      message: "Fehler beim Phoenix Persönlich Crawling",
       status: 500,
     };
   } finally {
