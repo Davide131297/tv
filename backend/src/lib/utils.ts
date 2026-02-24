@@ -12,7 +12,7 @@ const googleModel = process.env.GOOGLE_AI_MODEL || "gemini-2.0-flash";
 
 function getVertexAI(): VertexAI {
   if (!vertexAI) {
-    const projectId = process.env.GOOGLE_CLOUD_PROJECT;
+    const projectId = "polittalk-watcher";
 
     vertexAI = new VertexAI({
       project: projectId,
