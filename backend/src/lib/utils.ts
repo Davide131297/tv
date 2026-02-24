@@ -180,24 +180,47 @@ export async function getPoliticalArea(
   try {
     console.log("🤖 Erkenne Themen der Episode");
 
-    const generativeModel = getVertexAI().getGenerativeModel({
-      model: googleModel,
-      systemInstruction: {
-        role: "system",
-        parts: [
-          {
-            text: "Du antwortest nur mit einem gültigen JSON Array von numbers (z.B. [1,2,...]). Keine zusätzlichen Zeichen.",
-          },
-        ],
-      },
-    });
+    let content = "";
 
-    const result = await generativeModel.generateContent({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-    });
+    if (process.env.LokalLLM === "true") {
+      console.log("🔌 Verwende lokales LLM (LM Studio)");
+      const response = await axios.post(
+        "http://127.0.0.1:1234/v1/chat/completions",
+        {
+          model: "local-model",
+          messages: [
+            {
+              role: "system",
+              content:
+                "Du antwortest nur mit einem gültigen JSON Array von numbers (z.B. [1,2,...]). Keine zusätzlichen Zeichen.",
+            },
+            { role: "user", content: prompt },
+          ],
+          temperature: 0.1,
+        },
+      );
+      content = response.data.choices[0].message.content.trim();
+    } else {
+      const generativeModel = getVertexAI().getGenerativeModel({
+        model: googleModel,
+        systemInstruction: {
+          role: "system",
+          parts: [
+            {
+              text: "Du antwortest nur mit einem gültigen JSON Array von numbers (z.B. [1,2,...]). Keine zusätzlichen Zeichen.",
+            },
+          ],
+        },
+      });
 
-    const content =
-      result.response.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+      const result = await generativeModel.generateContent({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+      });
+
+      content =
+        result.response.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ??
+        "";
+    }
 
     try {
       const parsed = JSON.parse(content);
@@ -607,24 +630,46 @@ Gib mir die Namen der Gäste im Text ausschließlich als JSON Array mit Strings 
       `🤖 Extrahiere Gäste mit AI (Request ${aiRequestCount}/150)...`,
     );
 
-    const generativeModel = getVertexAI().getGenerativeModel({
-      model: googleModel,
-      systemInstruction: {
-        role: "system",
-        parts: [
-          {
-            text: 'Du extrahierst ausschließlich Personennamen und antwortest nur mit einem gültigen JSON Array von Strings (z.B. ["Name1","Name2",...]). Keine zusätzlichen Zeichen.',
-          },
-        ],
-      },
-    });
+    let content = "";
 
-    const result = await generativeModel.generateContent({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-    });
+    if (process.env.LokalLLM === "true") {
+      console.log("🔌 Verwende lokales LLM (LM Studio)");
+      const response = await axios.post(
+        "http://127.0.0.1:1234/v1/chat/completions",
+        {
+          model: "local-model",
+          messages: [
+            {
+              role: "system",
+              content:
+                'Du extrahierst ausschließlich Personennamen und antwortest nur mit einem gültigen JSON Array von Strings (z.B. ["Name1","Name2",...]). Keine zusätzlichen Zeichen.',
+            },
+            { role: "user", content: prompt },
+          ],
+          temperature: 0.1,
+        },
+      );
+      content = response.data.choices[0].message.content;
+    } else {
+      const generativeModel = getVertexAI().getGenerativeModel({
+        model: googleModel,
+        systemInstruction: {
+          role: "system",
+          parts: [
+            {
+              text: 'Du extrahierst ausschließlich Personennamen und antwortest nur mit einem gültigen JSON Array von Strings (z.B. ["Name1","Name2",...]). Keine zusätzlichen Zeichen.',
+            },
+          ],
+        },
+      });
 
-    const content =
-      result.response.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+      const result = await generativeModel.generateContent({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+      });
+
+      content =
+        result.response.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    }
 
     const arrayMatch = content.match(/\[[\s\S]*\]/);
     if (arrayMatch) {
