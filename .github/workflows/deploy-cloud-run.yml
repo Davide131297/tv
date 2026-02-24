@@ -63,4 +63,4 @@ jobs:
             --no-allow-unauthenticated \
             --port=8080 \
             --set-env-vars="NODE_ENV=production" \
-            --update-secrets="SUPABASE_URL=SUPABASE_URL:latest,SUPABASE_ANON_KEY=SUPABASE_ANON_KEY:latest,GOOGLE_CLOUD_PROJECT=GOOGLE_CLOUD_PROJECT:latest,GOOGLE_AI_MODEL=GOOGLE_AI_MODEL:latest"
+            --update-secrets="SUPABASE_URL=SUPABASE_URL:latest,SUPABASE_ANON_KEY=SUPABASE_ANON_KEY:latest"
