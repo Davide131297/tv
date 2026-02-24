@@ -6,17 +6,18 @@ import axios from "axios";
 
 dotenv.config();
 
-// Google GenAI setup (Lazy Initialization)
+// Google GenAI setup mit Vertex AI (Lazy Initialization)
 let ai: GoogleGenAI | null = null;
-const googleModel = process.env.GOOGLE_AI_MODEL || "gemini-2.5-flash";
+const googleModel = process.env.GOOGLE_AI_MODEL || "gemini-2.0-flash";
 
 function getGenAI(): GoogleGenAI {
   if (!ai) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error("GEMINI_API_KEY environment variable is not set");
+    const project = process.env.GOOGLE_CLOUD_PROJECT;
+    const location = "europe-west1";
+    if (!project) {
+      throw new Error("GOOGLE_CLOUD_PROJECT environment variable is not set");
     }
-    ai = new GoogleGenAI({ apiKey });
+    ai = new GoogleGenAI({ vertexai: true, project, location });
   }
   return ai;
 }
