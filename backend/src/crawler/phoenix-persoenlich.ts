@@ -75,7 +75,7 @@ export default async function CrawlPhoenixPersönlich() {
     }
 
     // Extrahiere alle Episoden mit ihren URLs und Daten
-    const episodes = await page.evaluate(() => {
+    const episodes: Array<{ url: string; title: string; date: string }> = await page.evaluate(() => {
       const episodeElements = document.querySelectorAll(
         'div[phnx-teaser][teaser="teaser"]',
       );

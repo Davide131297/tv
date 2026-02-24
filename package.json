@@ -6,7 +6,8 @@
     "frontend": "cd frontend && npm run dev",
     "backend": "cd backend && npm run dev",
     "prepare": "husky",
-    "test-frontend": "cd frontend && npm run lint && npm run ts-check"
+    "test-frontend": "cd frontend && npm run lint && npm run ts-check",
+    "test-backend": "cd backend && npm run build"
   },
   "keywords": [],
   "author": "",
