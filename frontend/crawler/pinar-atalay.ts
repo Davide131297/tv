@@ -30,11 +30,7 @@ function getEpisodeDateFromNumber(episodeNumber: number): string {
 
 // Haupt-Crawler-Funktion
 export default async function CrawlPinarAtalay() {
-  console.log("🚀 Starte Pinar Atalay Crawler...");
-  console.log(`📅 Datum: ${new Date().toISOString()}`);
-
   const latestDbDate = await getLatestEpisodeDate("Pinar Atalay");
-  console.log(`🗃️  Letzte Episode in DB: ${latestDbDate || "Keine"}`);
 
   const browser = await createBrowser();
 
@@ -45,12 +41,10 @@ export default async function CrawlPinarAtalay() {
     // Warte auf die Episode-Liste
     await page.waitForSelector(".episode-list", { timeout: 15000 });
 
-    console.log("🔍 Extrahiere Episode-Links und Beschreibungen...");
-
     // Extrahiere alle Episoden mit ihren Beschreibungen
     const episodes = await page.evaluate(() => {
       const episodeElements = document.querySelectorAll(
-        "watch-episode-list-teaser"
+        "watch-episode-list-teaser",
       );
       const results: Array<{
         url: string;
@@ -61,7 +55,7 @@ export default async function CrawlPinarAtalay() {
 
       for (const episode of episodeElements) {
         const linkElement = episode.querySelector(
-          "a.series-teaser__link"
+          "a.series-teaser__link",
         ) as HTMLAnchorElement;
         if (!linkElement) continue;
 
@@ -87,10 +81,7 @@ export default async function CrawlPinarAtalay() {
       return results;
     });
 
-    console.log(`📺 ${episodes.length} Episoden gefunden`);
-
     if (episodes.length === 0) {
-      console.log("❌ Keine Episoden gefunden");
       return {
         message: "Keine Episoden gefunden",
         status: 404,
@@ -101,13 +92,10 @@ export default async function CrawlPinarAtalay() {
     let filteredEpisodes = episodes;
     if (latestDbDate) {
       filteredEpisodes = episodes.filter((ep) => {
-        if (!ep.episodeNumber) return true; // Wenn keine Episode-Nummer, behalte sie
+        if (!ep.episodeNumber) return true;
         const episodeDate = getEpisodeDateFromNumber(ep.episodeNumber);
         return episodeDate > latestDbDate;
       });
-      console.log(
-        `Nach Datum-Filter: ${filteredEpisodes.length}/${episodes.length} URLs (nur neuer als ${latestDbDate})`
-      );
     }
 
     if (filteredEpisodes.length === 0) {
@@ -133,25 +121,11 @@ export default async function CrawlPinarAtalay() {
         ? getEpisodeDateFromNumber(episode.episodeNumber)
         : new Date().toISOString().split("T")[0];
 
-      console.log(
-        `\n🎬 [${i + 1}/${filteredEpisodes.length}] Verarbeite Episode: ${
-          episode.title
-        } (${episodeDate})`
-      );
-      console.log(
-        `📝 Beschreibung: ${episode.description.substring(0, 100)}...`
-      );
-
       try {
         // Extrahiere Gäste mit AI
         const guestNames = await extractGuestsWithAI(episode.description);
 
-        if (guestNames.length === 0) {
-          console.log("   ❌ Keine Gäste gefunden");
-          continue;
-        }
-
-        console.log(`👥 Gefundene Gäste: ${guestNames.join(", ")}`);
+        if (guestNames.length === 0) continue;
 
         // Analysiere politische Themen
         const politicalAreaIds = await getPoliticalArea(episode.description);
@@ -159,8 +133,6 @@ export default async function CrawlPinarAtalay() {
         // Prüfe jeden Gast auf Politiker-Status
         const politicians = [];
         for (const guestName of guestNames) {
-          console.log(`   🔍 Prüfe: ${guestName}`);
-
           const details = await checkPolitician(guestName);
 
           if (
@@ -168,24 +140,28 @@ export default async function CrawlPinarAtalay() {
             details.politicianId &&
             details.politicianName
           ) {
-            console.log(
-              `      ✅ Politiker: ${details.politicianName} (ID ${
-                details.politicianId
-              }), Partei: ${details.partyName || "unbekannt"}`
-            );
             politicians.push({
               politicianId: details.politicianId,
               politicianName: details.politicianName,
               partyId: details.party,
               partyName: details.partyName,
             });
-          } else {
-            console.log(`      ❌ Kein Politiker`);
           }
 
           // Pause zwischen API-Calls
           await new Promise((resolve) => setTimeout(resolve, 300));
         }
+
+        // Log: Datum + Gäste + Politiker
+        console.log(
+          `📅 ${episodeDate} | 👥 ${guestNames.join(", ")}${
+            politicians.length > 0
+              ? ` | ✅ Politiker: ${politicians
+                  .map((p) => `${p.politicianName} (${p.partyName || "?"})`)
+                  .join(", ")}`
+              : ""
+          }`,
+        );
 
         // Speichere Politiker
         if (politicians.length > 0) {
@@ -193,23 +169,14 @@ export default async function CrawlPinarAtalay() {
             "NTV",
             "Pinar Atalay",
             episodeDate,
-            politicians
+            politicians,
           );
-
           totalPoliticiansInserted += inserted;
           episodesWithPoliticians++;
-
-          console.log(
-            `   💾 ${inserted}/${politicians.length} Politiker gespeichert`
-          );
-
-          // Füge Episode-URL zur Liste hinzu
           episodeLinksToInsert.push({
             episodeUrl: episode.url,
             episodeDate: episodeDate,
           });
-        } else {
-          console.log(`   📝 Keine Politiker in dieser Episode`);
         }
 
         // Speichere politische Themenbereiche
@@ -217,17 +184,14 @@ export default async function CrawlPinarAtalay() {
           const insertedAreas = await insertEpisodePoliticalAreas(
             "Pinar Atalay",
             episodeDate,
-            politicalAreaIds
+            politicalAreaIds,
           );
           totalPoliticalAreasInserted += insertedAreas;
-          console.log(
-            `   🏛️  ${insertedAreas}/${politicalAreaIds.length} Themenbereiche gespeichert`
-          );
         }
       } catch (error) {
         console.error(
           `❌ Fehler beim Verarbeiten von Episode ${episode.title}:`,
-          error
+          error,
         );
       }
     }
@@ -236,19 +200,15 @@ export default async function CrawlPinarAtalay() {
     if (episodeLinksToInsert.length > 0) {
       totalEpisodeLinksInserted = await insertMultipleShowLinks(
         "Pinar Atalay",
-        episodeLinksToInsert
-      );
-      console.log(
-        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`
+        episodeLinksToInsert,
       );
     }
 
-    console.log(`\n🎉 Pinar Atalay Crawl abgeschlossen!`);
-    console.log(`📊 Episoden verarbeitet: ${filteredEpisodes.length}`);
-    console.log(`📺 Episoden mit Politikern: ${episodesWithPoliticians}`);
-    console.log(`👥 Politiker eingefügt: ${totalPoliticiansInserted}`);
-    console.log(`🏛️  Themenbereiche eingefügt: ${totalPoliticalAreasInserted}`);
-    console.log(`📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
+    console.log(`\n=== Pinar Atalay Zusammenfassung ===`);
+    console.log(`Episoden verarbeitet: ${filteredEpisodes.length}`);
+    console.log(`Politiker eingefügt: ${totalPoliticiansInserted}`);
+    console.log(`Themenbereiche eingefügt: ${totalPoliticalAreasInserted}`);
+    console.log(`Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
 
     return {
       message: "Pinar Atalay Crawling erfolgreich",

@@ -26,28 +26,21 @@ const LIST_URL = `https://www.zdf.de/talk/markus-lanz-114?staffel=$%7BcurrentYea
 async function clickLoadMoreUntilDone(
   page: Page,
   latestDbDate: string | null,
-  maxClicks = 100, // Erhöht von 50 auf 100 für mehr Episoden
+  maxClicks = 100,
 ) {
-  console.log("Beginne mit intelligentem Laden der Episoden...");
-
-  // Warte erstmal dass die Seite vollständig geladen ist
   await page.waitForSelector("main", { timeout: 15000 }).catch(() => {});
 
-  // Initial count
   let currentCount = await page.$$eval(
     'a[href^="/video/talk/markus-lanz-114/"]',
     (els) => els.length,
   );
-  console.log(`Initiale Episoden: ${currentCount}`);
 
-  // Prüfe die Daten der sichtbaren Episoden
   if (latestDbDate) {
     const currentUrls = await page.$$eval(
       'a[href^="/video/talk/markus-lanz-114/"]',
       (as) => as.map((a) => (a as HTMLAnchorElement).href),
     );
 
-    let newerEpisodesCount = 0;
     let oldestVisibleDate: string | null = null;
 
     for (const url of currentUrls) {
@@ -56,52 +49,27 @@ async function clickLoadMoreUntilDone(
         if (!oldestVisibleDate || urlDate < oldestVisibleDate) {
           oldestVisibleDate = urlDate;
         }
-        if (urlDate > latestDbDate) {
-          newerEpisodesCount++;
-        }
       }
     }
 
-    console.log(`Bereits ${newerEpisodesCount} neue Episoden sichtbar`);
-    console.log(`Älteste sichtbare Episode: ${oldestVisibleDate}`);
-    console.log(`Neueste DB-Episode: ${latestDbDate}`);
-
-    // Prüfe ob wir schon bis zum 07.01.2025 oder dem DB-Datum zurück sind
     if (oldestVisibleDate && oldestVisibleDate <= latestDbDate) {
-      console.log(
-        "✅ Bereits bis zur neuesten DB-Episode geladen - überspringe weiteres Laden",
-      );
       return;
     }
-
-    // Wenn wir noch nicht weit genug zurück sind, weiterladen
-    console.log(
-      "� Noch nicht alle relevanten Episoden geladen - lade weitere...",
-    );
   }
 
   for (let i = 0; i < maxClicks; i++) {
-    console.log(`\n--- Versuch ${i + 1} ---`);
-
-    // Scroll bis zum Ende
     await page.evaluate(() => {
       window.scrollTo(0, document.body.scrollHeight);
     });
 
-    // Warte ein bisschen
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    // Prüfe ob der "Mehr laden" Button da ist
     const hasButton = await page.$('[data-testid="pagination-button"]');
 
     if (hasButton) {
-      console.log("Mehr-laden Button gefunden - versuche zu klicken");
-
-      // Scroll zum Button
       await hasButton.scrollIntoView();
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // Klicke den Button und warte auf GraphQL Response
       try {
         const [response] = await Promise.all([
           page.waitForResponse(
@@ -112,18 +80,13 @@ async function clickLoadMoreUntilDone(
           ),
           hasButton.click(),
         ]);
-        console.log(`Netzwerk-Response: ${response.status()}`);
+        void response;
       } catch {
-        console.log("Button-Klick ohne Response - versuche trotzdem");
         await hasButton.click();
       }
 
-      // Warte auf neue Inhalte
       await new Promise((resolve) => setTimeout(resolve, 3000));
     } else {
-      console.log("Kein Mehr-laden Button gefunden");
-
-      // Versuche einfach weiter zu scrollen für lazy loading
       for (let scroll = 0; scroll < 5; scroll++) {
         await page.evaluate(() => {
           window.scrollBy(0, window.innerHeight);
@@ -132,21 +95,17 @@ async function clickLoadMoreUntilDone(
       }
     }
 
-    // Prüfe neue Anzahl
     const newCount = await page.$$eval(
       'a[href^="/video/talk/markus-lanz-114/"]',
       (els) => els.length,
     );
-    console.log(`Episode-Count: ${currentCount} -> ${newCount}`);
 
-    // Nach dem Laden: Prüfe ob wir jetzt weit genug zurück sind
     if (latestDbDate && newCount > currentCount) {
       const currentUrls = await page.$$eval(
         'a[href^="/video/talk/markus-lanz-114/"]',
         (as) => as.map((a) => (a as HTMLAnchorElement).href),
       );
 
-      let newerEpisodesCount = 0;
       let oldestVisibleDate: string | null = null;
 
       for (const url of currentUrls) {
@@ -155,31 +114,15 @@ async function clickLoadMoreUntilDone(
           if (!oldestVisibleDate || urlDate < oldestVisibleDate) {
             oldestVisibleDate = urlDate;
           }
-          if (urlDate > latestDbDate) {
-            newerEpisodesCount++;
-          }
         }
       }
 
-      console.log(`Aktuell ${newerEpisodesCount} neue Episoden sichtbar`);
-      console.log(`Älteste sichtbare Episode: ${oldestVisibleDate}`);
-
-      // Stoppe nur wenn wir bis zur DB-Episode oder weiter zurück geladen haben
       if (oldestVisibleDate && oldestVisibleDate <= latestDbDate) {
-        console.log(
-          `✅ Alle relevanten Episoden geladen (bis ${oldestVisibleDate}) - stoppe weitere Suche`,
-        );
         break;
-      } else {
-        console.log(
-          `🔄 Noch nicht weit genug zurück (${oldestVisibleDate} > ${latestDbDate}) - lade weitere...`,
-        );
       }
     }
 
     if (newCount <= currentCount) {
-      console.log("Keine neuen Episoden - versuche weiter");
-      // Noch ein bisschen warten für lazy loading
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
       const finalCheck = await page.$$eval(
@@ -187,21 +130,13 @@ async function clickLoadMoreUntilDone(
         (els) => els.length,
       );
       if (finalCheck <= currentCount) {
-        console.log(`Definitiv keine neuen Episoden. Höre auf.`);
         break;
       }
       currentCount = finalCheck;
     } else {
       currentCount = newCount;
-      console.log(`✓ Neue Episoden geladen! Gesamt: ${currentCount}`);
     }
   }
-
-  const finalCount = await page.$$eval(
-    'a[href^="/video/talk/markus-lanz-114/"]',
-    (els) => els.length,
-  );
-  console.log(`Laden beendet. Insgesamt ${finalCount} Episoden gefunden.`);
 }
 
 async function collectEpisodeLinks(page: Page) {
@@ -224,10 +159,8 @@ async function extractGuestsFromEpisode(
   });
   await page.waitForSelector("main", { timeout: 15000 }).catch(() => {});
 
-  // Sanft scrollen, um Lazy-Content zu triggern
   await gentleScroll(page);
 
-  // Primär: typische Gäste-Sektion - jetzt mit Rollen
   let guestsWithRoles: GuestWithRole[] = await page
     .$$eval('section[tabindex="0"] p b, section.tdeoflm p b', (els) =>
       Array.from(
@@ -235,7 +168,7 @@ async function extractGuestsFromEpisode(
           els
             .map((el) => (el.textContent || "").replace(/\s+/g, " ").trim())
             .filter(Boolean)
-            .filter((t) => t.includes(",")) // "Name, Rolle"
+            .filter((t) => t.includes(","))
             .map((t) => {
               const parts = t.split(",");
               return {
@@ -248,7 +181,6 @@ async function extractGuestsFromEpisode(
     )
     .catch(() => []);
 
-  // Fallback 1: alle <b> unter <main>, streng filtern
   if (!guestsWithRoles.length) {
     guestsWithRoles = await page
       .$$eval("main b", (els) =>
@@ -271,7 +203,6 @@ async function extractGuestsFromEpisode(
       .catch(() => []);
   }
 
-  // Fallback 2: alt-Text des großen Bildes (dort stehen oft die Namen, kommasepariert)
   if (!guestsWithRoles.length) {
     const alt = await page
       .$eval(
@@ -289,12 +220,10 @@ async function extractGuestsFromEpisode(
     }
   }
 
-  // final: Heuristik und Duplikat-Entfernung
   const filteredGuests = guestsWithRoles.filter((guest) =>
     seemsLikePersonName(guest.name),
   );
 
-  // Entferne Duplikate basierend auf Namen
   const uniqueGuests = filteredGuests.reduce(
     (acc: GuestWithRole[], current) => {
       const existing = acc.find((guest) => guest.name === current.name);
@@ -315,12 +244,11 @@ async function extractPoliticalAreaIds(
   page: Page,
 ): Promise<number[] | [] | null> {
   try {
-    // Mehrere Selektoren versuchen für die Episode-Beschreibung
     const selectors = [
       'p[data-testid="short-description"]',
       "p.daltwma",
-      "p.dfv1fla", // Fallback aus dem HTML
-      "section p:not(:empty)", // Allgemeiner Fallback
+      "p.dfv1fla",
+      "section p:not(:empty)",
     ];
 
     let description: string | null = null;
@@ -329,7 +257,6 @@ async function extractPoliticalAreaIds(
       description = await page
         .$eval(selector, (el) => {
           const text = (el.textContent || "").trim();
-          // Filtere sehr kurze oder generische Texte aus
           if (
             text.length < 20 ||
             text.includes("Abspielen") ||
@@ -342,7 +269,7 @@ async function extractPoliticalAreaIds(
         .catch(() => null);
 
       if (description) {
-        break; // Beende die Schleife sofort
+        break;
       }
     }
 
@@ -359,11 +286,7 @@ async function extractPoliticalAreaIds(
 }
 
 export default async function CrawlLanz() {
-  // Hole das Datum der neuesten Episode aus der DB
   const latestEpisodeDate = await getLatestEpisodeDate("Markus Lanz");
-  console.log(
-    `Neueste Episode in DB: ${latestEpisodeDate || "Keine vorhanden"}`,
-  );
 
   const browser = await createBrowser();
 
@@ -371,36 +294,27 @@ export default async function CrawlLanz() {
     const page = await setupSimplePage(browser);
     await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 60000 });
 
-    // Cookie-Banner akzeptieren falls vorhanden
     await acceptCookieBanner(page);
 
     await clickLoadMoreUntilDone(page, latestEpisodeDate);
 
     const episodeUrls = await collectEpisodeLinks(page);
-    console.log(`Gefundene Episode-URLs: ${episodeUrls.length}`);
 
     if (!episodeUrls.length) {
-      console.warn("Keine Episoden-Links gefunden (clientseitig).");
       return {
         message: "Keine Episoden-Links gefunden",
         status: 404,
       };
     }
 
-    // Filtere URLs nach Datum - nur neuere als die neueste in der DB
     let filteredUrls = episodeUrls;
     if (latestEpisodeDate) {
       filteredUrls = episodeUrls.filter((url) => {
         const urlDate = parseISODateFromUrl(url);
-        // Nur Episoden crawlen die neuer sind als die neueste in der DB
         return urlDate && urlDate > latestEpisodeDate;
       });
       console.log(
         `Nach Datum-Filter: ${filteredUrls.length}/${episodeUrls.length} URLs (nur neuer als ${latestEpisodeDate})`,
-      );
-    } else {
-      console.log(
-        "Keine neueste Episode in DB gefunden - crawle alle Episoden",
       );
     }
 
@@ -412,28 +326,13 @@ export default async function CrawlLanz() {
       };
     }
 
-    // Debug: zeige die ersten paar URLs und Daten
-    console.log("Erste 5 zu crawlende Episode-URLs:");
-    filteredUrls.slice(0, 5).forEach((url, i) => {
-      console.log(`${i + 1}. ${url}`);
-      const dateFromUrl = parseISODateFromUrl(url);
-      if (dateFromUrl) console.log(`   -> Datum aus URL: ${dateFromUrl}`);
-    });
-
-    // Dedup nach Datum
     const byDate = new Map<string, EpisodeResult>();
 
-    // Verarbeite Episoden in kleinen Batches um nicht zu viele Browser-Tabs zu öffnen
     const batchSize = 3;
     const results: EpisodeResult[] = [];
 
     for (let i = 0; i < filteredUrls.length; i += batchSize) {
       const batch = filteredUrls.slice(i, i + batchSize);
-      console.log(
-        `Verarbeite Batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(
-          filteredUrls.length / batchSize,
-        )} (${batch.length} Episoden)`,
-      );
 
       const batchResults = await Promise.all(
         batch.map(async (url) => {
@@ -445,17 +344,32 @@ export default async function CrawlLanz() {
               extractPoliticalAreaIds(p),
             ]);
 
-            // Politiker-Check je Gast (sequentiell um API-Limits zu respektieren)
             const guestsDetailed: GuestDetails[] = [];
             for (const guest of guests) {
               const details = await checkPolitician(guest.name, guest.role);
               guestsDetailed.push(details);
-              // Kleine Pause zwischen API-Calls
               await new Promise((resolve) => setTimeout(resolve, 200));
             }
 
-            // Konvertiere GuestWithRole[] zu string[] für Backwards-Kompatibilität
             const guestNames = guests.map((g) => g.name);
+
+            // Log: Datum + Gäste + gefundene Politiker
+            if (date) {
+              const foundPoliticians = guestsDetailed.filter(
+                (g) => g.isPolitician && g.politicianId,
+              );
+              console.log(
+                `📅 ${date} | 👥 ${guestNames.join(", ")}${
+                  foundPoliticians.length > 0
+                    ? ` | ✅ Politiker: ${foundPoliticians
+                        .map(
+                          (p) => `${p.politicianName} (${p.partyName || "?"})`,
+                        )
+                        .join(", ")}`
+                    : ""
+                }`,
+              );
+            }
 
             const res: EpisodeResult = {
               episodeUrl: url,
@@ -465,7 +379,6 @@ export default async function CrawlLanz() {
               politicalAreaIds: politicalAreaIds || [],
             };
 
-            // Dedup: pro Datum nur ein Eintrag, ggf. den mit mehr Gästen behalten
             if (date) {
               const prev = byDate.get(date);
               if (!prev || guestNames.length > prev.guests.length) {
@@ -490,7 +403,6 @@ export default async function CrawlLanz() {
 
       results.push(...batchResults);
 
-      // Kurze Pause zwischen Batches
       if (i + batchSize < filteredUrls.length) {
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
@@ -499,7 +411,6 @@ export default async function CrawlLanz() {
     const finalResults =
       byDate.size > 0 ? Array.from(byDate.values()) : results;
 
-    // Sortiere nach Datum (neueste zuerst)
     finalResults.sort((a: EpisodeResult, b: EpisodeResult) => {
       if (!a.date && !b.date) return 0;
       if (!a.date) return 1;
@@ -507,51 +418,14 @@ export default async function CrawlLanz() {
       return b.date.localeCompare(a.date);
     });
 
-    console.log(`\n=== Crawling-Zusammenfassung ===`);
-    console.log(`Gesamte URLs gefunden: ${episodeUrls.length}`);
-    console.log(`Nach Filter (nur neue): ${filteredUrls.length}`);
-    console.log(`Erfolgreich gecrawlt: ${finalResults.length}`);
-    console.log(
-      `Episoden mit Datum: ${
-        finalResults.filter((r: EpisodeResult) => r.date).length
-      }`,
-    );
-    if (latestEpisodeDate) {
-      console.log(`Neueste DB-Episode vor Crawl: ${latestEpisodeDate}`);
-    }
-    console.log(
-      `Neueste gecrawlte Episode: ${finalResults[0]?.date || "Kein Datum"}`,
-    );
-    console.log(
-      `Älteste gecrawlte Episode: ${
-        finalResults[finalResults.length - 1]?.date || "Kein Datum"
-      }`,
-    );
-
-    // Zeige 2025 Episoden
-    const episodes2025 = finalResults.filter((r: EpisodeResult) =>
-      r.date?.startsWith("2025"),
-    );
-    console.log(`\n2025 Episoden: ${episodes2025.length}`);
-    if (episodes2025.length > 0) {
-      console.log(
-        `Erste 2025 Episode: ${episodes2025[episodes2025.length - 1]?.date}`,
-      );
-      console.log(`Letzte 2025 Episode: ${episodes2025[0]?.date}`);
-    }
-
-    // Speichere politische Gäste in der Datenbank
-    console.log(`\n=== Speichere Daten in Datenbank ===`);
     let totalPoliticiansInserted = 0;
     let totalPoliticalAreasInserted = 0;
     let totalEpisodeLinksInserted = 0;
     let episodesWithPoliticians = 0;
 
-    // Sammle Episode-URLs nur von Episoden mit politischen Gästen für Batch-Insert
     const episodeLinksToInsert = finalResults
       .filter((episode) => {
         if (!episode.date) return false;
-        // Prüfe ob Episode politische Gäste hat
         const hasPoliticians = episode.guestsDetailed.some(
           (guest) => guest.isPolitician && guest.politicianId,
         );
@@ -562,24 +436,16 @@ export default async function CrawlLanz() {
         episodeDate: episode.date!,
       }));
 
-    // Speichere Episode-URLs
     if (episodeLinksToInsert.length > 0) {
       totalEpisodeLinksInserted = await insertMultipleShowLinks(
         "Markus Lanz",
         episodeLinksToInsert,
       );
-      console.log(
-        `Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`,
-      );
     }
 
     for (const episode of finalResults) {
-      if (!episode.date) {
-        console.log(`Überspringe Episode ohne Datum: ${episode.episodeUrl}`);
-        continue;
-      }
+      if (!episode.date) continue;
 
-      // Filtere nur Politiker heraus
       const politicians = episode.guestsDetailed
         .filter((guest) => guest.isPolitician && guest.politicianId)
         .map((guest) => ({
@@ -589,7 +455,6 @@ export default async function CrawlLanz() {
           partyName: guest.partyName,
         }));
 
-      // Speichere Politiker
       if (politicians.length > 0) {
         const inserted = await insertMultipleTvShowPoliticians(
           "ZDF",
@@ -600,13 +465,8 @@ export default async function CrawlLanz() {
 
         totalPoliticiansInserted += inserted;
         episodesWithPoliticians++;
-
-        console.log(
-          `${episode.date}: ${inserted}/${politicians.length} Politiker eingefügt`,
-        );
       }
 
-      // Speichere politische Themenbereiche
       if (episode.politicalAreaIds && episode.politicalAreaIds.length > 0) {
         const insertedAreas = await insertEpisodePoliticalAreas(
           "Markus Lanz",
@@ -615,10 +475,6 @@ export default async function CrawlLanz() {
         );
 
         totalPoliticalAreasInserted += insertedAreas;
-
-        console.log(
-          `${episode.date}: ${insertedAreas}/${episode.politicalAreaIds.length} Themenbereiche eingefügt`,
-        );
       }
     }
 

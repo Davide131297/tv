@@ -25,7 +25,6 @@ async function waitForRateLimit(): Promise<void> {
 
   if (timeSinceLastRequest < REQUEST_DELAY_MS) {
     const waitTime = REQUEST_DELAY_MS - timeSinceLastRequest;
-    console.log(`   ⏱️ Warte ${waitTime}ms wegen Rate Limit...`);
     await new Promise((resolve) => setTimeout(resolve, waitTime));
   }
 
@@ -34,13 +33,11 @@ async function waitForRateLimit(): Promise<void> {
 }
 
 function extractGuestsFallback(teaserText: string): string[] {
-  console.log("🔄 Verwende Fallback-Gästeextraktion...");
-
   // Entferne "Caren Miosga mit" und ähnliche Prefixe
   let cleanText = teaserText
     .replace(
       /^.*?Caren Miosga (?:mit|spricht mit|diskutiert mit|im Gespräch mit)\s*/i,
-      ""
+      "",
     )
     .replace(/\s*\|\s*mehr\s*$/i, "");
 
@@ -103,7 +100,7 @@ function extractGuestsFallback(teaserText: string): string[] {
   // Entferne Artikel
   cleanText = cleanText.replace(
     /\b(?:der|die|das|dem|den|eines?|einer)\s+/gi,
-    ""
+    "",
   );
 
   // Entferne Parteiangaben in Klammern
@@ -169,17 +166,13 @@ function extractGuestsFallback(teaserText: string): string[] {
   // Deduplizierung
   const uniqueGuests = [...new Set(guests)];
 
-  console.log(
-    `   ✅ Fallback extrahierte ${uniqueGuests.length} Gäste:`,
-    uniqueGuests
-  );
   return uniqueGuests;
 }
 
 // Hilfsfunktion: Hole detaillierte Beschreibung von der Episodenseite
 async function getEpisodeDetailedDescription(
   page: Page,
-  episodeUrl: string
+  episodeUrl: string,
 ): Promise<string> {
   try {
     await page.goto(episodeUrl, { waitUntil: "networkidle2", timeout: 30000 });
@@ -188,7 +181,7 @@ async function getEpisodeDetailedDescription(
     const description = await page.evaluate(() => {
       // Suche nach der Episodenbeschreibung im spezifischen Container
       const descriptionElement = document.querySelector(
-        "p.b1ja19fa.b11cvmny.b1np0qjg"
+        "p.b1ja19fa.b11cvmny.b1np0qjg",
       );
 
       if (descriptionElement) {
@@ -220,13 +213,12 @@ async function getEpisodeDetailedDescription(
     if (description && description.length > 20) {
       return description;
     } else {
-      console.log(`   ⚠️ Keine aussagekräftige Beschreibung gefunden`);
       return "";
     }
   } catch (error) {
     console.error(
       `❌ Fehler beim Laden der Miosga Episodenseite ${episodeUrl}:`,
-      error
+      error,
     );
     return "";
   }
@@ -246,13 +238,10 @@ function parseISODateFromArdHtml(dateText: string): string | null {
 // Extrahiere nur NEUE Episode-Links (crawlt nur bis zum letzten bekannten Datum)
 async function getNewEpisodeLinks(
   page: Page,
-  latestDbDate: string | null
+  latestDbDate: string | null,
 ): Promise<
   Array<{ url: string; date: string; title: string; guests: GuestWithRole[] }>
 > {
-  console.log("🔍 Lade nur neue Caren Miosga Episode-Links...");
-  console.log(`🗓️  Suche nach Episoden seit: ${latestDbDate || "Beginn"}`);
-
   await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 60000 });
 
   // Cookie-Banner akzeptieren falls vorhanden
@@ -261,11 +250,8 @@ async function getNewEpisodeLinks(
       timeout: 5000,
     });
     await page.click('button:contains("Akzeptieren")');
-    console.log("Cookie-Banner akzeptiert");
     await new Promise((resolve) => setTimeout(resolve, 2000));
-  } catch {
-    console.log("Kein Cookie-Banner gefunden oder bereits akzeptiert");
-  }
+  } catch {}
 
   // Warte auf die Episode-Liste
   await page.waitForSelector('[itemprop="itemListElement"]', {
@@ -284,8 +270,6 @@ async function getNewEpisodeLinks(
   const maxPages = 20; // Sicherheitslimit
 
   while (!foundKnownEpisode && pageNumber <= maxPages) {
-    console.log(`📄 Crawle Seite ${pageNumber} nach neuen Episoden...`);
-
     // Extrahiere Episode-Informationen von der aktuellen Seite
     const currentPageEpisodes = await page.evaluate(() => {
       const episodes: Array<{
@@ -297,13 +281,13 @@ async function getNewEpisodeLinks(
 
       // Finde alle Episode-Container
       const episodeElements = document.querySelectorAll(
-        '[itemprop="itemListElement"]'
+        '[itemprop="itemListElement"]',
       );
 
       for (const episode of episodeElements) {
         // Suche nach Link
         const linkElement = episode.querySelector(
-          'a[itemprop="url"]'
+          'a[itemprop="url"]',
         ) as HTMLAnchorElement;
         if (!linkElement) continue;
 
@@ -319,7 +303,7 @@ async function getNewEpisodeLinks(
 
         // Extrahiere Beschreibung
         const descriptionElement = episode.querySelector(
-          "p.b1ja19fa.b11cvmny.bicmnlc._suw2zx"
+          "p.b1ja19fa.b11cvmny.bicmnlc._suw2zx",
         );
         const description = descriptionElement?.textContent?.trim() || "";
 
@@ -330,10 +314,6 @@ async function getNewEpisodeLinks(
 
       return episodes;
     });
-
-    console.log(
-      `   📊 ${currentPageEpisodes.length} Episoden auf Seite ${pageNumber}`
-    );
 
     // Prüfe jede Episode auf dieser Seite
     for (const ep of currentPageEpisodes) {
@@ -347,7 +327,6 @@ async function getNewEpisodeLinks(
           : latestDbDate;
 
         if (isoDate <= latestDbDateFormatted) {
-          console.log(`🛑 Erreicht bekannte Episode: ${ep.date} (${ep.title})`);
           foundKnownEpisode = true;
           break;
         }
@@ -360,15 +339,13 @@ async function getNewEpisodeLinks(
         title: ep.title,
         description: ep.description,
       });
-
-      console.log(`   ✅ Neue Episode: ${ep.date} - ${ep.title}`);
     }
 
     // Wenn keine bekannte Episode gefunden und noch Seiten verfügbar
     if (!foundKnownEpisode && pageNumber < maxPages) {
       // Versuche zur nächsten Seite zu navigieren (scrollen für Infinite Scroll)
       const previousEpisodeCount = await page.evaluate(
-        () => document.querySelectorAll('[itemprop="itemListElement"]').length
+        () => document.querySelectorAll('[itemprop="itemListElement"]').length,
       );
 
       // Scrolle nach unten um mehr Episoden zu laden
@@ -379,39 +356,20 @@ async function getNewEpisodeLinks(
       await new Promise((resolve) => setTimeout(resolve, 3000)); // Warte auf Laden
 
       const newEpisodeCount = await page.evaluate(
-        () => document.querySelectorAll('[itemprop="itemListElement"]').length
+        () => document.querySelectorAll('[itemprop="itemListElement"]').length,
       );
 
       if (newEpisodeCount === previousEpisodeCount) {
-        console.log(`📄 Keine weiteren Episoden verfügbar`);
-        break;
       }
 
       pageNumber++;
     }
   }
 
-  if (!latestDbDate) {
-    console.log(
-      `🆕 Keine DB-Episoden vorhanden - alle ${newEpisodes.length} Episoden sind neu`
-    );
-  } else if (foundKnownEpisode) {
-    console.log(
-      `✅ Crawling gestoppt bei bekannter Episode - ${newEpisodes.length} neue Episoden gefunden`
-    );
-  } else {
-    console.log(
-      `⚠️  Limit erreicht - ${newEpisodes.length} Episoden gecrawlt, aber keine bekannte Episode gefunden`
-    );
-  }
-
   // Verarbeite alle neuen Episoden und extrahiere Gäste mit AI
   const episodesWithGuests = [];
   for (let i = 0; i < newEpisodes.length; i++) {
     const ep = newEpisodes[i];
-
-    console.log(`🧑‍💼 Verarbeite Gäste für Episode: ${ep.date} - ${ep.title}`);
-    console.log("Description ist: ", ep.description);
 
     // Verwende AI-Extraktion
     const guests = await extractGuestsWithAI(ep.description);
@@ -448,12 +406,8 @@ function formatDateForDB(dateStr: string): string {
 
 // Hauptfunktion: Crawle nur neue Episoden
 export async function crawlIncrementalCarenMiosgaEpisodes(): Promise<void> {
-  console.log("🚀 Starte inkrementellen Caren Miosga Crawler...");
-  console.log(`📅 Datum: ${new Date().toISOString()}`);
-
   // Hole das letzte Datum aus der DB
   const latestDbDate = await getLatestEpisodeDate("Caren Miosga");
-  console.log(`🗃️  Letzte Episode in DB: ${latestDbDate || "Keine"}`);
 
   const browser = await createBrowser();
 
@@ -468,8 +422,7 @@ export async function crawlIncrementalCarenMiosgaEpisodes(): Promise<void> {
       return;
     }
 
-    console.log(`🆕 Verarbeite ${newEpisodes.length} neue Episoden:`);
-    newEpisodes.forEach((ep) => console.log(`   📺 ${ep.date}: ${ep.title}`));
+    console.log(`${newEpisodes.length} neue Episoden zu verarbeiten`);
 
     let totalPoliticiansInserted = 0;
     let totalEpisodeLinksInserted = 0;
@@ -482,24 +435,12 @@ export async function crawlIncrementalCarenMiosgaEpisodes(): Promise<void> {
     // Verarbeite jede neue Episode
     for (const episode of newEpisodes) {
       try {
-        console.log(
-          `\n🎬 Verarbeite Episode vom ${episode.date}: ${episode.title}`
-        );
-        console.log(
-          `👥 Gefundene Gäste: ${
-            episode.guests.map((g) => g.name).join(", ") || "Keine"
-          }`
-        );
-
-        if (episode.guests.length === 0) {
-          console.log("   ❌ Keine Gäste gefunden");
-          continue;
-        }
+        if (episode.guests.length === 0) continue;
 
         // Hole detaillierte Beschreibung von der Episodenseite
         const detailedDescription = await getEpisodeDetailedDescription(
           page,
-          episode.url
+          episode.url,
         );
 
         // Analysiere politische Themen mit getPoliticalArea (nur wenn detaillierte Beschreibung vorhanden)
@@ -508,8 +449,6 @@ export async function crawlIncrementalCarenMiosgaEpisodes(): Promise<void> {
         // Prüfe jeden Gast auf Politiker-Status
         const politicians = [];
         for (const guest of episode.guests) {
-          console.log(`   🔍 Prüfe: ${guest.name}`);
-
           const details = await checkPolitician(guest.name);
 
           if (
@@ -517,24 +456,29 @@ export async function crawlIncrementalCarenMiosgaEpisodes(): Promise<void> {
             details.politicianId &&
             details.politicianName
           ) {
-            console.log(
-              `      ✅ Politiker: ${details.politicianName} (ID ${
-                details.politicianId
-              }), Partei: ${details.partyName || "unbekannt"}`
-            );
             politicians.push({
               politicianId: details.politicianId,
               politicianName: details.politicianName,
               partyId: details.party,
               partyName: details.partyName,
             });
-          } else {
-            console.log(`      ❌ Kein Politiker`);
           }
 
           // Pause zwischen API-Calls
           await new Promise((resolve) => setTimeout(resolve, 300));
         }
+
+        // Log: Datum + Gäste + Politiker
+        const guestNames = episode.guests.map((g) => g.name);
+        console.log(
+          `📅 ${episode.date} | 👥 ${guestNames.join(", ")}${
+            politicians.length > 0
+              ? ` | ✅ Politiker: ${politicians
+                  .map((p) => `${p.politicianName} (${p.partyName || "?"})`)
+                  .join(", ")}`
+              : ""
+          }`,
+        );
 
         // Speichere Politiker in die Datenbank
         if (politicians.length > 0) {
@@ -542,32 +486,21 @@ export async function crawlIncrementalCarenMiosgaEpisodes(): Promise<void> {
             "ZDF",
             "Caren Miosga",
             formatDateForDB(episode.date),
-            politicians
+            politicians,
           );
-
           totalPoliticiansInserted += inserted;
-          console.log(
-            `   �� ${inserted}/${politicians.length} Politiker gespeichert`
-          );
-
-          // Füge Episode-URL zur Liste hinzu (nur für Episoden mit Politikern)
           episodeLinksToInsert.push({
             episodeUrl: episode.url,
             episodeDate: formatDateForDB(episode.date),
           });
-        } else {
-          console.log(`   📝 Keine Politiker in dieser Episode`);
         }
 
         // Speichere politische Themenbereiche
         if (politicalAreaIds && politicalAreaIds.length > 0) {
-          const insertedAreas = await insertEpisodePoliticalAreas(
+          await insertEpisodePoliticalAreas(
             "Caren Miosga",
             episode.date,
-            politicalAreaIds
-          );
-          console.log(
-            `   🏛️  ${insertedAreas}/${politicalAreaIds.length} Themenbereiche gespeichert`
+            politicalAreaIds,
           );
         }
 
@@ -575,7 +508,7 @@ export async function crawlIncrementalCarenMiosgaEpisodes(): Promise<void> {
       } catch (error) {
         console.error(
           `❌ Fehler beim Verarbeiten von Episode ${episode.date}:`,
-          error
+          error,
         );
       }
     }
@@ -584,17 +517,14 @@ export async function crawlIncrementalCarenMiosgaEpisodes(): Promise<void> {
     if (episodeLinksToInsert.length > 0) {
       totalEpisodeLinksInserted = await insertMultipleShowLinks(
         "Caren Miosga",
-        episodeLinksToInsert
-      );
-      console.log(
-        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`
+        episodeLinksToInsert,
       );
     }
 
-    console.log(`\n🎉 Inkrementeller Caren Miosga Crawl abgeschlossen!`);
-    console.log(`📊 Episoden verarbeitet: ${episodesProcessed}`);
-    console.log(`👥 Politiker eingefügt: ${totalPoliticiansInserted}`);
-    console.log(`📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
+    console.log(`\n=== Caren Miosga Zusammenfassung ===`);
+    console.log(`Episoden verarbeitet: ${episodesProcessed}`);
+    console.log(`Politiker eingefügt: ${totalPoliticiansInserted}`);
+    console.log(`Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
   } finally {
     await browser.close().catch(() => {});
   }
@@ -602,9 +532,6 @@ export async function crawlIncrementalCarenMiosgaEpisodes(): Promise<void> {
 
 // Hauptfunktion: VOLLSTÄNDIGER historischer Crawl NUR 2025 Episoden
 export async function crawlAllCarenMiosgaEpisodes(): Promise<void> {
-  console.log("🚀 Starte VOLLSTÄNDIGEN Caren Miosga Crawler (nur 2025)...");
-  console.log(`📅 Datum: ${new Date().toISOString()}`);
-
   const browser = await createBrowser();
 
   try {
@@ -614,36 +541,24 @@ export async function crawlAllCarenMiosgaEpisodes(): Promise<void> {
     const allEpisodes = await getNewEpisodeLinks(page, null);
 
     if (allEpisodes.length === 0) {
-      console.log("❌ Keine Episode-Links gefunden");
       return;
     }
 
     // Filtere nur Episoden aus 2025
     const episodes2025 = allEpisodes.filter((episode) =>
-      episode.date.startsWith("2025-")
+      episode.date.startsWith("2025-"),
     );
 
-    console.log(`📺 Alle Episoden gefunden: ${allEpisodes.length}`);
-    console.log(`📅 Episoden aus 2025: ${episodes2025.length}`);
+    console.log(`${episodes2025.length} Episoden aus 2025 zu verarbeiten`);
 
     if (episodes2025.length === 0) {
-      console.log("❌ Keine Episoden aus 2025 gefunden");
       return;
     }
 
     // Sortiere für historischen Crawl (älteste zuerst)
     const sortedEpisodes = episodes2025.sort((a, b) =>
-      a.date.localeCompare(b.date)
+      a.date.localeCompare(b.date),
     );
-
-    console.log(`📺 Crawle ${sortedEpisodes.length} Episoden aus 2025`);
-    if (sortedEpisodes.length > 0) {
-      console.log(
-        `📅 Zeitraum 2025: ${sortedEpisodes[0]?.date} bis ${
-          sortedEpisodes[sortedEpisodes.length - 1]?.date
-        }`
-      );
-    }
 
     let totalPoliticiansInserted = 0;
     let totalEpisodeLinksInserted = 0;
@@ -660,38 +575,21 @@ export async function crawlAllCarenMiosgaEpisodes(): Promise<void> {
     if (episodeLinksToInsert.length > 0) {
       totalEpisodeLinksInserted = await insertMultipleShowLinks(
         "Caren Miosga",
-        episodeLinksToInsert
-      );
-      console.log(
-        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`
+        episodeLinksToInsert,
       );
     }
 
     // Verarbeite jede Episode
     for (let i = 0; i < sortedEpisodes.length; i++) {
       const episode = sortedEpisodes[i];
-      console.log(
-        `\n🎬 [${i + 1}/${sortedEpisodes.length}] Verarbeite Episode vom ${
-          episode.date
-        }: ${episode.title}`
-      );
 
       try {
-        console.log(
-          `👥 Gefundene Gäste: ${
-            episode.guests.map((g) => g.name).join(", ") || "Keine"
-          }`
-        );
-
-        if (episode.guests.length === 0) {
-          console.log("   ❌ Keine Gäste gefunden");
-          continue;
-        }
+        if (episode.guests.length === 0) continue;
 
         // Hole detaillierte Beschreibung von der Episodenseite
         const detailedDescription = await getEpisodeDetailedDescription(
           page,
-          episode.url
+          episode.url,
         );
 
         // Analysiere politische Themen mit getPoliticalArea wenn Beschreibung vorhanden
@@ -700,8 +598,6 @@ export async function crawlAllCarenMiosgaEpisodes(): Promise<void> {
         // Prüfe jeden Gast auf Politiker-Status
         const politicians = [];
         for (const guest of episode.guests) {
-          console.log(`   🔍 Prüfe: ${guest.name}`);
-
           const details = await checkPolitician(guest.name);
 
           if (
@@ -709,92 +605,66 @@ export async function crawlAllCarenMiosgaEpisodes(): Promise<void> {
             details.politicianId &&
             details.politicianName
           ) {
-            console.log(
-              `      ✅ Politiker: ${details.politicianName} (ID ${
-                details.politicianId
-              }), Partei: ${details.partyName || "unbekannt"}`
-            );
             politicians.push({
               politicianId: details.politicianId,
               politicianName: details.politicianName,
               partyId: details.party,
               partyName: details.partyName,
             });
-          } else {
-            console.log(`      ❌ Kein Politiker`);
           }
 
           // Pause zwischen API-Calls
           await new Promise((resolve) => setTimeout(resolve, 300));
         }
 
-        // Speichere Politiker in die Datenbank
+        // Log: Datum + Gäste + Politiker
+        const guestNames = episode.guests.map((g) => g.name);
+        console.log(
+          `📅 ${episode.date} | 👥 ${guestNames.join(", ")}${
+            politicians.length > 0
+              ? ` | ✅ Politiker: ${politicians
+                  .map((p) => `${p.politicianName} (${p.partyName || "?"})`)
+                  .join(", ")}`
+              : ""
+          }`,
+        );
+
+        // Speichere Politiker
         if (politicians.length > 0) {
           const inserted = await insertMultipleTvShowPoliticians(
             "ZDF",
             "Caren Miosga",
             formatDateForDB(episode.date),
-            politicians
+            politicians,
           );
-
           totalPoliticiansInserted += inserted;
-          console.log(
-            `   �� ${inserted}/${politicians.length} Politiker gespeichert`
-          );
-
-          // Füge Episode-URL zur Liste hinzu (nur für Episoden mit Politikern)
-          episodeLinksToInsert.push({
-            episodeUrl: episode.url,
-            episodeDate: formatDateForDB(episode.date),
-          });
-        } else {
-          console.log(`   📝 Keine Politiker in dieser Episode`);
         }
 
         // Speichere politische Themenbereiche
         if (politicalAreaIds && politicalAreaIds.length > 0) {
-          const insertedAreas = await insertEpisodePoliticalAreas(
+          await insertEpisodePoliticalAreas(
             "Caren Miosga",
             episode.date,
-            politicalAreaIds
-          );
-          console.log(
-            `   🏛️  ${insertedAreas}/${politicalAreaIds.length} Themenbereiche gespeichert`
+            politicalAreaIds,
           );
         }
 
         episodesProcessed++;
-
-        // Fortschritt alle 10 Episoden
-        if ((i + 1) % 10 === 0) {
-          console.log(
-            `\n📊 Zwischenstand: ${episodesProcessed}/${sortedEpisodes.length} Episoden, ${totalPoliticiansInserted} Politiker`
-          );
-        }
       } catch (error) {
         console.error(
           `❌ Fehler beim Verarbeiten von Episode ${episode.date}:`,
-          error
+          error,
         );
         episodesWithErrors++;
       }
     }
 
+    console.log(`\n=== Caren Miosga FULL Zusammenfassung ===`);
     console.log(
-      `\n🎉 VOLLSTÄNDIGER Caren Miosga Crawl (nur 2025) abgeschlossen!`
+      `Episoden verarbeitet: ${episodesProcessed}/${sortedEpisodes.length}`,
     );
-    console.log(
-      `📊 Episoden verarbeitet: ${episodesProcessed}/${sortedEpisodes.length} (nur 2025)`
-    );
-    console.log(`👥 Politiker eingefügt: ${totalPoliticiansInserted}`);
-    console.log(`📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
-    console.log(`❌ Episoden mit Fehlern: ${episodesWithErrors}`);
-
-    if (episodesWithErrors > 0) {
-      console.log(
-        `⚠️  ${episodesWithErrors} Episoden hatten Fehler und wurden übersprungen`
-      );
-    }
+    console.log(`Politiker eingefügt: ${totalPoliticiansInserted}`);
+    console.log(`Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
   } finally {
     await browser.close().catch(() => {});
   }

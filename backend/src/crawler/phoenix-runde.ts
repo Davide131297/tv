@@ -13,11 +13,7 @@ const LIST_URL =
 
 // Haupt-Crawler-Funktion
 export default async function CrawlPhoenixRunde() {
-  console.log("🚀 Starte Phoenix Runde Crawler...");
-  console.log(`📅 Datum: ${new Date().toISOString()}`);
-
   const latestDbDate = await getLatestEpisodeDate("Phoenix Runde");
-  console.log(`🗃️  Letzte Episode in DB: ${latestDbDate || "Keine"}`);
 
   const browser = await createBrowser();
 
@@ -29,18 +25,13 @@ export default async function CrawlPhoenixRunde() {
     try {
       const saveButton = await page.$("button.o-btn.c-btn__label");
       if (saveButton) {
-        console.log("🍪 Schließe Privacy-Banner...");
         await saveButton.click();
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
-    } catch {
-      console.log("ℹ️  Kein Privacy-Banner gefunden");
-    }
+    } catch {}
 
     // Warte auf die Episode-Liste
     await page.waitForSelector(".c-teaser", { timeout: 15000 });
-
-    console.log("🔍 Extrahiere Episode-Links...");
 
     // Klicke mehrmals auf "Weitere laden" um mehr Episoden zu laden
     const currentYear = new Date().getFullYear();
@@ -55,9 +46,6 @@ export default async function CrawlPhoenixRunde() {
         );
 
         if (loadMoreButton) {
-          console.log(
-            `📥 Lade weitere Episoden... (Versuch ${loadMoreAttempts + 1})`,
-          );
           await loadMoreButton.click();
           await new Promise((resolve) => setTimeout(resolve, 2000)); // Warte auf das Laden der neuen Inhalte
           loadMoreAttempts++;
@@ -75,9 +63,6 @@ export default async function CrawlPhoenixRunde() {
             const year = dateParts[2];
             const episodeYear = parseInt(year);
             if (episodeYear < currentYear) {
-              console.log(
-                `⏹️  Erreicht Episode aus ${episodeYear}, stoppe Laden`,
-              );
               break;
             }
           }
@@ -140,7 +125,7 @@ export default async function CrawlPhoenixRunde() {
     }
 
     // Konvertiere deutsche Datumsformate zu YYYY-MM-DD
-    const episodesWithFormattedDates = episodes.map((ep: any) => {
+    const episodesWithFormattedDates = episodes.map((ep) => {
       const [day, month, year] = ep.date.split(".");
       const formattedDate = `${year}-${month.padStart(2, "0")}-${day.padStart(
         2,
@@ -150,23 +135,16 @@ export default async function CrawlPhoenixRunde() {
     });
 
     // Filtere nur Episoden aus dem aktuellen Jahr
-    const currentYearEpisodes = episodesWithFormattedDates.filter((ep: any) => {
+    const currentYearEpisodes = episodesWithFormattedDates.filter((ep) => {
       const episodeYear = parseInt(ep.formattedDate.split("-")[0]);
       return episodeYear === currentYear;
     });
-
-    console.log(
-      `📅 ${currentYearEpisodes.length}/${episodes.length} Episoden aus ${currentYear}`,
-    );
 
     // Filtere nur neue Episoden
     let filteredEpisodes = currentYearEpisodes;
     if (latestDbDate) {
       filteredEpisodes = currentYearEpisodes.filter(
-        (ep: any) => ep.formattedDate > latestDbDate,
-      );
-      console.log(
-        `Nach Datum-Filter: ${filteredEpisodes.length}/${currentYearEpisodes.length} URLs (nur neuer als ${latestDbDate})`,
+        (ep) => ep.formattedDate > latestDbDate,
       );
     }
 
@@ -191,12 +169,6 @@ export default async function CrawlPhoenixRunde() {
       const episode = filteredEpisodes[i];
       const episodeDate = episode.formattedDate;
 
-      console.log(
-        `\n🎬 [${i + 1}/${filteredEpisodes.length}] Verarbeite Episode: ${
-          episode.title
-        } (${episodeDate})`,
-      );
-
       try {
         // Öffne die Episode-Seite
         const episodePage = await browser.newPage();
@@ -216,26 +188,12 @@ export default async function CrawlPhoenixRunde() {
 
         await episodePage.close();
 
-        if (!guestsText) {
-          console.log("   ❌ Keine Gäste-Informationen gefunden");
-          continue;
-        }
-
-        console.log(
-          `📝 Gäste-Text: ${guestsText
-            .substring(0, 200)
-            .replace(/\n/g, " ")}...`,
-        );
+        if (!guestsText) continue;
 
         // Extrahiere Gäste mit AI
         const guestNames = await extractGuestsWithAI(guestsText);
 
-        if (guestNames.length === 0) {
-          console.log("   ❌ Keine Gäste gefunden");
-          continue;
-        }
-
-        console.log(`👥 Gefundene Gäste: ${guestNames.join(", ")}`);
+        if (guestNames.length === 0) continue;
 
         // Analysiere politische Themen (verwende den Titel)
         const politicalAreaIds = await getPoliticalArea(
@@ -245,9 +203,6 @@ export default async function CrawlPhoenixRunde() {
         // Prüfe jeden Gast auf Politiker-Status
         const politicians = [];
         for (const guestName of guestNames) {
-          console.log(`   🔍 Prüfe: ${guestName}`);
-
-          // Extrahiere mögliche Rolle/Partei aus dem Text
           const roleMatch = guestsText.match(
             new RegExp(
               `${guestName}[^\\n]*?([A-ZÄÖÜ][^,\\n]*?)(?:,|\\n|$)`,
@@ -263,24 +218,28 @@ export default async function CrawlPhoenixRunde() {
             details.politicianId &&
             details.politicianName
           ) {
-            console.log(
-              `      ✅ Politiker: ${details.politicianName} (ID ${
-                details.politicianId
-              }), Partei: ${details.partyName || "unbekannt"}`,
-            );
             politicians.push({
               politicianId: details.politicianId,
               politicianName: details.politicianName,
               partyId: details.party,
               partyName: details.partyName,
             });
-          } else {
-            console.log(`      ❌ Kein Politiker`);
           }
 
           // Pause zwischen API-Calls
           await new Promise((resolve) => setTimeout(resolve, 300));
         }
+
+        // Log: Datum + Gäste + Politiker
+        console.log(
+          `📅 ${episodeDate} | 👥 ${guestNames.join(", ")}${
+            politicians.length > 0
+              ? ` | ✅ Politiker: ${politicians
+                  .map((p) => `${p.politicianName} (${p.partyName || "?"})`)
+                  .join(", ")}`
+              : ""
+          }`,
+        );
 
         // Speichere Politiker
         if (politicians.length > 0) {
@@ -290,21 +249,12 @@ export default async function CrawlPhoenixRunde() {
             episodeDate,
             politicians,
           );
-
           totalPoliticiansInserted += inserted;
           episodesWithPoliticians++;
-
-          console.log(
-            `   💾 ${inserted}/${politicians.length} Politiker gespeichert`,
-          );
-
-          // Füge Episode-URL zur Liste hinzu
           episodeLinksToInsert.push({
             episodeUrl: episode.url,
             episodeDate: episodeDate,
           });
-        } else {
-          console.log(`   📝 Keine Politiker in dieser Episode`);
         }
 
         // Speichere politische Themenbereiche
@@ -315,9 +265,6 @@ export default async function CrawlPhoenixRunde() {
             politicalAreaIds,
           );
           totalPoliticalAreasInserted += insertedAreas;
-          console.log(
-            `   🏛️  ${insertedAreas}/${politicalAreaIds.length} Themenbereiche gespeichert`,
-          );
         }
       } catch (error) {
         console.error(
@@ -333,17 +280,13 @@ export default async function CrawlPhoenixRunde() {
         "Phoenix Runde",
         episodeLinksToInsert,
       );
-      console.log(
-        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`,
-      );
     }
 
-    console.log(`\n🎉 Phoenix Runde Crawl abgeschlossen!`);
-    console.log(`📊 Episoden verarbeitet: ${filteredEpisodes.length}`);
-    console.log(`📺 Episoden mit Politikern: ${episodesWithPoliticians}`);
-    console.log(`👥 Politiker eingefügt: ${totalPoliticiansInserted}`);
-    console.log(`🏛️  Themenbereiche eingefügt: ${totalPoliticalAreasInserted}`);
-    console.log(`📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
+    console.log(`\n=== Phoenix Runde Zusammenfassung ===`);
+    console.log(`Episoden verarbeitet: ${filteredEpisodes.length}`);
+    console.log(`Politiker eingefügt: ${totalPoliticiansInserted}`);
+    console.log(`Themenbereiche eingefügt: ${totalPoliticalAreasInserted}`);
+    console.log(`Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
 
     return {
       message: "Phoenix Runde Crawling erfolgreich",

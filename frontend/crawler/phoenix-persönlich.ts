@@ -13,11 +13,7 @@ const LIST_URL =
 
 // Haupt-Crawler-Funktion
 export default async function CrawlPhoenixPersönlich() {
-  console.log("🚀 Starte Phoenix Persönlich Crawler...");
-  console.log(`📅 Datum: ${new Date().toISOString()}`);
-
   const latestDbDate = await getLatestEpisodeDate("Phoenix Persönlich");
-  console.log(`🗃️  Letzte Episode in DB: ${latestDbDate || "Keine"}`);
 
   const browser = await createBrowser();
 
@@ -29,18 +25,13 @@ export default async function CrawlPhoenixPersönlich() {
     try {
       const saveButton = await page.$("button.o-btn.c-btn__label");
       if (saveButton) {
-        console.log("🍪 Schließe Privacy-Banner...");
         await saveButton.click();
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
-    } catch {
-      console.log("ℹ️  Kein Privacy-Banner gefunden");
-    }
+    } catch {}
 
     // Warte auf die Episode-Liste
     await page.waitForSelector(".c-teaser", { timeout: 15000 });
-
-    console.log("🔍 Extrahiere Episode-Links...");
 
     // Klicke mehrmals auf "Weitere laden" um mehr Episoden zu laden
     const currentYear = new Date().getFullYear();
@@ -51,13 +42,10 @@ export default async function CrawlPhoenixPersönlich() {
     while (clickedLoadMore && loadMoreAttempts < maxLoadMoreAttempts) {
       try {
         const loadMoreButton = await page.$(
-          '.c-btn a[ng-click*="next(nexturl)"]'
+          '.c-btn a[ng-click*="next(nexturl)"]',
         );
 
         if (loadMoreButton) {
-          console.log(
-            `📥 Lade weitere Episoden... (Versuch ${loadMoreAttempts + 1})`
-          );
           await loadMoreButton.click();
           await new Promise((resolve) => setTimeout(resolve, 2000)); // Warte auf das Laden der neuen Inhalte
           loadMoreAttempts++;
@@ -65,7 +53,7 @@ export default async function CrawlPhoenixPersönlich() {
           // Prüfe ob das älteste sichtbare Datum noch im aktuellen Jahr ist
           const oldestDate = await page.evaluate(() => {
             const dates = Array.from(
-              document.querySelectorAll(".c-teaser__item__body__info__date")
+              document.querySelectorAll(".c-teaser__item__body__info__date"),
             ).map((el) => el.textContent?.trim() || "");
             return dates[dates.length - 1] || "";
           });
@@ -75,9 +63,6 @@ export default async function CrawlPhoenixPersönlich() {
             const year = dateParts[2];
             const episodeYear = parseInt(year);
             if (episodeYear < currentYear) {
-              console.log(
-                `⏹️  Erreicht Episode aus ${episodeYear}, stoppe Laden`
-              );
               break;
             }
           }
@@ -92,7 +77,7 @@ export default async function CrawlPhoenixPersönlich() {
     // Extrahiere alle Episoden mit ihren URLs und Daten
     const episodes = await page.evaluate(() => {
       const episodeElements = document.querySelectorAll(
-        'div[phnx-teaser][teaser="teaser"]'
+        'div[phnx-teaser][teaser="teaser"]',
       );
       const results: Array<{
         url: string;
@@ -103,7 +88,7 @@ export default async function CrawlPhoenixPersönlich() {
       for (const episode of episodeElements) {
         // Finde den ersten Link mit dem Episode-Titel
         const linkElement = episode.querySelector(
-          'a[ng-href*="/sendungen/gespraeche/phoenix-persoenlich/"]'
+          'a[ng-href*="/sendungen/gespraeche/phoenix-persoenlich/"]',
         ) as HTMLAnchorElement;
         if (!linkElement) continue;
 
@@ -111,13 +96,13 @@ export default async function CrawlPhoenixPersönlich() {
 
         // Extrahiere Untertitel (eigentlicher Episode-Titel)
         const titleElement = episode.querySelector(
-          ".c-teaser__item__body__title__subline"
+          ".c-teaser__item__body__title__subline",
         );
         const title = titleElement?.textContent?.trim() || "";
 
         // Extrahiere Datum
         const dateElement = episode.querySelector(
-          ".c-teaser__item__body__info__date"
+          ".c-teaser__item__body__info__date",
         );
         const dateText = dateElement?.textContent?.trim() || "";
 
@@ -129,10 +114,7 @@ export default async function CrawlPhoenixPersönlich() {
       return results;
     });
 
-    console.log(`📺 ${episodes.length} Episoden gefunden`);
-
     if (episodes.length === 0) {
-      console.log("❌ Keine Episoden gefunden");
       return {
         message: "Keine Episoden gefunden",
         status: 404,
@@ -144,7 +126,7 @@ export default async function CrawlPhoenixPersönlich() {
       const [day, month, year] = ep.date.split(".");
       const formattedDate = `${year}-${month.padStart(2, "0")}-${day.padStart(
         2,
-        "0"
+        "0",
       )}`;
       return { ...ep, formattedDate };
     });
@@ -155,18 +137,11 @@ export default async function CrawlPhoenixPersönlich() {
       return episodeYear === currentYear;
     });
 
-    console.log(
-      `📅 ${currentYearEpisodes.length}/${episodes.length} Episoden aus ${currentYear}`
-    );
-
     // Filtere nur neue Episoden
     let filteredEpisodes = currentYearEpisodes;
     if (latestDbDate) {
       filteredEpisodes = currentYearEpisodes.filter(
-        (ep) => ep.formattedDate > latestDbDate
-      );
-      console.log(
-        `Nach Datum-Filter: ${filteredEpisodes.length}/${currentYearEpisodes.length} URLs (nur neuer als ${latestDbDate})`
+        (ep) => ep.formattedDate > latestDbDate,
       );
     }
 
@@ -191,12 +166,6 @@ export default async function CrawlPhoenixPersönlich() {
       const episode = filteredEpisodes[i];
       const episodeDate = episode.formattedDate;
 
-      console.log(
-        `\n🎬 [${i + 1}/${filteredEpisodes.length}] Verarbeite Episode: ${
-          episode.title
-        } (${episodeDate})`
-      );
-
       try {
         // Öffne die Episode-Seite
         const episodePage = await browser.newPage();
@@ -216,43 +185,26 @@ export default async function CrawlPhoenixPersönlich() {
 
         await episodePage.close();
 
-        if (!guestsText) {
-          console.log("   ❌ Keine Gäste-Informationen gefunden");
-          continue;
-        }
-
-        console.log(
-          `📝 Gäste-Text: ${guestsText
-            .substring(0, 200)
-            .replace(/\n/g, " ")}...`
-        );
+        if (!guestsText) continue;
 
         // Extrahiere Gäste mit AI
         const guestNames = await extractGuestsWithAI(guestsText);
 
-        if (guestNames.length === 0) {
-          console.log("   ❌ Keine Gäste gefunden");
-          continue;
-        }
-
-        console.log(`👥 Gefundene Gäste: ${guestNames.join(", ")}`);
+        if (guestNames.length === 0) continue;
 
         // Analysiere politische Themen (verwende den Titel)
         const politicalAreaIds = await getPoliticalArea(
-          episode.title + " " + guestsText
+          episode.title + " " + guestsText,
         );
 
         // Prüfe jeden Gast auf Politiker-Status
         const politicians = [];
         for (const guestName of guestNames) {
-          console.log(`   🔍 Prüfe: ${guestName}`);
-
-          // Extrahiere mögliche Rolle/Partei aus dem Text
           const roleMatch = guestsText.match(
             new RegExp(
               `${guestName}[^\\n]*?([A-ZÄÖÜ][^,\\n]*?)(?:,|\\n|$)`,
-              "i"
-            )
+              "i",
+            ),
           );
           const role = roleMatch ? roleMatch[1].trim() : undefined;
 
@@ -263,24 +215,28 @@ export default async function CrawlPhoenixPersönlich() {
             details.politicianId &&
             details.politicianName
           ) {
-            console.log(
-              `      ✅ Politiker: ${details.politicianName} (ID ${
-                details.politicianId
-              }), Partei: ${details.partyName || "unbekannt"}`
-            );
             politicians.push({
               politicianId: details.politicianId,
               politicianName: details.politicianName,
               partyId: details.party,
               partyName: details.partyName,
             });
-          } else {
-            console.log(`      ❌ Kein Politiker`);
           }
 
           // Pause zwischen API-Calls
           await new Promise((resolve) => setTimeout(resolve, 300));
         }
+
+        // Log: Datum + Gäste + Politiker
+        console.log(
+          `📅 ${episodeDate} | 👥 ${guestNames.join(", ")}${
+            politicians.length > 0
+              ? ` | ✅ Politiker: ${politicians
+                  .map((p) => `${p.politicianName} (${p.partyName || "?"})`)
+                  .join(", ")}`
+              : ""
+          }`,
+        );
 
         // Speichere Politiker
         if (politicians.length > 0) {
@@ -288,23 +244,14 @@ export default async function CrawlPhoenixPersönlich() {
             "Phoenix",
             "Phoenix Persönlich",
             episodeDate,
-            politicians
+            politicians,
           );
-
           totalPoliticiansInserted += inserted;
           episodesWithPoliticians++;
-
-          console.log(
-            `   💾 ${inserted}/${politicians.length} Politiker gespeichert`
-          );
-
-          // Füge Episode-URL zur Liste hinzu
           episodeLinksToInsert.push({
             episodeUrl: episode.url,
             episodeDate: episodeDate,
           });
-        } else {
-          console.log(`   📝 Keine Politiker in dieser Episode`);
         }
 
         // Speichere politische Themenbereiche
@@ -312,17 +259,14 @@ export default async function CrawlPhoenixPersönlich() {
           const insertedAreas = await insertEpisodePoliticalAreas(
             "Phoenix Persönlich",
             episodeDate,
-            politicalAreaIds
+            politicalAreaIds,
           );
           totalPoliticalAreasInserted += insertedAreas;
-          console.log(
-            `   🏛️  ${insertedAreas}/${politicalAreaIds.length} Themenbereiche gespeichert`
-          );
         }
       } catch (error) {
         console.error(
           `❌ Fehler beim Verarbeiten von Episode ${episode.title}:`,
-          error
+          error,
         );
       }
     }
@@ -331,19 +275,15 @@ export default async function CrawlPhoenixPersönlich() {
     if (episodeLinksToInsert.length > 0) {
       totalEpisodeLinksInserted = await insertMultipleShowLinks(
         "Phoenix Persönlich",
-        episodeLinksToInsert
-      );
-      console.log(
-        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`
+        episodeLinksToInsert,
       );
     }
 
-    console.log(`\n🎉 Phoenix Persönlich Crawl abgeschlossen!`);
-    console.log(`📊 Episoden verarbeitet: ${filteredEpisodes.length}`);
-    console.log(`📺 Episoden mit Politikern: ${episodesWithPoliticians}`);
-    console.log(`👥 Politiker eingefügt: ${totalPoliticiansInserted}`);
-    console.log(`🏛️  Themenbereiche eingefügt: ${totalPoliticalAreasInserted}`);
-    console.log(`📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
+    console.log(`\n=== Phoenix Persönlich Zusammenfassung ===`);
+    console.log(`Episoden verarbeitet: ${filteredEpisodes.length}`);
+    console.log(`Politiker eingefügt: ${totalPoliticiansInserted}`);
+    console.log(`Themenbereiche eingefügt: ${totalPoliticalAreasInserted}`);
+    console.log(`Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
 
     return {
       message: "Phoenix Persönlich Crawling erfolgreich",

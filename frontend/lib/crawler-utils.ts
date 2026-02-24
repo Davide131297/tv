@@ -76,7 +76,7 @@ export function formatDateForDB(dateStr: string): string {
  */
 export async function extractDateISO(
   page: Page,
-  episodeUrl: string
+  episodeUrl: string,
 ): Promise<string | null> {
   // 1) Try JSON-LD structured data
   const ldDates: string[] = await page
@@ -170,7 +170,7 @@ export function isModeratorOrHost(name: string, showName?: string): boolean {
 
   // Check against common moderators
   const isCommon = commonModerators.some((mod) =>
-    name.toLowerCase().includes(mod.toLowerCase())
+    name.toLowerCase().includes(mod.toLowerCase()),
   );
   if (isCommon) return true;
 
@@ -197,7 +197,6 @@ export async function acceptCookieBanner(page: Page): Promise<void> {
       timeout: 3000,
     });
     await page.click('[data-testid="cmp-accept-all"]');
-    console.log("Cookie-Banner akzeptiert");
     await new Promise((resolve) => setTimeout(resolve, 2000));
   } catch {
     // Try alternative selectors
@@ -206,11 +205,8 @@ export async function acceptCookieBanner(page: Page): Promise<void> {
         timeout: 1000,
       });
       await page.click('button:contains("Akzeptieren")');
-      console.log("Cookie-Banner akzeptiert");
       await new Promise((resolve) => setTimeout(resolve, 2000));
-    } catch {
-      console.log("Kein Cookie-Banner gefunden oder bereits akzeptiert");
-    }
+    } catch {}
   }
 }
 
@@ -243,17 +239,13 @@ export async function gentleScroll(page: Page): Promise<void> {
  */
 export function filterNewEpisodes<T extends { date: string }>(
   episodes: T[],
-  latestDbDate: string | null
+  latestDbDate: string | null,
 ): T[] {
   if (!latestDbDate) {
-    console.log("📋 Keine Episoden in DB - alle sind neu");
     return episodes;
   }
 
   const newEpisodes = episodes.filter((ep) => ep.date > latestDbDate);
-  console.log(
-    `🆕 ${newEpisodes.length} neue Episoden gefunden (nach ${latestDbDate})`
-  );
 
   return newEpisodes.sort((a, b) => b.date.localeCompare(a.date)); // Newest first
 }

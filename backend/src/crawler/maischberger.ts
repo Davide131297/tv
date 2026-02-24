@@ -93,13 +93,7 @@ async function getEpisodeDetails(
 
 // Hauptfunktion: Crawle nur NEUE Maischberger Episoden (inkrementell) - ab 2025
 export async function crawlNewMaischbergerEpisodes(): Promise<void> {
-  console.log("🚀 Starte inkrementellen Maischberger Crawler...");
-  console.log(`📅 Datum: ${new Date().toISOString()}`);
-  console.log(`🎯 Filterung: Episoden ab dem Jahr 2025`);
-
-  // Hole das letzte Datum aus der DB
-  const latestDbDate = await await getLatestEpisodeDate("Maischberger");
-  console.log(`🗃️  Letzte Episode in DB: ${latestDbDate || "Keine"}`);
+  const latestDbDate = await getLatestEpisodeDate("Maischberger");
 
   const browser = await createBrowser();
 
@@ -168,40 +162,19 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
       const episode = sortedEpisodes[i];
 
       try {
-        console.log(
-          `\n🎬 [${i + 1}/${sortedEpisodes.length}] Verarbeite Episode vom ${
-            episode.date
-          }: ${episode.title}`,
-        );
-
-        // Hole detaillierte Beschreibung und politische Themen von der Episodenseite
         const { description, politicalAreas } = await getEpisodeDetails(
           page,
           episode.url,
         );
 
-        if (!description || description.length < 20) {
-          console.log("   ❌ Keine verwertbare Beschreibung gefunden");
-          continue;
-        }
+        if (!description || description.length < 20) continue;
 
-        console.log(`📝 Beschreibung: ${description.substring(0, 150)}...`);
-
-        // Extrahiere Gäste mit AI aus der Beschreibung
         const guestNames = await extractGuestsWithAI(description);
 
-        if (guestNames.length === 0) {
-          console.log("   ❌ Keine Gäste extrahiert");
-          continue;
-        }
+        if (guestNames.length === 0) continue;
 
-        console.log(`👥 Gefundene Gäste: ${guestNames.join(", ")}`);
-
-        // Prüfe jeden Gast auf Politiker-Status
         const politicians = [];
         for (const guestName of guestNames) {
-          console.log(`   🔍 Prüfe: ${guestName}`);
-
           const details = await checkPolitician(guestName);
 
           if (
@@ -209,26 +182,28 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
             details.politicianId &&
             details.politicianName
           ) {
-            console.log(
-              `      ✅ Politiker: ${details.politicianName} (ID ${
-                details.politicianId
-              }), Partei: ${details.partyName || "unbekannt"}`,
-            );
             politicians.push({
               politicianId: details.politicianId,
               politicianName: details.politicianName,
               partyId: details.party,
               partyName: details.partyName,
             });
-          } else {
-            console.log(`      ❌ Kein Politiker`);
           }
 
-          // Pause zwischen API-Calls
           await new Promise((resolve) => setTimeout(resolve, 300));
         }
 
-        // Speichere Politiker in die Datenbank
+        // Log: Datum + Gäste + Politiker
+        console.log(
+          `📅 ${episode.date} | 👥 ${guestNames.join(", ")}${
+            politicians.length > 0
+              ? ` | ✅ Politiker: ${politicians
+                  .map((p) => `${p.politicianName} (${p.partyName || "?"})`)
+                  .join(", ")}`
+              : ""
+          }`,
+        );
+
         if (politicians.length > 0) {
           const inserted = await insertMultipleTvShowPoliticians(
             "Das Erste",
@@ -238,40 +213,17 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
           );
 
           totalPoliticiansInserted += inserted;
-          console.log(
-            `   💾 ${inserted}/${politicians.length} Politiker in DB gespeichert`,
-          );
-
-          console.log("   🏛️  Politiker in dieser Episode:");
-          politicians.forEach((pol) => {
-            console.log(
-              `      - ${pol.politicianName} (${pol.partyName || "unbekannt"})`,
-            );
-          });
-        } else {
-          console.log(`   📝 Keine Politiker in dieser Episode`);
         }
 
-        // Speichere politische Themenbereiche
         if (politicalAreas && politicalAreas.length > 0) {
-          const insertedAreas = await insertEpisodePoliticalAreas(
+          await insertEpisodePoliticalAreas(
             "Maischberger",
             episode.date,
             politicalAreas,
           );
-          console.log(
-            `   🏛️  ${insertedAreas}/${politicalAreas.length} Themenbereiche gespeichert`,
-          );
         }
 
         episodesProcessed++;
-
-        // Fortschritt alle 5 Episoden
-        if ((i + 1) % 5 === 0) {
-          console.log(
-            `\n📊 Zwischenstand: ${episodesProcessed}/${sortedEpisodes.length} Episoden, ${totalPoliticiansInserted} Politiker in DB`,
-          );
-        }
       } catch (error) {
         console.error(
           `❌ Fehler beim Verarbeiten von Episode ${episode.date}:`,
@@ -281,14 +233,10 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
       }
     }
 
-    // Speichere Episode-URLs am Ende (erste Funktion)
     if (episodeLinksToInsert.length > 0) {
       totalEpisodeLinksInserted = await insertMultipleShowLinks(
         "Maischberger",
         episodeLinksToInsert,
-      );
-      console.log(
-        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`,
       );
     }
 
@@ -359,40 +307,17 @@ export async function crawlMaischbergerFull(): Promise<void> {
       const episode = sortedEpisodes[i];
 
       try {
-        console.log(
-          `\n🎬 [${i + 1}/${sortedEpisodes.length}] Verarbeite Episode vom ${
-            episode.date
-          }: ${episode.title}`,
-        );
+        if (!episode.teaserText || episode.teaserText.length < 10) continue;
 
-        if (!episode.teaserText || episode.teaserText.length < 10) {
-          console.log("   ❌ Kein verwertbarer Teasertext");
-          continue;
-        }
-
-        // Hole detaillierte Beschreibung und politische Themenbereiche von der Episodenseite
         const { description: detailedDescription, politicalAreas } =
           await getEpisodeDetails(page, episode.url);
 
-        console.log(
-          `📝 Beschreibung: ${detailedDescription.substring(0, 100)}...`,
-        );
-
-        // Extrahiere Gäste mit AI
         const guestNames = await extractGuestsWithAI(detailedDescription);
 
-        if (guestNames.length === 0) {
-          console.log("   ❌ Keine Gäste extrahiert");
-          continue;
-        }
+        if (guestNames.length === 0) continue;
 
-        console.log(`👥 Gefundene Gäste: ${guestNames.join(", ")}`);
-
-        // Prüfe jeden Gast auf Politiker-Status
         const politicians = [];
         for (const guestName of guestNames) {
-          console.log(`   🔍 Prüfe: ${guestName}`);
-
           const details = await checkPolitician(guestName);
 
           if (
@@ -400,26 +325,28 @@ export async function crawlMaischbergerFull(): Promise<void> {
             details.politicianId &&
             details.politicianName
           ) {
-            console.log(
-              `      ✅ Politiker: ${details.politicianName} (ID ${
-                details.politicianId
-              }), Partei: ${details.partyName || "unbekannt"}`,
-            );
             politicians.push({
               politicianId: details.politicianId,
               politicianName: details.politicianName,
               partyId: details.party,
               partyName: details.partyName,
             });
-          } else {
-            console.log(`      ❌ Kein Politiker`);
           }
 
-          // Pause zwischen API-Calls
           await new Promise((resolve) => setTimeout(resolve, 300));
         }
 
-        // Speichere Politiker in die Datenbank
+        // Log: Datum + Gäste + Politiker
+        console.log(
+          `📅 ${episode.date} | 👥 ${guestNames.join(", ")}${
+            politicians.length > 0
+              ? ` | ✅ Politiker: ${politicians
+                  .map((p) => `${p.politicianName} (${p.partyName || "?"})`)
+                  .join(", ")}`
+              : ""
+          }`,
+        );
+
         if (politicians.length > 0) {
           const inserted = await insertMultipleTvShowPoliticians(
             "Das Erste",
@@ -429,46 +356,22 @@ export async function crawlMaischbergerFull(): Promise<void> {
           );
 
           totalPoliticiansInserted += inserted;
-          console.log(
-            `   💾 ${inserted}/${politicians.length} Politiker in DB gespeichert`,
-          );
 
-          // Nur wenn Episode Politiker hat, füge URL zur Liste hinzu
           episodeLinksToInsert.push({
             episodeUrl: episode.url,
             episodeDate: episode.date,
           });
-
-          console.log("   🏛️  Politiker in dieser Episode:");
-          politicians.forEach((pol) => {
-            console.log(
-              `      - ${pol.politicianName} (${pol.partyName || "unbekannt"})`,
-            );
-          });
-        } else {
-          console.log(`   📝 Keine Politiker in dieser Episode`);
         }
 
-        // Speichere politische Themenbereiche
         if (politicalAreas && politicalAreas.length > 0) {
-          const insertedAreas = await insertEpisodePoliticalAreas(
+          await insertEpisodePoliticalAreas(
             "Maischberger",
             episode.date,
             politicalAreas,
           );
-          console.log(
-            `   🏛️  ${insertedAreas}/${politicalAreas.length} Themenbereiche gespeichert`,
-          );
         }
 
         episodesProcessed++;
-
-        // Fortschritt alle 5 Episoden
-        if ((i + 1) % 5 === 0) {
-          console.log(
-            `\n📊 Zwischenstand: ${episodesProcessed}/${sortedEpisodes.length} Episoden, ${totalPoliticiansInserted} Politiker in DB`,
-          );
-        }
       } catch (error) {
         console.error(
           `❌ Fehler beim Verarbeiten von Episode ${episode.date}:`,
@@ -478,14 +381,10 @@ export async function crawlMaischbergerFull(): Promise<void> {
       }
     }
 
-    // Speichere Episode-URLs am Ende
     if (episodeLinksToInsert.length > 0) {
       totalEpisodeLinksInserted = await insertMultipleShowLinks(
         "Maischberger",
         episodeLinksToInsert,
-      );
-      console.log(
-        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`,
       );
     }
 

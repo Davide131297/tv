@@ -405,13 +405,7 @@ export default async function crawlHartAberFair() {
             console.log(
               `   ✅ ${pDetails.politicianName} (${pDetails.partyName})`,
             );
-          } else {
-            console.log(
-              `   ⚠️ Duplikat übersprungen: ${pDetails.politicianName}`,
-            );
           }
-        } else {
-          console.log(`   ❌ Ignoriere: ${p.name}`);
         }
         await new Promise((resolve) => setTimeout(resolve, 200));
       }

@@ -11,11 +11,7 @@ import { getPoliticalArea, extractGuestsWithAI } from "../lib/utils.js";
 const LIST_URL = "https://plus.rtl.de/podcast/blome-pfeffer-sbtnrvt7l97b3";
 
 export default async function CrawlBlomePfeffer() {
-  console.log("🚀 Starte Blome Pfeffer Crawler...");
-  console.log(`📅 Datum: ${new Date().toISOString()}`);
-
   const latestDbDate = await getLatestEpisodeDate("Blome & Pfeffer");
-  console.log(`🗃️  Letzte Episode in DB: ${latestDbDate || "Keine"}`);
 
   const browser = await createBrowser();
   try {
@@ -80,10 +76,7 @@ export default async function CrawlBlomePfeffer() {
       });
 
     if (episodes.length === 0) {
-      console.log("🔎 Keine neuen Episoden gefunden.");
     } else {
-      console.log(`✨ Gefundene neue Episoden: ${episodes.length}`);
-
       // Prepare payload for insertMultipleShowLinks (backend expects { episodeUrl, episodeDate })
       const episodeLinksToInsert = episodes.map((ep: any) => ({
         episodeUrl: ep.url,
@@ -95,11 +88,7 @@ export default async function CrawlBlomePfeffer() {
           "Blome & Pfeffer",
           episodeLinksToInsert,
         );
-        // inserted enthält Anzahl eingefügter Links
         totalEpisodeLinksInserted += inserted;
-        console.log(
-          `✅ Neue Episoden-Links in DB eingefügt: ${inserted}/${episodeLinksToInsert.length}`,
-        );
       } catch (err) {
         console.error("❌ Fehler beim Einfügen der Show-Links:", err);
       }
