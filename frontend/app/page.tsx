@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { AnimatedCounter } from "@/components/AnimatedCounter";
-import { BADGE_PARTY_COLORS } from "@/types";
+import { getPartyBorderedBadgeClasses } from "@/lib/party-colors";
 
 export const metadata: Metadata = {
   title: "TV Politik Dashboard – Statistiken zu deutschen Polit-Talkshows",
@@ -285,7 +285,7 @@ export default async function Home() {
                       </span>
                       {appearance.party_name && (
                         <span
-                          className={`text-xs px-2 py-0.5 rounded-full border whitespace-nowrap ${BADGE_PARTY_COLORS[appearance.party_name] ?? BADGE_PARTY_COLORS["Unbekannt"]}`}
+                          className={`text-xs px-2 py-0.5 rounded-full border whitespace-nowrap ${getPartyBorderedBadgeClasses(appearance.party_name)}`}
                         >
                           {appearance.party_name}
                         </span>

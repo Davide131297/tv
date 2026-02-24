@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/tooltip";
 import { format } from "date-fns";
 import { LinkPreview } from "@/components/ui/link-preview";
-import { BADGE_PARTY_COLORS } from "@/types";
+import { getPartyBorderedBadgeClasses } from "@/lib/party-colors";
 import type { AbgeordnetenwatchPolitician } from "@/types";
 import { DialogTitle } from "@radix-ui/react-dialog";
 import { LoaderOne } from "@/components/ui/loader";
@@ -203,9 +203,7 @@ function PoliticianModal({
                         {(() => {
                           const raw =
                             selectedPolitician.party?.label ?? "Unbekannt";
-                          const cls =
-                            BADGE_PARTY_COLORS[raw] ??
-                            "bg-gray-100 text-gray-800 border-gray-200";
+                          const cls = getPartyBorderedBadgeClasses(raw);
                           return (
                             <span
                               className={`text-xs px-2 py-1 rounded ${cls}`}

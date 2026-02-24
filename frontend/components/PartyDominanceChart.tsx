@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { FETCH_HEADERS, cn } from "@/lib/utils";
-import { BADGE_PARTY_COLORS } from "@/types";
+import { getPartyBorderedBadgeClasses } from "@/lib/party-colors";
 
 interface PartyDominanceProps {
   selectedShow: string;
@@ -135,8 +135,7 @@ export default function PartyDominanceChart({
                     <span
                       className={cn(
                         "text-xs px-2 py-0.5 rounded-full border whitespace-nowrap font-medium",
-                        BADGE_PARTY_COLORS[party.party_name] ??
-                          BADGE_PARTY_COLORS["Unbekannt"],
+                        getPartyBorderedBadgeClasses(party.party_name),
                       )}
                     >
                       {party.party_name}

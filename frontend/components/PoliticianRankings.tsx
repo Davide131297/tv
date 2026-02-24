@@ -7,7 +7,8 @@ import { LoadingOverlay } from "@/components/ui/loading-overlay";
 import { Card, CardContent } from "@/components/ui/card";
 import { Eye } from "lucide-react";
 import { FETCH_HEADERS } from "@/lib/utils";
-import { BADGE_PARTY_COLORS, SHOW_OPTIONS } from "@/types";
+import { SHOW_OPTIONS } from "@/types";
+import { getPartyBorderedBadgeClasses } from "@/lib/party-colors";
 import {
   Tooltip,
   TooltipContent,
@@ -151,7 +152,7 @@ export default function PoliticianRankings() {
   }, [selectedShow, selectedYear, fetchRankings]);
 
   const getPartyColorClass = (partyName: string) => {
-    return BADGE_PARTY_COLORS[partyName] || BADGE_PARTY_COLORS["Unbekannt"];
+    return getPartyBorderedBadgeClasses(partyName);
   };
 
   const getRankBadgeColor = (rank: number) => {
