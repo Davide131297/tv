@@ -21,6 +21,7 @@ import CrawlPinarAtalay from "./crawler/atalay.js";
 import CrawlPhoenixRunde from "./crawler/phoenix-runde.js";
 import CrawlPhoenixPersoenlich from "./crawler/phoenix-persoenlich.js";
 import CrawlBlomePfeffer from "./crawler/blome-pfeffer.js";
+import { crawlARDRatings, crawlZDFRatings } from "./crawler/tv-ratings.js";
 
 dotenv.config();
 
@@ -227,6 +228,43 @@ app.post("/api/crawl/blome-pfeffer", async (req, res) => {
     console.error("❌ Blome & Pfeffer Crawler Fehler:", error);
     res.status(500).json({ error: "Blome & Pfeffer crawler failed" });
   }
+});
+
+// POST /api/crawl/tv-ratings
+app.post("/api/crawl/tv-ratings", async (req, res) => {
+  console.log("📺 TV Ratings Crawler gestartet...");
+  const results: Record<string, { success: boolean; error?: string }> = {};
+
+  try {
+    await crawlARDRatings();
+    results["ARD"] = { success: true };
+  } catch (error) {
+    console.error("Fehler beim ARD Crawlen:", error);
+    results["ARD"] = {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+
+  try {
+    await crawlZDFRatings();
+    results["ZDF"] = { success: true };
+  } catch (error) {
+    console.error("Fehler beim ZDF Crawlen:", error);
+    results["ZDF"] = {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+
+  const allSuccess = Object.values(results).every((r) => r.success);
+
+  res.status(allSuccess ? 200 : 207).json({
+    message: allSuccess
+      ? "TV Ratings Crawler erfolgreich abgeschlossen"
+      : "TV Ratings Crawler mit Fehlern abgeschlossen",
+    results,
+  });
 });
 
 // ============================================
