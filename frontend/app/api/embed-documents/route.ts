@@ -237,12 +237,12 @@ export async function GET(request: NextRequest) {
       const latestInfo = showEps
         .map(
           (e) =>
-            `am ${new Date(e.date).toLocaleDateString("de-DE")} (Gäste: ${e.guests.join(", ")})`,
+            `am ${new Date(e.date).toLocaleDateString("de-DE")} (Gäste / Politiker: ${e.guests.join(", ")})`,
         )
         .join("; ");
 
       await insertDoc(
-        `Zusammenfassung für ${showName}: Die aktuellsten Sendungen von "${showName}" waren: ${latestInfo}.`,
+        `Aktuelle Gäste und Politiker bei ${showName}: Wer war zuletzt bei ${showName}? Die letzten Sendungen von "${showName}" waren: ${latestInfo}.`,
         {
           type: "show_latest_summary",
           show: showName,
@@ -256,11 +256,11 @@ export async function GET(request: NextRequest) {
     // ── 2. Globale "letzte Sendungen"-Zusammenfassung ──────────────────────
     const last5 = episodeList.slice(0, 5);
     const last5Content =
-      "Die allerletzten erfassten Sendungen waren: " +
+      "Die allerletzten erfassten Sendungen, Gäste und Politiker waren: " +
       last5
         .map(
           (e) =>
-            `${e.show} am ${new Date(e.date).toLocaleDateString("de-DE")} (Gäste: ${e.guests.join(", ")})`,
+            `${e.show} am ${new Date(e.date).toLocaleDateString("de-DE")} (Gäste / Politiker: ${e.guests.join(", ")})`,
         )
         .join("; ");
 
@@ -684,7 +684,7 @@ export async function GET(request: NextRequest) {
     for (const ep of episodeList) {
       const dateStr = new Date(ep.date).toLocaleDateString("de-DE");
       await insertDoc(
-        `Am ${dateStr} waren in der Sendung "${ep.show}" folgende Gäste: ${ep.guests.join(", ")}.`,
+        `Am ${dateStr} waren in der Sendung "${ep.show}" folgende Gäste und Politiker: ${ep.guests.join(", ")}.`,
         {
           type: "episode_detail",
           show: ep.show,
