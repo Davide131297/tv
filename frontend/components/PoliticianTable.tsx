@@ -12,7 +12,13 @@ import {
 } from "@tanstack/react-table";
 import { Button } from "./ui/button";
 import type { PoliticianEpisodeAppearance } from "@/types";
-import { ExternalLink } from "lucide-react";
+import {
+  ExternalLink,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+} from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -20,6 +26,7 @@ import {
 } from "@/components/ui/tooltip";
 import Link from "next/link";
 import PoliticianModal from "./PoliticianModal";
+import { cn } from "@/lib/utils";
 
 const columnHelper = createColumnHelper<PoliticianEpisodeAppearance>();
 
@@ -139,9 +146,6 @@ export default function PoliticianTable({
     pageCount: Math.ceil(totalCount / pageSize),
   });
 
-  const paginationStyle =
-    "px-2 sm:px-3 py-1 text-xs sm:text-sm border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-gray-800";
-
   return (
     <div className="bg-white rounded-b-lg shadow-lg overflow-hidden relative border-t border-gray-100">
       <div className="px-4 py-2 bg-gray-50 border-b border-gray-200">
@@ -253,41 +257,96 @@ export default function PoliticianTable({
       </div>
 
       {/* Pagination */}
-      <div className="bg-white px-4 sm:px-6 py-3 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div className="bg-white px-4 sm:px-6 py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-2">
-          <span className="text-xs sm:text-sm text-gray-700">
-            Seite {currentPage} von {Math.ceil(totalCount / pageSize)}
-          </span>
+          <p className="text-sm text-gray-700">
+            Seite <span className="font-semibold text-gray-900">{currentPage}</span> von{" "}
+            <span className="font-semibold text-gray-900">{Math.ceil(totalCount / pageSize)}</span>
+          </p>
         </div>
 
         <div className="flex items-center gap-1 sm:gap-2">
           <Button
+            variant="outline"
+            size="icon"
             onClick={() => handlePageChange(1)}
             disabled={currentPage <= 1}
-            className={paginationStyle}
+            className="h-8 w-8 sm:h-9 sm:w-9"
+            title="Erste Seite"
           >
-            {"<<"}
+            <ChevronsLeft className="h-4 w-4" />
           </Button>
           <Button
+            variant="outline"
+            size="icon"
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage <= 1}
-            className={paginationStyle}
+            className="h-8 w-8 sm:h-9 sm:w-9"
+            title="Vorherige Seite"
           >
-            {"<"}
+            <ChevronLeft className="h-4 w-4" />
           </Button>
+
+          <div className="hidden md:flex items-center gap-1">
+            {(() => {
+              const totalPages = Math.ceil(totalCount / pageSize);
+              const pages = [];
+              const delta = 1;
+
+              for (let i = 1; i <= totalPages; i++) {
+                if (
+                  i === 1 ||
+                  i === totalPages ||
+                  (i >= currentPage - delta && i <= currentPage + delta)
+                ) {
+                  pages.push(i);
+                } else if (pages[pages.length - 1] !== "...") {
+                  pages.push("...");
+                }
+              }
+
+              return pages.map((p, idx) =>
+                p === "..." ? (
+                  <span key={`ellipsis-${idx}`} className="px-2 text-gray-400">
+                    ...
+                  </span>
+                ) : (
+                  <Button
+                    key={`page-${p}`}
+                    variant={currentPage === p ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handlePageChange(p as number)}
+                    className={cn(
+                      "h-8 w-8 sm:h-9 sm:w-9 p-0 font-medium",
+                      currentPage === p && "pointer-events-none"
+                    )}
+                  >
+                    {p}
+                  </Button>
+                )
+              );
+            })()}
+          </div>
+
           <Button
+            variant="outline"
+            size="icon"
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-            className={paginationStyle}
+            className="h-8 w-8 sm:h-9 sm:w-9"
+            title="Nächste Seite"
           >
-            {">"}
+            <ChevronRight className="h-4 w-4" />
           </Button>
           <Button
+            variant="outline"
+            size="icon"
             onClick={() => handlePageChange(Math.ceil(totalCount / pageSize))}
             disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-            className={paginationStyle}
+            className="h-8 w-8 sm:h-9 sm:w-9"
+            title="Letzte Seite"
           >
-            {">>"}
+            <ChevronsRight className="h-4 w-4" />
           </Button>
         </div>
       </div>
