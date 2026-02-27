@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { applyShowFilter, getSummaryStats, getDetailedAppearances } from "@/lib/politics-data";
 
 // Types
 interface PartyStats {
@@ -21,36 +22,6 @@ interface ComboStat {
   politician_name: string;
   party_name: string;
   count: number;
-}
-
-function applyShowFilter(
-  //eslint-disable-next-line @typescript-eslint/no-explicit-any
-  query: any,
-  showName: string | null,
-  year?: string | null,
-  tv_channel?: string | null,
-) {
-  // 1️⃣ Erst nach showName filtern
-  if (showName !== null) {
-    query = query.eq("show_name", showName);
-  }
-
-  if (year && year !== "all") {
-    const startDate = `${year}-01-01`;
-    const endDate = `${year}-12-31`;
-    query = query.gte("episode_date", startDate).lte("episode_date", endDate);
-  }
-
-  if (tv_channel) {
-    query = query.eq("tv_channel", tv_channel);
-  }
-
-  query = query
-    .neq("show_name", "Phoenix Runde")
-    .neq("show_name", "Phoenix Persönlich")
-    .neq("show_name", "Pinar Atalay")
-    .neq("show_name", "Blome & Pfeffer");
-  return query;
 }
 
 export async function GET(request: NextRequest) {
@@ -248,97 +219,31 @@ export async function GET(request: NextRequest) {
       }
 
       case "summary": {
-        let query = supabase.from("tv_show_politicians").select("*");
-
-        query = applyShowFilter(query, showName, year, tv_channel);
-
-        const { data: allData, error } = await query;
-
-        if (error) {
-          throw error;
-        }
-
-        const total = allData?.length || 0;
-        const episodes = new Set(
-          allData?.map((d: { episode_date: string }) => d.episode_date),
-        ).size;
-        const politicians = new Set(
-          allData?.map((d: { politician_name: string }) => d.politician_name),
-        ).size;
-        const parties = new Set(
-          allData
-            ?.filter((d: { party_name: string | null }) => d.party_name)
-            .map((d: { party_name: string }) => d.party_name),
-        ).size;
-
+        const stats = await getSummaryStats({ show: showName, year, tv_channel });
         return NextResponse.json({
           success: true,
-          data: {
-            total_appearances: total,
-            total_episodes: episodes,
-            unique_politicians: politicians,
-            parties_represented: parties,
-            show_name: showName || "Alle Shows",
-          },
+          data: stats,
         });
       }
 
       case "detailed-appearances": {
-        let query = supabase
-          .from("tv_show_politicians")
-          .select(
-            "show_name, episode_date, politician_name, party_name, abgeordnetenwatch_url",
-          )
-          .order("episode_date", { ascending: false })
-          .order("id", { ascending: false })
-          .range(offset, offset + limit - 1);
-
-        query = applyShowFilter(query, showName, year, tv_channel);
-
-        const { data, error } = await query;
-        if (error) {
-          throw error;
-        }
-
-        // Hole alle relevanten episode_urls aus show_links
-        let showLinksQuery = supabase
-          .from("show_links")
-          .select("episode_date, episode_url");
-        if (showName) {
-          showLinksQuery = showLinksQuery.eq("show_name", showName);
-        }
-        const { data: showLinksData, error: showLinksError } =
-          await showLinksQuery;
-        if (showLinksError) {
-          console.warn("Warning: Could not fetch show links:", showLinksError);
-        }
-        const urlMap = new Map();
-        if (showLinksData) {
-          showLinksData.forEach((link) => {
-            urlMap.set(link.episode_date, link.episode_url);
-          });
-        }
-
-        // Füge jeder Zeile die episode_url hinzu
-        const dataWithUrls = data.map((row) => ({
-          ...row,
-          episode_url: urlMap.get(row.episode_date) || null,
-        }));
-
-        // Hole Gesamtanzahl für Pagination
-        let countQuery = supabase
-          .from("tv_show_politicians")
-          .select("*", { count: "exact", head: true });
-        countQuery = applyShowFilter(countQuery, showName, year, tv_channel);
-        const { count: totalCount } = await countQuery;
+        const search = searchParams.get("search");
+        const { data, total } = await getDetailedAppearances({
+          show: showName,
+          year,
+          tv_channel,
+          search,
+          limit,
+          offset
+        });
 
         return NextResponse.json({
           success: true,
-          data: dataWithUrls,
+          data: data,
           pagination: {
             limit,
             offset,
-            total: { count: totalCount || 0 },
+            total: { count: total },
           },
         });
       }
@@ -576,180 +481,6 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({
           success: true,
           data: results,
-        });
-      }
-
-      case "politician-rankings": {
-        let query = supabase
-          .from("tv_show_politicians")
-          .select("politician_name, party_name, show_name, episode_date");
-
-        query = applyShowFilter(query, showName, year, tv_channel);
-
-        const { data, error } = await query;
-
-        if (error) {
-          throw error;
-        }
-
-        const politicianMap = new Map<
-          string,
-          {
-            party_name: string | null;
-            total_appearances: number;
-            shows: Set<string>;
-            latest_appearance: string;
-            first_appearance: string;
-          }
-        >();
-
-        data.forEach((row: any) => {
-          const politician = row.politician_name;
-          if (!politicianMap.has(politician)) {
-            politicianMap.set(politician, {
-              party_name: row.party_name,
-              total_appearances: 0,
-              shows: new Set(),
-              latest_appearance: row.episode_date,
-              first_appearance: row.episode_date,
-            });
-          }
-
-          const stats = politicianMap.get(politician)!;
-          stats.total_appearances++;
-          stats.shows.add(row.show_name);
-
-          if (row.episode_date > stats.latest_appearance) {
-            stats.latest_appearance = row.episode_date;
-          }
-          if (row.episode_date < stats.first_appearance) {
-            stats.first_appearance = row.episode_date;
-          }
-        });
-
-        const results = Array.from(politicianMap.entries())
-          .map(([politician_name, stats]) => ({
-            politician_name,
-            party_name: stats.party_name || "Unbekannt",
-            total_appearances: stats.total_appearances,
-            shows_appeared_on: stats.shows.size,
-            show_names: Array.from(stats.shows),
-            latest_appearance: stats.latest_appearance,
-            first_appearance: stats.first_appearance,
-          }))
-          .sort((a, b) => b.total_appearances - a.total_appearances)
-          .slice(0, limit);
-
-        return NextResponse.json({
-          success: true,
-          data: results,
-          metadata: {
-            total_politicians: politicianMap.size,
-            show_filter: showName || "Alle Shows",
-            limit: limit,
-          },
-        });
-      }
-
-      case "topic-party-matrix": {
-        // 1. Hole alle relevanten Topics (political_areas)
-        // Link-Tabelle
-        let topicQuery = supabase
-          .from("tv_show_episode_political_areas")
-          .select("show_name, episode_date, political_area_id");
-
-        topicQuery = applyShowFilter(topicQuery, showName, year, tv_channel);
-        const { data: topicData, error: topicError } =
-          await topicQuery.limit(10000);
-
-        if (topicError) throw topicError;
-
-        // Hole Topic-Labels aus der DB
-        const { data: topicDefinitions, error: defError } = await supabase
-          .from("political_area")
-          .select("id, label");
-
-        if (defError) throw defError;
-
-        // 2. Hole alle relevanten Politiker/Parteien
-        let partyQuery = supabase
-          .from("tv_show_politicians")
-          .select("show_name, episode_date, party_name")
-          .not("party_name", "is", null)
-          .neq("party_name", "");
-
-        partyQuery = applyShowFilter(partyQuery, showName, year, tv_channel);
-        const { data: partyData, error: partyError } =
-          await partyQuery.limit(10000);
-
-        if (partyError) throw partyError;
-
-        // 3. Verknüpfe Daten über Episode (Map für schnellen Zugriff)
-        // Map: "Show|Date" -> Set<TopicIDs>
-        const episodeTopics = new Map<string, number[]>();
-
-        topicData.forEach((row) => {
-          const key = `${row.show_name}|${row.episode_date}`;
-          if (!episodeTopics.has(key)) {
-            episodeTopics.set(key, []);
-          }
-          episodeTopics.get(key)!.push(row.political_area_id);
-        });
-
-        // 4. Aggregiere Matrix (Topic x Partei)
-        const matrix = new Map<string, number>(); // Key: "Party|TopicID" -> Count
-
-        partyData.forEach((row) => {
-          const key = `${row.show_name}|${row.episode_date}`;
-          const topics = episodeTopics.get(key);
-
-          if (topics && topics.length > 0) {
-            // Für JEDES Thema dieser Episode wird dem Politiker/der Partei ein "Punkt" gegeben
-            // Das bedeutet: War die SPD in einer Sendung über "Wirtschaft" und "Klima",
-            // bekommt sie +1 bei Wirtschaft und +1 bei Klima.
-            topics.forEach((topicId) => {
-              const matrixKey = `${row.party_name}|${topicId}`;
-              matrix.set(matrixKey, (matrix.get(matrixKey) || 0) + 1);
-            });
-          }
-        });
-
-        // 5. Formatiere Ergebnis
-        // Nutze dynamische Labels aus der DB
-        const TOPIC_MAPPING: Record<number, string> = {};
-        topicDefinitions.forEach((def) => {
-          if (def.label) TOPIC_MAPPING[def.id] = def.label;
-        });
-
-        const resultMatrix = Array.from(matrix.entries()).map(
-          ([key, count]) => {
-            const [party, topicIdStr] = key.split("|");
-            return {
-              party,
-              topicId: parseInt(topicIdStr),
-              count,
-            };
-          },
-        );
-
-        const topicsList = topicDefinitions
-          .map((def) => ({
-            id: def.id,
-            label: def.label || "Unbekannt",
-          }))
-          .sort((a, b) => a.id - b.id);
-
-        const partiesList = Array.from(
-          new Set(resultMatrix.map((r) => r.party)),
-        ).sort();
-
-        return NextResponse.json({
-          success: true,
-          data: {
-            topics: topicsList,
-            parties: partiesList,
-            matrix: resultMatrix,
-          },
         });
       }
 

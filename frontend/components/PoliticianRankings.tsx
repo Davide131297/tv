@@ -1,13 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
-import { useUrlUpdater } from "@/hooks/useUrlUpdater";
-import { LoadingOverlay } from "@/components/ui/loading-overlay";
 import { Card, CardContent } from "@/components/ui/card";
 import { Eye } from "lucide-react";
-import { FETCH_HEADERS } from "@/lib/utils";
-import { SHOW_OPTIONS } from "@/types";
 import { getPartyBorderedBadgeClasses } from "@/lib/party-colors";
 import {
   Tooltip,
@@ -15,12 +9,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import Link from "next/link";
-import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select";
 import PoliticianModal from "./PoliticianModal";
-import { useYearList } from "@/hooks/useYearList";
 import { format } from "date-fns";
 
 interface PoliticianRanking {
@@ -33,17 +22,6 @@ interface PoliticianRanking {
   first_appearance: string;
 }
 
-interface PoliticianRankingsResponse {
-  success: boolean;
-  data: PoliticianRanking[];
-  metadata: {
-    total_politicians: number;
-    show_filter: string;
-    limit: number;
-  };
-}
-
-// Badge Komponente
 const Badge = ({
   children,
   className = "",
@@ -68,89 +46,13 @@ const Badge = ({
   );
 };
 
-import { Skeleton } from "@/components/ui/skeleton";
+interface PoliticianRankingsProps {
+  initialData: PoliticianRanking[];
+}
 
-export default function PoliticianRankings() {
-  const searchParams = useSearchParams();
-  const [rankings, setRankings] = useState<PoliticianRanking[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedShow, setSelectedShow] = useState<string>("all");
-  const [metadata, setMetadata] = useState<
-    PoliticianRankingsResponse["metadata"] | null
-  >(null);
-  const currentYear = new Date().getFullYear();
-  const [selectedYear, setSelectedYear] = useState<string>(String(currentYear));
-  const years = useYearList(2024);
-
-  // Update URL without page reload
-  const updateUrl = useUrlUpdater();
-
-  const handleShowChange = (show: string) => {
-    setSelectedShow(show);
-    updateUrl({ show: show === "all" ? undefined : show });
-  };
-
-  const handleYearChange = (year: string) => {
-    setSelectedYear(year);
-    updateUrl({ year: year === "all" ? undefined : year });
-  };
-
-  const fetchRankings = useCallback(
-    async (showFilter: string = "", yearFilter: string = "") => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const params = new URLSearchParams({
-          type: "politician-rankings",
-          limit: "50",
-        });
-
-        if (showFilter && showFilter !== "all") {
-          params.set("show", showFilter);
-        }
-
-        if (yearFilter !== undefined) {
-          params.set("year", yearFilter);
-        }
-
-        const response = await fetch(`/api/politics?${params}`, {
-          method: "GET",
-          headers: FETCH_HEADERS,
-        });
-        const result: PoliticianRankingsResponse = await response.json();
-
-        if (result.success) {
-          const sorted = [...result.data].sort((a, b) => {
-            if (b.total_appearances !== a.total_appearances) {
-              return b.total_appearances - a.total_appearances;
-            }
-
-            const at = new Date(a.latest_appearance).getTime() || 0;
-            const bt = new Date(b.latest_appearance).getTime() || 0;
-            return bt - at;
-          });
-
-          setRankings(sorted);
-          setMetadata(result.metadata);
-        } else {
-          setError("Fehler beim Laden der Daten");
-        }
-      } catch (err) {
-        setError("Netzwerkfehler beim Laden der Daten");
-        console.error("Error fetching politician rankings:", err);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [],
-  );
-
-  useEffect(() => {
-    fetchRankings(selectedShow, selectedYear);
-  }, [selectedShow, selectedYear, fetchRankings]);
-
+export default function PoliticianRankings({
+  initialData,
+}: PoliticianRankingsProps) {
   const getPartyColorClass = (partyName: string) => {
     return getPartyBorderedBadgeClasses(partyName);
   };
@@ -164,263 +66,200 @@ export default function PoliticianRankings() {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6 relative">
-      {/* Header und Filter */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:gap-4 items-start sm:items-center justify-between">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">
-            Politiker-Rankings
-          </h1>
-          <p className="text-sm sm:text-base text-gray-600">
-            {metadata && (
-              <>
-                {metadata.total_politicians} Politiker gefunden
-                {metadata.show_filter !== "Alle Shows" &&
-                  ` in ${metadata.show_filter}`}
-              </>
-            )}
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex gap-2 items-center">
-            <label>Jahr</label>
-            <NativeSelect
-              value={selectedYear}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                handleYearChange(e.target.value)
-              }
-            >
-              <NativeSelectOption value="all">Insgesamt</NativeSelectOption>
-              {years &&
-                years.map((y) => (
-                  <NativeSelectOption key={y} value={y}>
-                    {y}
-                  </NativeSelectOption>
-                ))}
-            </NativeSelect>
-          </div>
-          <div className="flex gap-2 items-center">
-            <label>Show</label>
-            <NativeSelect
-              value={selectedShow}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                handleShowChange(e.target.value)
-              }
-            >
-              {SHOW_OPTIONS.map((option) => (
-                <NativeSelectOption key={option.value} value={option.value}>
-                  {option.label}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
-          </div>
-        </div>
-      </div>
-
-      {error && (
+    <div className="space-y-4">
+      <p className="text-sm sm:text-base text-gray-600 -mt-2 mb-2">
+        {initialData.length} Top-Politiker gefunden
+      </p>
+      <div className="space-y-2 sm:space-y-3 relative">
+        {initialData.length === 0 ? (
         <Card>
-          <CardContent className="pt-6">
-            <p className="text-red-600">{error}</p>
+          <CardContent className="pt-4 sm:pt-6">
+            <p className="text-center text-gray-500 text-sm sm:text-base">
+              Keine Daten gefunden für die ausgewählte Show.
+            </p>
           </CardContent>
         </Card>
-      )}
+      ) : (
+        initialData.map((politician, index) => {
+          const rank = index + 1;
 
-      {/* Rankings Liste */}
-      <div className="space-y-2 sm:space-y-3 relative">
-        {loading && <LoadingOverlay />}
-        {rankings.length === 0 ? (
-          <Card>
-            <CardContent className="pt-4 sm:pt-6">
-              <p className="text-center text-gray-500 text-sm sm:text-base">
-                Keine Daten gefunden für die ausgewählte Show.
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          rankings.map((politician, index) => {
-            const rank = index + 1;
+          return (
+            <Card
+              key={politician.politician_name}
+              className="hover:shadow-md transition-shadow"
+            >
+              <CardContent className="pt-3 sm:pt-4 pb-3 sm:pb-6">
+                <div className="flex gap-3 sm:gap-4 items-start">
+                  <Badge
+                    className={`${getRankBadgeColor(
+                      rank,
+                    )} min-w-8 sm:min-w-10 justify-center shrink-0`}
+                  >
+                    #{rank}
+                  </Badge>
 
-            return (
-              <Card
-                key={politician.politician_name}
-                className="hover:shadow-md transition-shadow"
-              >
-                <CardContent className="pt-3 sm:pt-4 pb-3 sm:pb-6">
-                  <div className="flex gap-3 sm:gap-4 items-start">
-                    {/* Rang */}
-                    <Badge
-                      className={`${getRankBadgeColor(
-                        rank,
-                      )} min-w-8 sm:min-w-10 justify-center shrink-0`}
-                    >
-                      #{rank}
-                    </Badge>
+                  <div className="flex-1 min-w-0">
+                    {/* Mobile Layout */}
+                    <div className="sm:hidden">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex-1 min-w-0 pr-2">
+                          <div className="flex gap-1 items-center">
+                            <PoliticianModal
+                              politicianName={politician.politician_name}
+                              politicianParty={politician.party_name}
+                              className="text-blue-500"
+                            />
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <Link
+                                  href={`politiker?search=${politician.politician_name.replace(
+                                    / /g,
+                                    "+",
+                                  )}`}
+                                >
+                                  <Eye className="cursor-pointer" size={16} />
+                                </Link>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Shows ansehen</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                          <Badge
+                            className={`${getPartyColorClass(
+                              politician.party_name,
+                            )} text-xs mt-1`}
+                          >
+                            {politician.party_name}
+                          </Badge>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-lg font-bold text-blue-600">
+                            {politician.total_appearances}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Auftritte
+                          </div>
+                        </div>
+                      </div>
 
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      {/* Mobile Layout */}
-                      <div className="sm:hidden">
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="flex-1 min-w-0 pr-2">
-                            <div className="flex gap-1 items-center">
-                              <PoliticianModal
-                                politicianName={politician.politician_name}
-                                politicianParty={politician.party_name}
-                                className="text-blue-500"
-                              />
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  <Link
-                                    href={`politiker?search=${politician.politician_name.replace(
-                                      / /g,
-                                      "+",
-                                    )}`}
-                                  >
-                                    <Eye className="cursor-pointer" size={16} />
-                                  </Link>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Shows ansehen</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </div>
+                      <div className="flex justify-between items-center text-xs text-gray-500 mb-2">
+                        <div className="flex gap-1">
+                          {politician.shows_appeared_on > 1 && (
+                            <Badge variant="outline" className="text-xs">
+                              {politician.shows_appeared_on} Shows
+                            </Badge>
+                          )}
+                        </div>
+                        <div>
+                          {format(new Date(politician.latest_appearance), "dd.MM.yyyy")}
+                        </div>
+                      </div>
+
+                      <div className="mt-2 pt-2 border-t border-gray-50">
+                        <div className="text-xs text-gray-600 mb-1">
+                          Auftritte in:
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {politician.show_names.map((showName) => (
                             <Badge
-                              className={`${getPartyColorClass(
+                              key={showName}
+                              variant="secondary"
+                              className="text-xs"
+                            >
+                              {showName}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Desktop Layout */}
+                    <div className="hidden sm:block">
+                      <div className="flex gap-4 items-center justify-between mb-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex gap-2.5 items-center">
+                            <PoliticianModal
+                              politicianName={politician.politician_name}
+                              politicianParty={politician.party_name}
+                              className="hover:underline hover:text-blue-600 cursor-pointer font-bold text-lg"
+                            />
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <Link
+                                  href={`politiker?search=${politician.politician_name.replace(
+                                    / /g,
+                                    "+",
+                                  )}`}
+                                >
+                                  <Eye className="cursor-pointer" size={16} />
+                                </Link>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Genauer ansehen</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            <Badge
+                              className={getPartyColorClass(
                                 politician.party_name,
-                              )} text-xs mt-1`}
+                              )}
                             >
                               {politician.party_name}
                             </Badge>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-lg font-bold text-blue-600">
-                              {politician.total_appearances}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              Auftritte
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex justify-between items-center text-xs text-gray-500 mb-2">
-                          <div className="flex gap-1">
                             {politician.shows_appeared_on > 1 && (
-                              <Badge variant="outline" className="text-xs">
+                              <Badge variant="outline">
                                 {politician.shows_appeared_on} Shows
                               </Badge>
                             )}
                           </div>
-                          <div>
-                            {format(politician.latest_appearance, "dd.MM.yyyy")}
+                        </div>
+
+                        <div className="text-center">
+                          <div className="text-xl font-bold text-blue-600">
+                            {politician.total_appearances}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            Auftritte
                           </div>
                         </div>
 
-                        {/* Mobile Show Namen */}
-                        <div className="mt-2 pt-2 border-t border-gray-50">
-                          <div className="text-xs text-gray-600 mb-1">
-                            Auftritte in:
-                          </div>
-                          <div className="flex flex-wrap gap-1">
-                            {politician.show_names.map((showName) => (
-                              <Badge
-                                key={showName}
-                                variant="secondary"
-                                className="text-xs"
-                              >
-                                {showName}
-                              </Badge>
-                            ))}
+                        <div className="text-right text-sm text-gray-500">
+                          <div>Letzter Auftritt:</div>
+                          <div className="font-medium">
+                            {format(
+                              new Date(politician.latest_appearance),
+                              "dd.MM.yyyy",
+                            )}
                           </div>
                         </div>
                       </div>
 
-                      {/* Desktop Layout */}
-                      <div className="hidden sm:block">
-                        <div className="flex gap-4 items-center justify-between mb-2">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex gap-2.5 items-center">
-                              <PoliticianModal
-                                politicianName={politician.politician_name}
-                                politicianParty={politician.party_name}
-                                className="hover:underline hover:text-blue-600 cursor-pointer font-bold text-lg"
-                              />
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  <Link
-                                    href={`politiker?search=${politician.politician_name.replace(
-                                      / /g,
-                                      "+",
-                                    )}`}
-                                  >
-                                    <Eye className="cursor-pointer" size={16} />
-                                  </Link>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Genauer ansehen</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </div>
-                            <div className="flex flex-wrap gap-2 mt-1">
-                              <Badge
-                                className={getPartyColorClass(
-                                  politician.party_name,
-                                )}
-                              >
-                                {politician.party_name}
-                              </Badge>
-                              {politician.shows_appeared_on > 1 && (
-                                <Badge variant="outline">
-                                  {politician.shows_appeared_on} Shows
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="text-center">
-                            <div className="text-xl font-bold text-blue-600">
-                              {politician.total_appearances}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              Auftritte
-                            </div>
-                          </div>
-
-                          <div className="text-right text-sm text-gray-500">
-                            <div>Letzter Auftritt:</div>
-                            <div className="font-medium">
-                              {format(
-                                politician.latest_appearance,
-                                "dd.MM.yyyy",
-                              )}
-                            </div>
-                          </div>
+                      <div className="mt-2 pt-2 border-t border-gray-50">
+                        <div className="text-xs text-gray-600 mb-1">
+                          Auftritte in:
                         </div>
-
-                        {/* Desktop Show Namen */}
-                        <div className="mt-2 pt-2 border-t border-gray-50">
-                          <div className="text-xs text-gray-600 mb-1">
-                            Auftritte in:
-                          </div>
-                          <div className="flex flex-wrap gap-1">
-                            {politician.show_names.map((showName) => (
-                              <Badge
-                                key={showName}
-                                variant="secondary"
-                                className="text-xs"
-                              >
-                                {showName}
-                              </Badge>
-                            ))}
-                          </div>
+                        <div className="flex flex-wrap gap-1">
+                          {politician.show_names.map((showName) => (
+                            <Badge
+                              key={showName}
+                              variant="secondary"
+                              className="text-xs"
+                            >
+                              {showName}
+                            </Badge>
+                          ))}
                         </div>
                       </div>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            );
-          })
-        )}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })
+      )}
       </div>
     </div>
   );

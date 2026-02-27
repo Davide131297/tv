@@ -2,6 +2,7 @@ import PartyTimelinePageContent from "@/components/PartyTimelinePageContent";
 import { Suspense } from "react";
 import { ChartSkeleton } from "@/components/ui/page-skeletons";
 import type { Metadata } from "next";
+import { getPartyTimeline } from "@/lib/politics-data";
 
 export const metadata: Metadata = {
   title: "Zeitverlauf Parteien",
@@ -14,10 +15,41 @@ export const metadata: Metadata = {
   },
 };
 
-export default function PartyTimelinePage() {
+export default async function PartyTimelinePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const params = await searchParams;
+  const show = typeof params.show === "string" ? params.show : "all";
+  const year = typeof params.year === "string" ? params.year : String(new Date().getFullYear());
+  const tv_channel = typeof params.tv_channel === "string" ? params.tv_channel : undefined;
+
   return (
-    <Suspense fallback={<ChartSkeleton />}>
-      <PartyTimelinePageContent />
+    <Suspense key={`${show}-${year}-${tv_channel}`} fallback={<ChartSkeleton />}>
+      <PartyTimelineDataWrapper show={show} year={year} tv_channel={tv_channel} />
     </Suspense>
+  );
+}
+
+async function PartyTimelineDataWrapper({ 
+  show, 
+  year, 
+  tv_channel 
+}: { 
+  show: string; 
+  year: string; 
+  tv_channel?: string 
+}) {
+  const { data, parties } = await getPartyTimeline({ show, year, tv_channel });
+  
+  return (
+    <PartyTimelinePageContent 
+      initialData={data} 
+      initialParties={parties}
+      initialShow={show} 
+      initialYear={year}
+      initialChannel={tv_channel}
+    />
   );
 }

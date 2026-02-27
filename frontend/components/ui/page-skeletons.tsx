@@ -92,6 +92,70 @@ export function TableSkeleton() {
 }
 
 /**
+ * Skeleton for only the table part, used when filtering.
+ */
+export function TableOnlySkeleton() {
+  return (
+    <div className="animate-in fade-in duration-300">
+      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="border-b px-4 py-3 flex gap-4 bg-gray-50">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-4 w-16" />
+        </div>
+        {/* Table rows */}
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="border-b px-4 py-3 flex gap-4 items-center">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-36" />
+            <Skeleton className="h-6 w-16 rounded-full" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Skeleton with stats cards and a table.
+ */
+export function StatsAndTableSkeleton() {
+  return (
+    <div className="animate-in fade-in duration-300">
+      {/* Stats row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-8">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="bg-white rounded-lg shadow-sm p-4 space-y-2">
+            <Skeleton className="h-6 w-12" />
+            <Skeleton className="h-3 w-24" />
+          </div>
+        ))}
+      </div>
+
+      {/* Table */}
+      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="border-b px-4 py-3 flex gap-4 bg-gray-50">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-4 w-16" />
+        </div>
+        {Array.from({ length: 10 }).map((_, i) => (
+          <div key={i} className="border-b px-4 py-3 flex gap-4 items-center">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-36" />
+            <Skeleton className="h-6 w-16 rounded-full" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
  * Skeleton layout matching the rankings page (numbered list with badges).
  */
 export function RankingsSkeleton() {
@@ -162,6 +226,68 @@ export function ChartSkeleton() {
           <Skeleton className="h-4 w-4" />
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Skeleton for only the overview data part (stats cards + averages), used when filtering.
+ */
+export function OverviewOnlySkeleton() {
+  return (
+    <div className="animate-in fade-in duration-300">
+      {/* Show-spezifische Überschrift */}
+      <div className="mb-6">
+        <Skeleton className="h-7 w-64" />
+      </div>
+
+      {/* Stat cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="bg-white rounded-lg shadow-md p-6 space-y-3">
+            <Skeleton className="h-8 w-16" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+        ))}
+      </div>
+
+      {/* Averages section */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <Skeleton className="h-6 w-48 mb-4" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="text-center space-y-2">
+              <Skeleton className="h-8 w-12 mx-auto" />
+              <Skeleton className="h-4 w-32 mx-auto" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Skeleton for only the rankings list part, used when filtering.
+ */
+export function RankingsOnlySkeleton() {
+  return (
+    <div className="animate-in fade-in duration-300">
+      {/* Ranking items */}
+      {Array.from({ length: 10 }).map((_, i) => (
+        <div
+          key={i}
+          className="bg-white rounded-lg shadow-sm p-4 mb-3 flex items-center gap-4"
+        >
+          <Skeleton className="h-8 w-8 rounded-full" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-3 w-24" />
+          </div>
+          <Skeleton className="h-6 w-16 rounded-full" />
+          <Skeleton className="h-5 w-10" />
+        </div>
+      ))}
     </div>
   );
 }

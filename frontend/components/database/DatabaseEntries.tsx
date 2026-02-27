@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,7 +23,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { FETCH_HEADERS } from "@/lib/utils";
+import { useUrlUpdater } from "@/hooks/useUrlUpdater";
 
 interface TvShowEntry {
   id: number;
@@ -37,11 +37,10 @@ interface TvShowEntry {
   tv_channel: string | null;
 }
 
-interface DatabaseEntriesResponse {
-  entries: TvShowEntry[];
+interface DatabaseEntriesProps {
+  initialData: TvShowEntry[];
   totalCount: number;
-  page: number;
-  limit: number;
+  currentPage: number;
   totalPages: number;
 }
 
@@ -66,71 +65,31 @@ const GENERAL_FEEDBACK_OPTIONS = [
   { value: "other", label: "Sonstiges" },
 ];
 
-export default function DatabaseEntries() {
-  const [entries, setEntries] = useState<TvShowEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
+export default function DatabaseEntries({
+  initialData,
+  totalCount,
+  currentPage,
+  totalPages,
+}: DatabaseEntriesProps) {
+  const updateUrl = useUrlUpdater();
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Feedback states
   const [selectedEntry, setSelectedEntry] = useState<TvShowEntry | null>(null);
   const [feedbackIssueType, setFeedbackIssueType] = useState("");
   const [feedbackDescription, setFeedbackDescription] = useState("");
   const [feedbackLoading, setFeedbackLoading] = useState(false);
 
-  // General feedback dialog states
   const [isGeneralFeedbackOpen, setIsGeneralFeedbackOpen] = useState(false);
   const [generalFeedbackType, setGeneralFeedbackType] = useState("");
   const [generalFeedbackDescription, setGeneralFeedbackDescription] =
     useState("");
   const [generalFeedbackLoading, setGeneralFeedbackLoading] = useState(false);
 
-  const fetchEntries = async (currentPage: number = 1) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(
-        `/api/database-entries?page=${currentPage}&limit=50`,
-        {
-          headers: FETCH_HEADERS,
-        },
-      );
-
-      if (!response.ok) {
-        throw new Error("Fehler beim Laden der Daten");
-      }
-
-      const data: DatabaseEntriesResponse = await response.json();
-      setEntries(data.entries);
-      setTotalPages(data.totalPages);
-      setTotalCount(data.totalCount);
-      setPage(data.page);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Ein unerwarteter Fehler ist aufgetreten",
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchEntries(1);
-  }, []);
-
   const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      fetchEntries(newPage);
-    }
+    updateUrl({ page: String(newPage) });
   };
 
-  const filteredEntries = entries.filter(
+  const filteredEntries = initialData.filter(
     (entry) =>
       !searchTerm ||
       entry.politician_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -154,15 +113,11 @@ export default function DatabaseEntries() {
         },
       ]);
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
-      // Reset form
       setSelectedEntry(null);
       setFeedbackIssueType("");
       setFeedbackDescription("");
-
       alert("Feedback erfolgreich gesendet!");
     } catch (error) {
       console.error("Fehler beim Senden des Feedbacks:", error);
@@ -179,7 +134,7 @@ export default function DatabaseEntries() {
     try {
       const { error } = await supabase.from("feedback").insert([
         {
-          entry_id: null, // No specific entry ID for general feedback
+          entry_id: null,
           issue_type: generalFeedbackType,
           description: generalFeedbackDescription,
           status: "open",
@@ -187,15 +142,11 @@ export default function DatabaseEntries() {
         },
       ]);
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
-      // Reset form and close dialog
       setGeneralFeedbackType("");
       setGeneralFeedbackDescription("");
       setIsGeneralFeedbackOpen(false);
-
       alert("Allgemeines Feedback erfolgreich gesendet!");
     } catch (error) {
       console.error("Fehler beim Senden des allgemeinen Feedbacks:", error);
@@ -211,31 +162,8 @@ export default function DatabaseEntries() {
     setFeedbackDescription("");
   };
 
-  if (loading && entries.length === 0) {
-    return (
-      <div className="text-center py-8">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-        <p className="mt-4 text-gray-600">Lade Datenbank-Einträge...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-8">
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-          {error}
-        </div>
-        <Button onClick={() => fetchEntries(page)} className="mt-4">
-          Erneut versuchen
-        </Button>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
-      {/* Search and General Feedback Button */}
       <Card className="p-4">
         <div className="flex flex-col sm:flex-row gap-4 items-center">
           <div className="flex-1">
@@ -331,7 +259,6 @@ export default function DatabaseEntries() {
         </div>
       </Card>
 
-      {/* Feedback Form Modal */}
       {selectedEntry && (
         <Card className="p-6 border-2 border-blue-200 bg-blue-50">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -421,9 +348,7 @@ export default function DatabaseEntries() {
         </Card>
       )}
 
-      {/* Entries Table */}
       <Card className="overflow-hidden">
-        {/* Mobile View */}
         <div className="block lg:hidden">
           <div className="space-y-3 p-4">
             {filteredEntries.map((entry) => (
@@ -484,7 +409,6 @@ export default function DatabaseEntries() {
           </div>
         </div>
 
-        {/* Desktop View */}
         <div className="hidden lg:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -549,7 +473,7 @@ export default function DatabaseEntries() {
           </table>
         </div>
 
-        {filteredEntries.length === 0 && !loading && (
+        {filteredEntries.length === 0 && (
           <div className="text-center py-8 text-gray-500">
             {searchTerm
               ? "Keine Einträge gefunden für deine Suche."
@@ -558,43 +482,40 @@ export default function DatabaseEntries() {
         )}
       </Card>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <Card className="p-4">
           <div className="flex flex-col space-y-3 lg:flex-row lg:space-y-0 lg:items-center lg:justify-between">
             <div className="text-sm text-gray-600 text-center lg:text-left">
-              Seite {page} von {totalPages} ({totalCount} Einträge gesamt)
+              Seite {currentPage} von {totalPages} ({totalCount} Einträge gesamt)
             </div>
             <div className="flex justify-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
-                disabled={page <= 1}
-                onClick={() => handlePageChange(page - 1)}
+                disabled={currentPage <= 1}
+                onClick={() => handlePageChange(currentPage - 1)}
               >
                 Vorherige
               </Button>
 
-              {/* Page numbers - responsive */}
               <div className="flex gap-1">
-                {/* Mobile: max 3 buttons, Desktop: max 5 buttons */}
                 <div className="flex gap-1 sm:hidden">
                   {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
                     let pageNum;
                     if (totalPages <= 3) {
                       pageNum = i + 1;
-                    } else if (page <= 2) {
+                    } else if (currentPage <= 2) {
                       pageNum = i + 1;
-                    } else if (page >= totalPages - 1) {
+                    } else if (currentPage >= totalPages - 1) {
                       pageNum = totalPages - 2 + i;
                     } else {
-                      pageNum = page - 1 + i;
+                      pageNum = currentPage - 1 + i;
                     }
 
                     return (
                       <Button
                         key={pageNum}
-                        variant={pageNum === page ? "default" : "outline"}
+                        variant={pageNum === currentPage ? "default" : "outline"}
                         size="sm"
                         onClick={() => handlePageChange(pageNum)}
                         className="min-w-[40px]"
@@ -609,18 +530,18 @@ export default function DatabaseEntries() {
                     let pageNum;
                     if (totalPages <= 5) {
                       pageNum = i + 1;
-                    } else if (page <= 3) {
+                    } else if (currentPage <= 3) {
                       pageNum = i + 1;
-                    } else if (page >= totalPages - 2) {
+                    } else if (currentPage >= totalPages - 2) {
                       pageNum = totalPages - 4 + i;
                     } else {
-                      pageNum = page - 2 + i;
+                      pageNum = currentPage - 2 + i;
                     }
 
                     return (
                       <Button
                         key={pageNum}
-                        variant={pageNum === page ? "default" : "outline"}
+                        variant={pageNum === currentPage ? "default" : "outline"}
                         size="sm"
                         onClick={() => handlePageChange(pageNum)}
                       >
@@ -634,8 +555,8 @@ export default function DatabaseEntries() {
               <Button
                 variant="outline"
                 size="sm"
-                disabled={page >= totalPages}
-                onClick={() => handlePageChange(page + 1)}
+                disabled={currentPage >= totalPages}
+                onClick={() => handlePageChange(currentPage + 1)}
               >
                 Nächste
               </Button>

@@ -1,129 +1,53 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { useUrlUpdater } from "@/hooks/useUrlUpdater";
-import { LoadingOverlay } from "@/components/ui/loading-overlay";
 import PartyTimelineChart from "@/components/PartyTimelineChart";
 import ShowOptionsButtons from "@/components/ShowOptionsButtons";
-import { SHOW_OPTIONS } from "@/types";
-import { TV_CHANNEL } from "@/lib/utils";
 import { useYearList } from "@/hooks/useYearList";
-import { useSelectedShow } from "@/hooks/useSelectedShow";
-import { useSelectedChannel } from "@/hooks/useSelectedChannel";
-import { FETCH_HEADERS } from "@/lib/utils";
+import { useSearchParams } from "next/navigation";
 
 interface MonthlyPartyStats {
   month: string;
   [party: string]: string | number;
 }
 
-interface ApiResponse {
-  success: boolean;
-  data: MonthlyPartyStats[];
-  parties: string[];
-  year: string;
+interface PartyTimelinePageContentProps {
+  initialData: MonthlyPartyStats[];
+  initialParties: string[];
+  initialShow: string;
+  initialYear: string;
+  initialChannel?: string;
 }
 
-export default function PartyTimelinePageContent() {
+export default function PartyTimelinePageContent({
+  initialData,
+  initialParties,
+  initialShow,
+  initialYear,
+  initialChannel,
+}: PartyTimelinePageContentProps) {
   const searchParams = useSearchParams();
   const updateUrl = useUrlUpdater();
   const years = useYearList(2024);
-  const selectedShow = useSelectedShow(searchParams, SHOW_OPTIONS);
-  const selectedChannel = useSelectedChannel(searchParams, TV_CHANNEL);
-  const currentYear = new Date().getFullYear();
-  const [data, setData] = useState<MonthlyPartyStats[]>([]);
-  const [parties, setParties] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedYear, setSelectedYear] = useState<string>(
-    () => searchParams.get("year") || String(currentYear),
-  );
 
-  const [localShow, setLocalShow] = useState<string>(selectedShow);
-  const [localUnionMode, setLocalUnionMode] = useState<boolean>(
-    searchParams.get("union") === "true",
-  );
-  const [localSelectedParties, setLocalSelectedParties] = useState<string[]>(
-    () => {
-      const partiesParam = searchParams.get("parteien");
-      return partiesParam ? partiesParam.split(",") : [];
-    },
-  );
-
-  // Sync localShow with URL on mount/navigation
-  useEffect(() => {
-    setLocalShow(selectedShow);
-  }, [selectedShow]);
+  const unionMode = searchParams.get("union") === "true";
+  const selectedParties = searchParams.get("parteien")?.split(",") || [];
 
   const handleShowChange = (show: string) => {
-    setLocalShow(show);
     updateUrl({ show });
   };
 
   const handleYearChange = (year: string) => {
-    setSelectedYear(year);
     updateUrl({ year });
   };
 
   const handleUnionModeChange = (union: boolean) => {
-    setLocalUnionMode(union);
     updateUrl({ union });
   };
 
   const handleSelectedPartiesChange = (parties: string[]) => {
-    setLocalSelectedParties(parties);
     updateUrl({ parteien: parties });
   };
-
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        const params = new URLSearchParams();
-        if (localShow && localShow !== "all") {
-          params.append("show", localShow);
-        }
-        if (selectedYear) {
-          params.append("year", selectedYear);
-        }
-        if (selectedChannel) {
-          params.append("tv_channel", selectedChannel);
-        }
-
-        const queryString = params.toString();
-
-        const response = await fetch(`/api/party-timeline?${queryString}`, {
-          method: "GET",
-          headers: FETCH_HEADERS,
-        });
-
-        if (!response.ok) {
-          throw new Error("Fehler beim Laden der Daten");
-        }
-
-        const result: ApiResponse = await response.json();
-
-        if (result.success) {
-          setData(result.data);
-          setParties(result.parties);
-        } else {
-          throw new Error("Daten konnten nicht geladen werden");
-        }
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Ein Fehler ist aufgetreten",
-        );
-        console.error("Error fetching party timeline data:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    fetchData();
-  }, [localShow, selectedYear, selectedChannel]);
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -135,43 +59,34 @@ export default function PartyTimelinePageContent() {
       </div>
 
       <div className="mb-6 flex flex-col gap-4">
-        {/* Show Filter */}
         <div>
           <label className="text-sm font-medium mb-2 block">
             Show auswählen:
           </label>
           <ShowOptionsButtons
             onShowChange={handleShowChange}
-            selectedShow={localShow}
-            selectedChannel={selectedChannel}
+            selectedShow={initialShow}
+            selectedChannel={initialChannel}
           />
         </div>
       </div>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md mb-6">
-          {error}
-        </div>
-      )}
-
       <div className="relative">
-        {isLoading && <LoadingOverlay />}
-
         <PartyTimelineChart
-          data={data}
-          parties={parties}
-          selectedShow={localShow}
-          year={selectedYear}
-          unionMode={localUnionMode}
-          selectedParties={localSelectedParties}
+          data={initialData}
+          parties={initialParties}
+          selectedShow={initialShow}
+          year={initialYear}
+          unionMode={unionMode}
+          selectedParties={selectedParties}
           onUnionModeChange={handleUnionModeChange}
           onSelectedPartiesChange={handleSelectedPartiesChange}
-          selectedYear={selectedYear}
+          selectedYear={initialYear}
           handleYearChange={handleYearChange}
           years={years}
         />
 
-        {!isLoading && data.length === 0 && (
+        {initialData.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center py-12 text-muted-foreground">
               Keine Daten für das ausgewählte Jahr verfügbar.

@@ -64,7 +64,10 @@ export interface PoliticalAreaEpisodeRow {
   political_area?: {
     id: number;
     label: string;
-  } | null;
+  } | {
+    id: number;
+    label: string;
+  }[] | null;
 }
 
 export interface PoliticalAreasChartPropsExtended extends PoliticalAreasChartProps {
@@ -98,6 +101,15 @@ export interface PoliticianAppearance {
   politician_details: PoliticianDetails;
   abgeordnetenwatch_url: string;
   episode_url?: string; // Optional: Link zur Episode
+}
+
+export interface PoliticianEpisodeAppearance {
+  show_name: string;
+  episode_date: string;
+  politician_name: string;
+  party_name: string;
+  abgeordnetenwatch_url?: string;
+  episode_url?: string | null;
 }
 
 // =============================================================================

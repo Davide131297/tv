@@ -1,5 +1,8 @@
 import DatabaseEntries from "@/components/database/DatabaseEntries";
 import type { Metadata } from "next";
+import { getDatabaseEntries } from "@/lib/politics-data";
+import { Suspense } from "react";
+import { TableSkeleton } from "@/components/ui/page-skeletons";
 
 export const metadata: Metadata = {
   title: "Datenbank",
@@ -11,7 +14,14 @@ export const metadata: Metadata = {
   },
 };
 
-export default function DatabasePage() {
+export default async function DatabasePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const params = await searchParams;
+  const page = typeof params.page === "string" ? parseInt(params.page) : 1;
+
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -25,8 +35,23 @@ export default function DatabasePage() {
           </p>
         </div>
 
-        <DatabaseEntries />
+        <Suspense key={page} fallback={<TableSkeleton />}>
+          <DatabaseDataWrapper page={page} />
+        </Suspense>
       </div>
     </div>
+  );
+}
+
+async function DatabaseDataWrapper({ page }: { page: number }) {
+  const data = await getDatabaseEntries({ page, limit: 50 });
+  
+  return (
+    <DatabaseEntries 
+      initialData={data.entries}
+      totalCount={data.totalCount}
+      currentPage={data.page}
+      totalPages={data.totalPages}
+    />
   );
 }
