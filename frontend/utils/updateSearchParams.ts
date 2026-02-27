@@ -21,7 +21,7 @@ export function updateSearchParams(
       return;
     }
 
-    if (value === "" || value === "all") {
+    if (value === "") {
       params.delete(key);
     } else {
       params.set(key, value);

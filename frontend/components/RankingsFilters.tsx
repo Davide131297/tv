@@ -21,11 +21,11 @@ export default function RankingsFilters({
   const updateUrl = useUrlUpdater();
 
   const handleShowChange = (show: string) => {
-    updateUrl({ show: show === "all" ? undefined : show });
+    updateUrl({ show: show === "all" ? "" : show });
   };
 
   const handleYearChange = (year: string) => {
-    updateUrl({ year: year === "all" ? undefined : year });
+    updateUrl({ year: year });
   };
 
   return (
