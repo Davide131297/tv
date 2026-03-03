@@ -4,6 +4,7 @@ import {
   insertEpisodePoliticalAreas,
   checkPolitician,
   getLatestEpisodeDate,
+  analyzeEpisodeSubtitleWithFactCheck,
 } from "../lib/utils.js";
 import { createBrowser, setupSimplePage } from "../lib/browser-configs.js";
 import {
@@ -456,6 +457,12 @@ export default async function CrawlLanz() {
         }));
 
       if (politicians.length > 0) {
+        await analyzeEpisodeSubtitleWithFactCheck(
+          "Markus Lanz",
+          "Markus Lanz",
+          episode.date,
+        );
+
         const inserted = await insertMultipleTvShowPoliticians(
           "ZDF",
           "Markus Lanz",

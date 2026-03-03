@@ -8,7 +8,11 @@ import {
   checkPolitician,
 } from "../lib/utils.js";
 import { Page } from "puppeteer";
-import { extractGuestsWithAI, getPoliticalArea } from "../lib/utils.js";
+import {
+  extractGuestsWithAI,
+  getPoliticalArea,
+  analyzeEpisodeSubtitleWithFactCheck,
+} from "../lib/utils.js";
 
 const LIST_URL =
   "https://www.ardaudiothek.de/sendung/caren-miosga/urn:ard:show:d6e5ba24e1508004/";
@@ -481,6 +485,12 @@ export async function crawlIncrementalCarenMiosgaEpisodes(): Promise<void> {
 
         // Speichere Politiker in die Datenbank
         if (politicians.length > 0) {
+          await analyzeEpisodeSubtitleWithFactCheck(
+            "Caren Miosga",
+            "caren miosga",
+            formatDateForDB(episode.date),
+          );
+
           const inserted = await insertMultipleTvShowPoliticians(
             "ZDF",
             "Caren Miosga",
@@ -630,6 +640,12 @@ export async function crawlAllCarenMiosgaEpisodes(): Promise<void> {
 
         // Speichere Politiker
         if (politicians.length > 0) {
+          await analyzeEpisodeSubtitleWithFactCheck(
+            "Caren Miosga",
+            "caren miosga",
+            formatDateForDB(episode.date),
+          );
+
           const inserted = await insertMultipleTvShowPoliticians(
             "ZDF",
             "Caren Miosga",

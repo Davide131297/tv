@@ -242,6 +242,319 @@ export async function getPoliticalArea(
   }
 }
 
+interface MediathekQueryResultItem {
+  timestamp?: number;
+  url_subtitle?: string;
+  title?: string;
+  duration?: number;
+  url_website?: string;
+}
+
+function toIsoDateFromUnixTimestamp(timestampSeconds: number): string {
+  const formatter = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Europe/Berlin",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+
+  return formatter.format(new Date(timestampSeconds * 1000));
+}
+
+function toTranscriptText(xmlText: string): string {
+  return xmlText
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function fetchBestMediathekSubtitleMatch(
+  episodeDate: string,
+  mediathekQuery: string,
+): Promise<MediathekQueryResultItem | null> {
+  const query = {
+    queries: [{ fields: ["title", "topic"], query: mediathekQuery }],
+    offset: 0,
+    size: 50,
+    future: false,
+    sortBy: "timestamp",
+    sortOrder: "desc",
+  };
+
+  try {
+    const response = await fetch(
+      `https://mediathekviewweb.de/api/query?query=${encodeURIComponent(
+        JSON.stringify(query),
+      )}`,
+    );
+
+    if (!response.ok) {
+      console.warn(`Mediathek API Fehler: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const results: MediathekQueryResultItem[] = data?.result?.results ?? [];
+
+    const sameDateItems = results.filter((item) => {
+      if (!item.timestamp) return false;
+      return toIsoDateFromUnixTimestamp(item.timestamp) === episodeDate;
+    });
+
+    if (sameDateItems.length === 0) return null;
+
+    const scored = sameDateItems
+      .map((item) => {
+        const hasSubtitle = !!item.url_subtitle;
+        const durationScore = item.duration && item.duration > 1800 ? 1 : 0;
+        const combinedText = `${item.title || ""} ${item.url_website || ""}`
+          .toLowerCase()
+          .trim();
+        const isClip =
+          combinedText.includes("clip") || combinedText.includes("ausschnitt");
+        const isPreview =
+          combinedText.includes("vorschau") || combinedText.includes("trailer");
+        const isSignLanguage =
+          combinedText.includes("gebärdensprache") ||
+          combinedText.includes("gebaerdensprache") ||
+          combinedText.includes("_dgs");
+
+        const score =
+          (hasSubtitle ? 1000 : 0) +
+          durationScore * 50 -
+          (isClip ? 80 : 0) -
+          (isPreview ? 80 : 0) -
+          (isSignLanguage ? 10 : 0);
+
+        return { item, score };
+      })
+      .sort((a, b) => b.score - a.score);
+
+    return scored[0]?.item ?? null;
+  } catch (error) {
+    console.warn("Fehler beim Mediathek API Call:", error);
+    return null;
+  }
+}
+
+export interface FactCheckEntry {
+  aussage: string;
+  bewertung: "zutreffend" | "teilweise zutreffend" | "unbelegt" | "eher falsch";
+  begruendung: string;
+  wissensstand_hinweis?: string;
+}
+
+export interface FactCheckAnalysis {
+  kernaussagen: string[];
+  fakt_checks: FactCheckEntry[];
+}
+
+async function analyzeTranscriptWithFactCheck(
+  showName: string,
+  transcriptText: string,
+): Promise<FactCheckAnalysis | null> {
+  const clippedTranscript = transcriptText.slice(0, 20000);
+  const systemInstruction = `Du analysierst ${showName}-Transkripte auf Deutsch.
+Antworte AUSSCHLIESSLICH mit einem gültigen JSON-Objekt ohne zusätzlichen Text, Markdown oder Codeblöcke.
+
+Das JSON muss folgende Struktur haben:
+{
+  "kernaussagen": ["Aussage 1", "Aussage 2", ...],
+  "fakt_checks": [
+    {
+      "aussage": "Die genaue Aussage aus der Sendung",
+      "bewertung": "zutreffend" | "teilweise zutreffend" | "unbelegt" | "eher falsch",
+      "begruendung": "Kurze sachliche Begründung der Bewertung",
+      "wissensstand_hinweis": "Optionaler Hinweis auf Datenlage oder Wissensstand"
+    }
+  ]
+}
+
+Regeln:
+- Fokus auf politisch relevante Kernaussagen (max. 8 Stück)
+- Bewerte Richtigkeit mit allgemeinem Wissen, nicht nur aus dem Transkript
+- Bei unklarer Datenlage: bewertung = "unbelegt"
+- Antworte nur mit dem JSON-Objekt, nichts sonst`;
+
+  const userPrompt = `Analysiere folgendes Transkript:\n\n${clippedTranscript}`;
+
+  try {
+    if (process.env.LokalLLM === "true") {
+      const response = await axios.post(
+        "http://127.0.0.1:1234/v1/chat/completions",
+        {
+          model: "local-model",
+          messages: [
+            { role: "system", content: systemInstruction },
+            { role: "user", content: userPrompt },
+          ],
+          temperature: 0.2,
+          max_tokens: 1500,
+        },
+      );
+
+      const rawContent: string =
+        response.data?.choices?.[0]?.message?.content?.trim() ?? "";
+      return parseFactCheckJSON(rawContent);
+    }
+
+    const generativeModel = getVertexAI().getGenerativeModel({
+      model: googleModel,
+      systemInstruction: {
+        role: "system",
+        parts: [{ text: systemInstruction }],
+      },
+      generationConfig: {
+        responseMimeType: "application/json",
+      },
+    });
+
+    const result = await generativeModel.generateContent({
+      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+    });
+
+    const content =
+      result.response.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+
+    return parseFactCheckJSON(content);
+  } catch (error) {
+    console.warn("Fehler bei Transcript-Faktcheck:", error);
+    return null;
+  }
+}
+
+function parseFactCheckJSON(raw: string): FactCheckAnalysis | null {
+  try {
+    // Entferne mögliche Markdown-Codeblöcke
+    const cleaned = raw
+      .replace(/^```json\s*/i, "")
+      .replace(/^```\s*/i, "")
+      .replace(/\s*```$/i, "")
+      .trim();
+    const parsed = JSON.parse(cleaned);
+    if (
+      Array.isArray(parsed.kernaussagen) &&
+      Array.isArray(parsed.fakt_checks)
+    ) {
+      return parsed as FactCheckAnalysis;
+    }
+    console.warn("⚠️ Faktcheck JSON hat unerwartete Struktur:", parsed);
+    return null;
+  } catch {
+    console.warn(
+      "⚠️ Faktcheck JSON-Parsing fehlgeschlagen:",
+      raw.slice(0, 200),
+    );
+    return null;
+  }
+}
+
+async function saveFactCheckToSupabase(
+  showName: string,
+  episodeDate: string,
+  analysis: FactCheckAnalysis,
+  rawText: string,
+): Promise<void> {
+  const { error } = await supabase.from("episode_factchecks").upsert(
+    {
+      show_name: showName,
+      episode_date: episodeDate,
+      core_statements: analysis.kernaussagen,
+      fact_checks: analysis.fakt_checks,
+      raw_analysis: rawText,
+      updated_at: new Date().toISOString(),
+    },
+    {
+      onConflict: "show_name,episode_date",
+      ignoreDuplicates: false,
+    },
+  );
+
+  if (error) {
+    console.error(
+      `❌ Fehler beim Speichern des Faktchecks (${showName} ${episodeDate}):`,
+      error,
+    );
+  } else {
+    console.log(
+      `✅ Faktcheck gespeichert: ${showName} ${episodeDate} (${analysis.kernaussagen.length} Kernaussagen, ${analysis.fakt_checks.length} Checks)`,
+    );
+  }
+}
+
+export async function analyzeEpisodeSubtitleWithFactCheck(
+  showName: string,
+  mediathekQuery: string,
+  episodeDate: string,
+): Promise<void> {
+  const mediathekMatch = await fetchBestMediathekSubtitleMatch(
+    episodeDate,
+    mediathekQuery,
+  );
+
+  if (!mediathekMatch) {
+    console.log(
+      `ℹ️ Kein Mediathek-Timestamp-Match für ${showName} am ${episodeDate} gefunden`,
+    );
+    return;
+  }
+
+  if (!mediathekMatch.url_subtitle) {
+    console.log(
+      `ℹ️ Mediathek-Match ohne url_subtitle für ${showName} am ${episodeDate}`,
+    );
+    return;
+  }
+
+  try {
+    const subtitleResponse = await fetch(mediathekMatch.url_subtitle);
+    if (!subtitleResponse.ok) {
+      console.warn(
+        `Subtitle Fetch Fehler (${subtitleResponse.status}) für ${showName} ${episodeDate}`,
+      );
+      return;
+    }
+
+    const subtitleXml = await subtitleResponse.text();
+    const transcriptText = toTranscriptText(subtitleXml);
+    if (!transcriptText) {
+      console.log(
+        `ℹ️ Leeres Transkript nach XML-Parsing für ${showName} am ${episodeDate}`,
+      );
+      return;
+    }
+
+    const analysis = await analyzeTranscriptWithFactCheck(
+      showName,
+      transcriptText,
+    );
+    if (!analysis) {
+      console.log(
+        `ℹ️ Keine Faktcheck-Analyse erzeugt für ${showName} am ${episodeDate}`,
+      );
+      return;
+    }
+
+    console.log(
+      `🧠 Faktcheck (${showName} ${episodeDate}): ${analysis.kernaussagen.length} Kernaussagen, ${analysis.fakt_checks.length} Fakt-Checks`,
+    );
+
+    await saveFactCheckToSupabase(
+      showName,
+      episodeDate,
+      analysis,
+      JSON.stringify(analysis),
+    );
+  } catch (error) {
+    console.warn(
+      `Fehler beim Subtitle-/Faktcheck-Flow für ${showName} ${episodeDate}:`,
+      error,
+    );
+  }
+}
+
 // Hole das Datum der neuesten Episode für eine bestimmte Sendung (Supabase Version)
 export async function getLatestEpisodeDate(
   showName: string,

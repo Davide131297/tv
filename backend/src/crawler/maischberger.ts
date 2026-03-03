@@ -7,7 +7,11 @@ import {
   checkPolitician,
 } from "../lib/utils.js";
 import { createBrowser, setupSimplePage } from "../lib/browser-configs.js";
-import { extractGuestsWithAI, getPoliticalArea } from "../lib/utils.js";
+import {
+  extractGuestsWithAI,
+  getPoliticalArea,
+  analyzeEpisodeSubtitleWithFactCheck,
+} from "../lib/utils.js";
 
 interface MaischbergerEpisode {
   url: string;
@@ -205,6 +209,12 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
         );
 
         if (politicians.length > 0) {
+          await analyzeEpisodeSubtitleWithFactCheck(
+            "Maischberger",
+            "maischberger",
+            episode.date,
+          );
+
           const inserted = await insertMultipleTvShowPoliticians(
             "Das Erste",
             "Maischberger",
@@ -348,6 +358,12 @@ export async function crawlMaischbergerFull(): Promise<void> {
         );
 
         if (politicians.length > 0) {
+          await analyzeEpisodeSubtitleWithFactCheck(
+            "Maischberger",
+            "maischberger",
+            episode.date,
+          );
+
           const inserted = await insertMultipleTvShowPoliticians(
             "Das Erste",
             "Maischberger",

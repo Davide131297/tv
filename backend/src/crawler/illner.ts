@@ -6,6 +6,7 @@ import {
   insertMultipleShowLinks,
   insertEpisodePoliticalAreas,
   checkPolitician,
+  analyzeEpisodeSubtitleWithFactCheck,
 } from "../lib/utils.js";
 import { getPoliticalArea } from "../lib/utils.js";
 import {
@@ -416,6 +417,12 @@ export async function crawlNewMaybritIllnerEpisodes(): Promise<void> {
         );
 
         if (politicians.length > 0) {
+          await analyzeEpisodeSubtitleWithFactCheck(
+            "Maybrit Illner",
+            "maybrit illner",
+            episode.date,
+          );
+
           const inserted = await insertMultipleTvShowPoliticians(
             "ZDF",
             "Maybrit Illner",
@@ -557,6 +564,12 @@ export async function crawlAllMaybritIllnerEpisodes(): Promise<void> {
         }
 
         if (politicians.length > 0) {
+          await analyzeEpisodeSubtitleWithFactCheck(
+            "Maybrit Illner",
+            "maybrit illner",
+            episode.date,
+          );
+
           const inserted = await insertMultipleTvShowPoliticians(
             "ZDF",
             "Maybrit Illner",
