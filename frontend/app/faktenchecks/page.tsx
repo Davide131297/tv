@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { getFactchecks } from "@/lib/factcheck-data";
 import FactcheckList from "@/components/FactcheckList";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Faktenchecks | Polittalk-Watcher",
@@ -40,7 +41,7 @@ export default async function FaktenchecksPage({
               <div className="flex items-center gap-1.5 mt-2 text-xs text-gray-400">
                 <span>Analyse durchgeführt von</span>
                 <span className="inline-flex items-center gap-1 font-medium text-gray-500 bg-gray-100 border border-gray-200 rounded-full px-2 py-0.5">
-                  ✨ Gemini 1.5 Flash
+                  ✨ Gemini
                 </span>
               </div>
             </div>
@@ -90,11 +91,12 @@ function ShowFilter({ currentShow }: { currentShow: string }) {
           <a
             key={s.value}
             href={`/faktenchecks${s.value !== "all" ? `?show=${encodeURIComponent(s.value)}` : ""}`}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-all duration-150 ${
+            className={cn(
+              "px-4 py-1.5 rounded-full text-sm font-medium border transition-all duration-150",
               currentShow === s.value
                 ? "bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-200"
-                : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300"
-            }`}
+                : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300",
+            )}
           >
             {s.label}
           </a>

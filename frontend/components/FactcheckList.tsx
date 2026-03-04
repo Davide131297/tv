@@ -6,6 +6,7 @@ import type {
   FactCheckEntry,
   CoreStatement,
 } from "@/lib/factcheck-data";
+import { cn } from "@/lib/utils";
 
 // ────────────────────────────────────────────────────────────
 // Verdict config (new format uses German/English verdict strings)
@@ -161,14 +162,17 @@ function FactCheckEntryCard({ entry }: { entry: FactCheckEntry }) {
   }
 
   return (
-    <div className={`rounded-xl border p-4 ${style.bg} transition-all`}>
+    <div className={cn("rounded-xl border p-4 transition-all", style.bg)}>
       {/* Header: badge + speaker */}
       <div className="flex items-start justify-between gap-3 mb-3">
         <span
-          className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0 ${style.badge}`}
+          className={cn(
+            "inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border shrink-0",
+            style.badge,
+          )}
         >
           <span
-            className={`inline-block w-1.5 h-1.5 rounded-full ${style.dot}`}
+            className={cn("inline-block w-1.5 h-1.5 rounded-full", style.dot)}
           />
           {style.label}
         </span>
@@ -251,9 +255,14 @@ function VerdictSummary({ factchecks }: { factchecks: FactCheckEntry[] }) {
       {Object.entries(groups).map(([label, { count, style }]) => (
         <span
           key={label}
-          className={`flex items-center gap-1.5 text-xs font-medium ${style.text}`}
+          className={cn(
+            "flex items-center gap-1.5 text-xs font-medium",
+            style.text,
+          )}
         >
-          <span className={`inline-block w-2 h-2 rounded-full ${style.dot}`} />
+          <span
+            className={cn("inline-block w-2 h-2 rounded-full", style.dot)}
+          />
           {count}× {label}
         </span>
       ))}
@@ -295,6 +304,33 @@ function FactcheckCard({ fc }: { fc: Factcheck }) {
             <span className="text-xs text-gray-400">
               {fc.fact_checks.length} Checks
             </span>
+            {fc.episode_url && (
+              <>
+                <span className="text-xs text-gray-300">·</span>
+                <a
+                  href={fc.episode_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-xs text-indigo-500 hover:text-indigo-600 hover:underline flex items-center gap-1"
+                >
+                  <svg
+                    className="w-3 h-3"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                    />
+                  </svg>
+                  Zur Sendung
+                </a>
+              </>
+            )}
           </div>
 
           {/* Verdict summary */}
@@ -317,7 +353,10 @@ function FactcheckCard({ fc }: { fc: Factcheck }) {
 
         {/* Chevron */}
         <span
-          className={`shrink-0 mt-0.5 text-gray-400 group-hover:text-gray-600 transition-all duration-200 ${expanded ? "rotate-180" : ""}`}
+          className={cn(
+            "cursor-pointer shrink-0 p-1 -mt-1 -mr-1 rounded-full text-gray-400 group-hover:text-gray-600 hover:bg-gray-100 transition-all duration-200",
+            expanded && "rotate-180",
+          )}
         >
           <svg
             className="w-4 h-4"

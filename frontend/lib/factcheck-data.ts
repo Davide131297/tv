@@ -38,6 +38,7 @@ export interface Factcheck {
   fact_checks: FactCheckEntry[];
   raw_analysis?: string;
   created_at: string;
+  episode_url?: string;
 }
 
 export async function getFactchecks(params: {
@@ -62,5 +63,35 @@ export async function getFactchecks(params: {
     return [];
   }
 
-  return (data ?? []) as Factcheck[];
+  const factchecks = (data ?? []) as Factcheck[];
+
+  if (factchecks.length === 0) {
+    return factchecks;
+  }
+
+  // Hole Episoden-URLs aus der show_links Tabelle
+  const shows = Array.from(new Set(factchecks.map((fc) => fc.show_name)));
+  const dates = Array.from(new Set(factchecks.map((fc) => fc.episode_date)));
+
+  const { data: linksData, error: linksError } = await supabase
+    .from("show_links")
+    .select("show_name, episode_date, episode_url")
+    .in("show_name", shows)
+    .in("episode_date", dates);
+
+  if (!linksError && linksData) {
+    const linkMap = new Map();
+    linksData.forEach((link) => {
+      linkMap.set(`${link.show_name}-${link.episode_date}`, link.episode_url);
+    });
+
+    factchecks.forEach((fc) => {
+      const url = linkMap.get(`${fc.show_name}-${fc.episode_date}`);
+      if (url) {
+        fc.episode_url = url;
+      }
+    });
+  }
+
+  return factchecks;
 }
