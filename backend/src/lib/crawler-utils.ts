@@ -80,7 +80,7 @@ export function formatDateForDB(dateStr: string): string {
  */
 export async function extractDateISO(
   page: Page,
-  episodeUrl: string
+  episodeUrl: string,
 ): Promise<string | null> {
   // 1) Try JSON-LD structured data
   const ldDates: string[] = await page
@@ -174,7 +174,7 @@ export function isModeratorOrHost(name: string, showName?: string): boolean {
 
   // Check against common moderators
   const isCommon = commonModerators.some((mod) =>
-    name.toLowerCase().includes(mod.toLowerCase())
+    name.toLowerCase().includes(mod.toLowerCase()),
   );
   if (isCommon) return true;
 
@@ -247,7 +247,7 @@ export async function gentleScroll(page: Page): Promise<void> {
  */
 export function filterNewEpisodes<T extends { date: string }>(
   episodes: T[],
-  latestDbDate: string | null
+  latestDbDate: string | null,
 ): T[] {
   if (!latestDbDate) {
     console.log("📋 Keine Episoden in DB - alle sind neu");
@@ -256,7 +256,7 @@ export function filterNewEpisodes<T extends { date: string }>(
 
   const newEpisodes = episodes.filter((ep) => ep.date > latestDbDate);
   console.log(
-    `🆕 ${newEpisodes.length} neue Episoden gefunden (nach ${latestDbDate})`
+    `🆕 ${newEpisodes.length} neue Episoden gefunden (nach ${latestDbDate})`,
   );
 
   return newEpisodes.sort((a, b) => b.date.localeCompare(a.date)); // Newest first
@@ -277,4 +277,5 @@ export interface EpisodeResult {
   guests: string[];
   guestsDetailed: GuestDetails[];
   politicalAreaIds?: number[];
+  description?: string;
 }

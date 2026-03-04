@@ -223,7 +223,12 @@ export async function getPoliticalArea(
     }
 
     try {
-      const parsed = JSON.parse(content);
+      const cleaned = content
+        .replace(/^```json\s*/i, "")
+        .replace(/^```\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim();
+      const parsed = JSON.parse(cleaned);
       if (
         Array.isArray(parsed) &&
         parsed.every((item) => typeof item === "number")
@@ -339,16 +344,27 @@ async function fetchBestMediathekSubtitleMatch(
   }
 }
 
+export interface FactCheckSource {
+  url: string;
+  title: string;
+}
+
 export interface FactCheckEntry {
-  aussage: string;
-  bewertung: "zutreffend" | "teilweise zutreffend" | "unbelegt" | "eher falsch";
-  begruendung: string;
-  wissensstand_hinweis?: string;
+  speaker: string;
+  statement: string;
+  verdict: string;
+  explanation: string;
+  sources: FactCheckSource[];
+}
+
+export interface CoreStatement {
+  speaker: string;
+  statement: string;
 }
 
 export interface FactCheckAnalysis {
-  kernaussagen: string[];
-  fakt_checks: FactCheckEntry[];
+  core_statements: CoreStatement[];
+  fact_checks: FactCheckEntry[];
 }
 
 async function analyzeTranscriptWithFactCheck(
@@ -356,29 +372,49 @@ async function analyzeTranscriptWithFactCheck(
   transcriptText: string,
 ): Promise<FactCheckAnalysis | null> {
   const clippedTranscript = transcriptText.slice(0, 20000);
-  const systemInstruction = `Du analysierst ${showName}-Transkripte auf Deutsch.
-Antworte AUSSCHLIESSLICH mit einem gültigen JSON-Objekt ohne zusätzlichen Text, Markdown oder Codeblöcke.
 
-Das JSON muss folgende Struktur haben:
-{
-  "kernaussagen": ["Aussage 1", "Aussage 2", ...],
-  "fakt_checks": [
+  const systemInstruction = `Du bist ein präziser Faktenchecker für die deutsche Politiksendung "${showName}".
+    Antworte AUSSCHLIESSLICH mit einem gültigen JSON-Objekt – kein Markdown, keine Codeblöcke, kein erklärender Text.
+
+    Das JSON muss exakt diese Struktur haben:
     {
-      "aussage": "Die genaue Aussage aus der Sendung",
-      "bewertung": "zutreffend" | "teilweise zutreffend" | "unbelegt" | "eher falsch",
-      "begruendung": "Kurze sachliche Begründung der Bewertung",
-      "wissensstand_hinweis": "Optionaler Hinweis auf Datenlage oder Wissensstand"
+      "core_statements": [
+        {
+          "speaker": "Name der sprechenden Person (z.B. 'Maischberger (Moderation)', 'Olaf Scholz', 'Experte XY')",
+          "statement": "Die wörtliche oder sinngemäße Kernaussage dieser Person"
+        }
+      ],
+      "fact_checks": [
+        {
+          "speaker": "Name der Person, die die Aussage gemacht hat",
+          "statement": "Die konkrete, überprüfbare Aussage aus der Sendung (Zitat oder Paraphrase)",
+          "verdict": "Eines von: WAHR | WEITGEHEND WAHR | PLAUSIBEL | EINSCHÄTZUNG | NICHT ABSCHLIESSEND BELEGT | EHER FALSCH | UNGENAU / FEHLER",
+          "explanation": "Sachliche, kompakte Begründung des Verdikts auf Basis allgemeinen Wissens (max. 3 Sätze)",
+          "sources": [
+            {
+              "url": "https://...",
+              "title": "Titel der Quelle – Quellenname"
+            }
+          ]
+        }
+      ]
     }
-  ]
-}
 
-Regeln:
-- Fokus auf politisch relevante Kernaussagen (max. 8 Stück)
-- Bewerte Richtigkeit mit allgemeinem Wissen, nicht nur aus dem Transkript
-- Bei unklarer Datenlage: bewertung = "unbelegt"
-- Antworte nur mit dem JSON-Objekt, nichts sonst`;
+    Regeln:
+    - core_statements: max. 10 Kernaussagen, Speaker immer angeben
+    - fact_checks: max. 10 überprüfbare Tatsachenbehauptungen (keine Meinungen, keine Prognosen)
+    - verdict-Kategorien:
+      • WAHR – klar und eindeutig belegbar
+      • WEITGEHEND WAHR – im Kern richtig, Details ungenau
+      • PLAUSIBEL – konsistent mit bekannten Fakten, nicht vollständig belegt
+      • EINSCHÄTZUNG – persönliche Meinung, nicht messbar
+      • NICHT ABSCHLIESSEND BELEGT – keine klare Quellenlage
+      • EHER FALSCH – widerspricht belegten Fakten
+      • UNGENAU / FEHLER – grundlegend falsch oder irreführend
+    - sources: 1–3 URLs pro Check, möglichst seriöse Quellen (tagesschau.de, bpb.de, bundestag.de, reuters.com etc.)
+    - Antworte NUR mit dem JSON-Objekt, sonst nichts`;
 
-  const userPrompt = `Analysiere folgendes Transkript:\n\n${clippedTranscript}`;
+  const userPrompt = `Analysiere folgendes Transkript der Sendung "${showName}":\n\n${clippedTranscript}`;
 
   try {
     if (process.env.LokalLLM === "true") {
@@ -391,7 +427,7 @@ Regeln:
             { role: "user", content: userPrompt },
           ],
           temperature: 0.2,
-          max_tokens: 1500,
+          max_tokens: 3000,
         },
       );
 
@@ -406,9 +442,7 @@ Regeln:
         role: "system",
         parts: [{ text: systemInstruction }],
       },
-      generationConfig: {
-        responseMimeType: "application/json",
-      },
+      tools: [{ googleSearch: {} } as any],
     });
 
     const result = await generativeModel.generateContent({
@@ -427,7 +461,6 @@ Regeln:
 
 function parseFactCheckJSON(raw: string): FactCheckAnalysis | null {
   try {
-    // Entferne mögliche Markdown-Codeblöcke
     const cleaned = raw
       .replace(/^```json\s*/i, "")
       .replace(/^```\s*/i, "")
@@ -435,8 +468,8 @@ function parseFactCheckJSON(raw: string): FactCheckAnalysis | null {
       .trim();
     const parsed = JSON.parse(cleaned);
     if (
-      Array.isArray(parsed.kernaussagen) &&
-      Array.isArray(parsed.fakt_checks)
+      Array.isArray(parsed.core_statements) &&
+      Array.isArray(parsed.fact_checks)
     ) {
       return parsed as FactCheckAnalysis;
     }
@@ -461,8 +494,8 @@ async function saveFactCheckToSupabase(
     {
       show_name: showName,
       episode_date: episodeDate,
-      core_statements: analysis.kernaussagen,
-      fact_checks: analysis.fakt_checks,
+      core_statements: analysis.core_statements,
+      fact_checks: analysis.fact_checks,
       raw_analysis: rawText,
       updated_at: new Date().toISOString(),
     },
@@ -479,7 +512,7 @@ async function saveFactCheckToSupabase(
     );
   } else {
     console.log(
-      `✅ Faktcheck gespeichert: ${showName} ${episodeDate} (${analysis.kernaussagen.length} Kernaussagen, ${analysis.fakt_checks.length} Checks)`,
+      `✅ Faktcheck gespeichert: ${showName} ${episodeDate} (${analysis.core_statements.length} Kernaussagen, ${analysis.fact_checks.length} Checks)`,
     );
   }
 }
@@ -538,7 +571,7 @@ export async function analyzeEpisodeSubtitleWithFactCheck(
     }
 
     console.log(
-      `🧠 Faktcheck (${showName} ${episodeDate}): ${analysis.kernaussagen.length} Kernaussagen, ${analysis.fakt_checks.length} Fakt-Checks`,
+      `🧠 Faktcheck (${showName} ${episodeDate}): ${analysis.core_statements.length} Kernaussagen, ${analysis.fact_checks.length} Fakt-Checks`,
     );
 
     await saveFactCheckToSupabase(

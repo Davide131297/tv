@@ -22,9 +22,7 @@ const currentYear = new Date().getFullYear();
 const LIST_URL = `https://www.zdf.de/talk/maybrit-illner-128?staffel=${currentYear}`;
 
 // Extrahiere Episodenbeschreibung und bestimme politische Themenbereiche
-async function extractEpisodeDescription(
-  page: Page,
-): Promise<number[] | [] | null> {
+async function extractEpisodeDescription(page: Page): Promise<string | null> {
   try {
     const description = await page.evaluate(() => {
       const guestSection =
@@ -49,12 +47,7 @@ async function extractEpisodeDescription(
       return descriptionText.length > 50 ? descriptionText : null;
     });
 
-    if (description) {
-      const politicalAreaIds = await getPoliticalArea(description);
-      return politicalAreaIds;
-    } else {
-      return null;
-    }
+    return description;
   } catch (error) {
     console.warn(`Fehler beim Extrahieren der Episode-Beschreibung:`, error);
     return null;
@@ -167,7 +160,7 @@ function filterNewEpisodes(
 async function extractGuestsFromEpisode(
   page: Page,
   episodeUrl: string,
-): Promise<{ guests: GuestWithRole[]; politicalAreaIds?: number[] }> {
+): Promise<{ guests: GuestWithRole[]; description?: string }> {
   await page.goto(episodeUrl, { waitUntil: "networkidle2", timeout: 60000 });
   await page.setExtraHTTPHeaders({
     "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
@@ -330,11 +323,11 @@ async function extractGuestsFromEpisode(
     [],
   );
 
-  const politicalAreaIds = await extractEpisodeDescription(page);
+  const description = await extractEpisodeDescription(page);
 
   return {
     guests: uniqueGuests,
-    politicalAreaIds: politicalAreaIds || undefined,
+    description: description || undefined,
   };
 }
 
@@ -373,7 +366,7 @@ export async function crawlNewMaybritIllnerEpisodes(): Promise<void> {
       try {
         const result = await extractGuestsFromEpisode(page, episode.url);
         const guests = result.guests;
-        const politicalAreaIds = result.politicalAreaIds;
+        const description = result.description;
 
         if (guests.length === 0) continue;
 
@@ -423,6 +416,12 @@ export async function crawlNewMaybritIllnerEpisodes(): Promise<void> {
             episode.date,
           );
 
+          let politicalAreaIds: number[] = [];
+          if (description) {
+            const areas = await getPoliticalArea(description);
+            politicalAreaIds = areas || [];
+          }
+
           const inserted = await insertMultipleTvShowPoliticians(
             "ZDF",
             "Maybrit Illner",
@@ -431,14 +430,14 @@ export async function crawlNewMaybritIllnerEpisodes(): Promise<void> {
           );
 
           totalPoliticiansInserted += inserted;
-        }
 
-        if (politicalAreaIds && politicalAreaIds.length > 0) {
-          await insertEpisodePoliticalAreas(
-            "Maybrit Illner",
-            episode.date,
-            politicalAreaIds,
-          );
+          if (politicalAreaIds && politicalAreaIds.length > 0) {
+            await insertEpisodePoliticalAreas(
+              "Maybrit Illner",
+              episode.date,
+              politicalAreaIds,
+            );
+          }
         }
 
         episodesProcessed++;
@@ -520,7 +519,7 @@ export async function crawlAllMaybritIllnerEpisodes(): Promise<void> {
 
         const result = await extractGuestsFromEpisode(page, episode.url);
         const guests = result.guests;
-        const politicalAreaIds = result.politicalAreaIds;
+        const description = result.description;
 
         if (guests.length === 0) continue;
 
@@ -570,6 +569,12 @@ export async function crawlAllMaybritIllnerEpisodes(): Promise<void> {
             episode.date,
           );
 
+          let politicalAreaIds: number[] = [];
+          if (description) {
+            const areas = await getPoliticalArea(description);
+            politicalAreaIds = areas || [];
+          }
+
           const inserted = await insertMultipleTvShowPoliticians(
             "ZDF",
             "Maybrit Illner",
@@ -577,14 +582,14 @@ export async function crawlAllMaybritIllnerEpisodes(): Promise<void> {
             politicians,
           );
           totalPoliticiansInserted += inserted;
-        }
 
-        if (politicalAreaIds && politicalAreaIds.length > 0) {
-          await insertEpisodePoliticalAreas(
-            "Maybrit Illner",
-            episode.date,
-            politicalAreaIds,
-          );
+          if (politicalAreaIds && politicalAreaIds.length > 0) {
+            await insertEpisodePoliticalAreas(
+              "Maybrit Illner",
+              episode.date,
+              politicalAreaIds,
+            );
+          }
         }
 
         episodesProcessed++;

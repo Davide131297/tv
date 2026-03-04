@@ -241,9 +241,7 @@ async function extractGuestsFromEpisode(
 
 // ---------------- Episode Text Extraktion ----------------
 
-async function extractPoliticalAreaIds(
-  page: Page,
-): Promise<number[] | [] | null> {
+async function extractEpisodeDescription(page: Page): Promise<string | null> {
   try {
     const selectors = [
       'p[data-testid="short-description"]',
@@ -274,12 +272,7 @@ async function extractPoliticalAreaIds(
       }
     }
 
-    if (description) {
-      const politicalAreaIds = await getPoliticalArea(description);
-      return politicalAreaIds;
-    } else {
-      return null;
-    }
+    return description;
   } catch (error) {
     console.warn(`Fehler beim Extrahieren der Episode-Beschreibung:`, error);
     return null;
@@ -339,10 +332,10 @@ export default async function CrawlLanz() {
         batch.map(async (url) => {
           const p = await setupSimplePage(browser);
           try {
-            const [guests, date, politicalAreaIds] = await Promise.all([
+            const [guests, date, description] = await Promise.all([
               extractGuestsFromEpisode(p, url),
               extractDateISO(p, url),
-              extractPoliticalAreaIds(p),
+              extractEpisodeDescription(p),
             ]);
 
             const guestsDetailed: GuestDetails[] = [];
@@ -377,7 +370,7 @@ export default async function CrawlLanz() {
               date,
               guests: guestNames,
               guestsDetailed,
-              politicalAreaIds: politicalAreaIds || [],
+              description: description || undefined,
             };
 
             if (date) {
@@ -463,6 +456,13 @@ export default async function CrawlLanz() {
           episode.date,
         );
 
+        let politicalAreaIds: number[] = [];
+        // Hole Themenbereich nur, wenn Politiker anwesend und eine Beschreibung existiert
+        if (episode.description) {
+          const areas = await getPoliticalArea(episode.description);
+          politicalAreaIds = areas || [];
+        }
+
         const inserted = await insertMultipleTvShowPoliticians(
           "ZDF",
           "Markus Lanz",
@@ -472,16 +472,16 @@ export default async function CrawlLanz() {
 
         totalPoliticiansInserted += inserted;
         episodesWithPoliticians++;
-      }
 
-      if (episode.politicalAreaIds && episode.politicalAreaIds.length > 0) {
-        const insertedAreas = await insertEpisodePoliticalAreas(
-          "Markus Lanz",
-          episode.date,
-          episode.politicalAreaIds,
-        );
+        if (politicalAreaIds && politicalAreaIds.length > 0) {
+          const insertedAreas = await insertEpisodePoliticalAreas(
+            "Markus Lanz",
+            episode.date,
+            politicalAreaIds,
+          );
 
-        totalPoliticalAreasInserted += insertedAreas;
+          totalPoliticalAreasInserted += insertedAreas;
+        }
       }
     }
 

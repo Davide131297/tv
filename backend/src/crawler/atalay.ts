@@ -127,9 +127,6 @@ export default async function CrawlPinarAtalay() {
 
         if (guestNames.length === 0) continue;
 
-        // Analysiere politische Themen
-        const politicalAreaIds = await getPoliticalArea(episode.description);
-
         // Prüfe jeden Gast auf Politiker-Status
         const politicians = [];
         for (const guestName of guestNames) {
@@ -180,13 +177,19 @@ export default async function CrawlPinarAtalay() {
         }
 
         // Speichere politische Themenbereiche
-        if (politicalAreaIds && politicalAreaIds.length > 0) {
-          const insertedAreas = await insertEpisodePoliticalAreas(
-            "Pinar Atalay",
-            episodeDate,
-            politicalAreaIds,
-          );
-          totalPoliticalAreasInserted += insertedAreas;
+        let politicalAreaIds: number[] = [];
+        if (politicians.length > 0 && episode.description) {
+          const areas = await getPoliticalArea(episode.description);
+          politicalAreaIds = areas || [];
+
+          if (politicalAreaIds.length > 0) {
+            const insertedAreas = await insertEpisodePoliticalAreas(
+              "Pinar Atalay",
+              episodeDate,
+              politicalAreaIds,
+            );
+            totalPoliticalAreasInserted += insertedAreas;
+          }
         }
       } catch (error) {
         console.error(

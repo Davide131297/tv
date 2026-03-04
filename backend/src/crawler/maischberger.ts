@@ -38,7 +38,7 @@ const LIST_URL =
 async function getEpisodeDetails(
   page: Page,
   episodeUrl: string,
-): Promise<{ description: string; politicalAreas: number[] | [] | null }> {
+): Promise<{ description: string }> {
   try {
     await page.goto(episodeUrl, { waitUntil: "networkidle2", timeout: 30000 });
 
@@ -77,21 +77,18 @@ async function getEpisodeDetails(
 
     if (!description || description.length < 20) {
       console.log(`⚠️  Keine Beschreibung gefunden für ${episodeUrl}`);
-      return { description: "", politicalAreas: null };
+      return { description: "" };
     }
 
     console.log(`📄 Beschreibung gefunden (${description.length} Zeichen)`);
 
-    // Extrahiere politische Themenbereiche
-    const politicalAreas = await getPoliticalArea(description);
-
-    return { description, politicalAreas };
+    return { description };
   } catch (error) {
     console.error(
       `❌ Fehler beim Laden der Episodenseite ${episodeUrl}:`,
       error,
     );
-    return { description: "", politicalAreas: null };
+    return { description: "" };
   }
 }
 
@@ -166,10 +163,7 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
       const episode = sortedEpisodes[i];
 
       try {
-        const { description, politicalAreas } = await getEpisodeDetails(
-          page,
-          episode.url,
-        );
+        const { description } = await getEpisodeDetails(page, episode.url);
 
         if (!description || description.length < 20) continue;
 
@@ -215,6 +209,12 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
             episode.date,
           );
 
+          let politicalAreas: number[] = [];
+          if (description) {
+            const areas = await getPoliticalArea(description);
+            politicalAreas = areas || [];
+          }
+
           const inserted = await insertMultipleTvShowPoliticians(
             "Das Erste",
             "Maischberger",
@@ -223,14 +223,14 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
           );
 
           totalPoliticiansInserted += inserted;
-        }
 
-        if (politicalAreas && politicalAreas.length > 0) {
-          await insertEpisodePoliticalAreas(
-            "Maischberger",
-            episode.date,
-            politicalAreas,
-          );
+          if (politicalAreas && politicalAreas.length > 0) {
+            await insertEpisodePoliticalAreas(
+              "Maischberger",
+              episode.date,
+              politicalAreas,
+            );
+          }
         }
 
         episodesProcessed++;
@@ -319,8 +319,10 @@ export async function crawlMaischbergerFull(): Promise<void> {
       try {
         if (!episode.teaserText || episode.teaserText.length < 10) continue;
 
-        const { description: detailedDescription, politicalAreas } =
-          await getEpisodeDetails(page, episode.url);
+        const { description: detailedDescription } = await getEpisodeDetails(
+          page,
+          episode.url,
+        );
 
         const guestNames = await extractGuestsWithAI(detailedDescription);
 
@@ -364,6 +366,12 @@ export async function crawlMaischbergerFull(): Promise<void> {
             episode.date,
           );
 
+          let politicalAreas: number[] = [];
+          if (detailedDescription) {
+            const areas = await getPoliticalArea(detailedDescription);
+            politicalAreas = areas || [];
+          }
+
           const inserted = await insertMultipleTvShowPoliticians(
             "Das Erste",
             "Maischberger",
@@ -377,14 +385,14 @@ export async function crawlMaischbergerFull(): Promise<void> {
             episodeUrl: episode.url,
             episodeDate: episode.date,
           });
-        }
 
-        if (politicalAreas && politicalAreas.length > 0) {
-          await insertEpisodePoliticalAreas(
-            "Maischberger",
-            episode.date,
-            politicalAreas,
-          );
+          if (politicalAreas && politicalAreas.length > 0) {
+            await insertEpisodePoliticalAreas(
+              "Maischberger",
+              episode.date,
+              politicalAreas,
+            );
+          }
         }
 
         episodesProcessed++;

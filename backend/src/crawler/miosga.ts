@@ -41,7 +41,7 @@ function extractGuestsFallback(teaserText: string): string[] {
   let cleanText = teaserText
     .replace(
       /^.*?Caren Miosga (?:mit|spricht mit|diskutiert mit|im Gespräch mit)\s*/i,
-      ""
+      "",
     )
     .replace(/\s*\|\s*mehr\s*$/i, "");
 
@@ -104,7 +104,7 @@ function extractGuestsFallback(teaserText: string): string[] {
   // Entferne Artikel
   cleanText = cleanText.replace(
     /\b(?:der|die|das|dem|den|eines?|einer)\s+/gi,
-    ""
+    "",
   );
 
   // Entferne Parteiangaben in Klammern
@@ -176,7 +176,7 @@ function extractGuestsFallback(teaserText: string): string[] {
 // Hilfsfunktion: Hole detaillierte Beschreibung von der Episodenseite
 async function getEpisodeDetailedDescription(
   page: Page,
-  episodeUrl: string
+  episodeUrl: string,
 ): Promise<string> {
   try {
     await page.goto(episodeUrl, { waitUntil: "networkidle2", timeout: 30000 });
@@ -185,7 +185,7 @@ async function getEpisodeDetailedDescription(
     const description = await page.evaluate(() => {
       // Suche nach der Episodenbeschreibung im spezifischen Container
       const descriptionElement = document.querySelector(
-        "p.b1ja19fa.b11cvmny.b1np0qjg"
+        "p.b1ja19fa.b11cvmny.b1np0qjg",
       );
 
       if (descriptionElement) {
@@ -222,7 +222,7 @@ async function getEpisodeDetailedDescription(
   } catch (error) {
     console.error(
       `❌ Fehler beim Laden der Miosga Episodenseite ${episodeUrl}:`,
-      error
+      error,
     );
     return "";
   }
@@ -242,7 +242,7 @@ function parseISODateFromArdHtml(dateText: string): string | null {
 // Extrahiere nur NEUE Episode-Links (crawlt nur bis zum letzten bekannten Datum)
 async function getNewEpisodeLinks(
   page: Page,
-  latestDbDate: string | null
+  latestDbDate: string | null,
 ): Promise<
   Array<{ url: string; date: string; title: string; guests: GuestWithRole[] }>
 > {
@@ -285,13 +285,13 @@ async function getNewEpisodeLinks(
 
       // Finde alle Episode-Container
       const episodeElements = document.querySelectorAll(
-        '[itemprop="itemListElement"]'
+        '[itemprop="itemListElement"]',
       );
 
       for (const episode of episodeElements) {
         // Suche nach Link
         const linkElement = episode.querySelector(
-          'a[itemprop="url"]'
+          'a[itemprop="url"]',
         ) as HTMLAnchorElement;
         if (!linkElement) continue;
 
@@ -307,7 +307,7 @@ async function getNewEpisodeLinks(
 
         // Extrahiere Beschreibung
         const descriptionElement = episode.querySelector(
-          "p.b1ja19fa.b11cvmny.bicmnlc._suw2zx"
+          "p.b1ja19fa.b11cvmny.bicmnlc._suw2zx",
         );
         const description = descriptionElement?.textContent?.trim() || "";
 
@@ -348,7 +348,7 @@ async function getNewEpisodeLinks(
     // Wenn keine bekannte Episode gefunden und noch Seiten verfügbar
     if (!foundKnownEpisode && pageNumber < maxPages) {
       const previousEpisodeCount = await page.evaluate(
-        () => document.querySelectorAll('[itemprop="itemListElement"]').length
+        () => document.querySelectorAll('[itemprop="itemListElement"]').length,
       );
 
       // Scrolle nach unten um mehr Episoden zu laden
@@ -359,7 +359,7 @@ async function getNewEpisodeLinks(
       await new Promise((resolve) => setTimeout(resolve, 3000)); // Warte auf Laden
 
       const newEpisodeCount = await page.evaluate(
-        () => document.querySelectorAll('[itemprop="itemListElement"]').length
+        () => document.querySelectorAll('[itemprop="itemListElement"]').length,
       );
 
       if (newEpisodeCount === previousEpisodeCount) {
@@ -443,11 +443,8 @@ export async function crawlIncrementalCarenMiosgaEpisodes(): Promise<void> {
         // Hole detaillierte Beschreibung von der Episodenseite
         const detailedDescription = await getEpisodeDetailedDescription(
           page,
-          episode.url
+          episode.url,
         );
-
-        // Analysiere politische Themen mit getPoliticalArea (nur wenn detaillierte Beschreibung vorhanden)
-        const politicalAreaIds = await getPoliticalArea(detailedDescription);
 
         // Prüfe jeden Gast auf Politiker-Status
         const politicians = [];
@@ -495,29 +492,36 @@ export async function crawlIncrementalCarenMiosgaEpisodes(): Promise<void> {
             "ZDF",
             "Caren Miosga",
             formatDateForDB(episode.date),
-            politicians
+            politicians,
           );
           totalPoliticiansInserted += inserted;
           episodeLinksToInsert.push({
             episodeUrl: episode.url,
             episodeDate: formatDateForDB(episode.date),
           });
-        }
 
-        // Speichere politische Themenbereiche
-        if (politicalAreaIds && politicalAreaIds.length > 0) {
-          await insertEpisodePoliticalAreas(
-            "Caren Miosga",
-            episode.date,
-            politicalAreaIds
-          );
+          // Analysiere politische Themen mit getPoliticalArea
+          let politicalAreaIds: number[] = [];
+          if (detailedDescription) {
+            const areas = await getPoliticalArea(detailedDescription);
+            politicalAreaIds = areas || [];
+          }
+
+          // Speichere politische Themenbereiche
+          if (politicalAreaIds && politicalAreaIds.length > 0) {
+            await insertEpisodePoliticalAreas(
+              "Caren Miosga",
+              episode.date,
+              politicalAreaIds,
+            );
+          }
         }
 
         episodesProcessed++;
       } catch (error) {
         console.error(
           `❌ Fehler beim Verarbeiten von Episode ${episode.date}:`,
-          error
+          error,
         );
       }
     }
@@ -526,7 +530,7 @@ export async function crawlIncrementalCarenMiosgaEpisodes(): Promise<void> {
     if (episodeLinksToInsert.length > 0) {
       totalEpisodeLinksInserted = await insertMultipleShowLinks(
         "Caren Miosga",
-        episodeLinksToInsert
+        episodeLinksToInsert,
       );
     }
 
@@ -555,7 +559,7 @@ export async function crawlAllCarenMiosgaEpisodes(): Promise<void> {
 
     // Filtere nur Episoden aus 2025
     const episodes2025 = allEpisodes.filter((episode) =>
-      episode.date.startsWith("2025-")
+      episode.date.startsWith("2025-"),
     );
 
     console.log(`${episodes2025.length} Episoden aus 2025 zu verarbeiten`);
@@ -566,7 +570,7 @@ export async function crawlAllCarenMiosgaEpisodes(): Promise<void> {
 
     // Sortiere für historischen Crawl (älteste zuerst)
     const sortedEpisodes = episodes2025.sort((a, b) =>
-      a.date.localeCompare(b.date)
+      a.date.localeCompare(b.date),
     );
 
     let totalPoliticiansInserted = 0;
@@ -584,7 +588,7 @@ export async function crawlAllCarenMiosgaEpisodes(): Promise<void> {
     if (episodeLinksToInsert.length > 0) {
       totalEpisodeLinksInserted = await insertMultipleShowLinks(
         "Caren Miosga",
-        episodeLinksToInsert
+        episodeLinksToInsert,
       );
     }
 
@@ -598,11 +602,8 @@ export async function crawlAllCarenMiosgaEpisodes(): Promise<void> {
         // Hole detaillierte Beschreibung von der Episodenseite
         const detailedDescription = await getEpisodeDetailedDescription(
           page,
-          episode.url
+          episode.url,
         );
-
-        // Analysiere politische Themen mit getPoliticalArea wenn Beschreibung vorhanden
-        const politicalAreaIds = await getPoliticalArea(detailedDescription);
 
         // Prüfe jeden Gast auf Politiker-Status
         const politicians = [];
@@ -650,25 +651,32 @@ export async function crawlAllCarenMiosgaEpisodes(): Promise<void> {
             "ZDF",
             "Caren Miosga",
             formatDateForDB(episode.date),
-            politicians
+            politicians,
           );
           totalPoliticiansInserted += inserted;
-        }
 
-        // Speichere politische Themenbereiche
-        if (politicalAreaIds && politicalAreaIds.length > 0) {
-          await insertEpisodePoliticalAreas(
-            "Caren Miosga",
-            episode.date,
-            politicalAreaIds
-          );
+          // Analysiere politische Themen mit getPoliticalArea
+          let politicalAreaIds: number[] = [];
+          if (detailedDescription) {
+            const areas = await getPoliticalArea(detailedDescription);
+            politicalAreaIds = areas || [];
+          }
+
+          // Speichere politische Themenbereiche
+          if (politicalAreaIds && politicalAreaIds.length > 0) {
+            await insertEpisodePoliticalAreas(
+              "Caren Miosga",
+              episode.date,
+              politicalAreaIds,
+            );
+          }
         }
 
         episodesProcessed++;
       } catch (error) {
         console.error(
           `❌ Fehler beim Verarbeiten von Episode ${episode.date}:`,
-          error
+          error,
         );
         episodesWithErrors++;
       }

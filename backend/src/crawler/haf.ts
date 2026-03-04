@@ -431,13 +431,17 @@ export default async function crawlHartAberFair() {
           episodeUrl: finalUrl,
           episodeDate: ep.date,
         });
-      }
 
-      // Topics
-      if (ep.description) {
-        const areaIds = await getPoliticalArea(ep.description);
-        if (areaIds?.length) {
-          await insertEpisodePoliticalAreas("Hart aber fair", ep.date, areaIds);
+        // Topics
+        if (ep.description) {
+          const areaIds = await getPoliticalArea(ep.description);
+          if (areaIds?.length) {
+            await insertEpisodePoliticalAreas(
+              "Hart aber fair",
+              ep.date,
+              areaIds,
+            );
+          }
         }
       }
     }

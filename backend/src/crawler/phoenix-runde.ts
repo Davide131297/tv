@@ -75,44 +75,45 @@ export default async function CrawlPhoenixRunde() {
     }
 
     // Extrahiere alle Episoden mit ihren URLs und Daten
-    const episodes: Array<{ url: string; title: string; date: string }> = await page.evaluate(() => {
-      const episodeElements = document.querySelectorAll(
-        'div[phnx-teaser][teaser="teaser"]',
-      );
-      const results: Array<{
-        url: string;
-        title: string;
-        date: string;
-      }> = [];
-
-      for (const episode of episodeElements) {
-        // Finde den ersten Link mit dem Episode-Titel
-        const linkElement = episode.querySelector(
-          'a[ng-href*="/sendungen/gespraeche/phoenix-runde/"]',
-        ) as HTMLAnchorElement;
-        if (!linkElement) continue;
-
-        const url = linkElement.href;
-
-        // Extrahiere Untertitel (eigentlicher Episode-Titel)
-        const titleElement = episode.querySelector(
-          ".c-teaser__item__body__title__subline",
+    const episodes: Array<{ url: string; title: string; date: string }> =
+      await page.evaluate(() => {
+        const episodeElements = document.querySelectorAll(
+          'div[phnx-teaser][teaser="teaser"]',
         );
-        const title = titleElement?.textContent?.trim() || "";
+        const results: Array<{
+          url: string;
+          title: string;
+          date: string;
+        }> = [];
 
-        // Extrahiere Datum
-        const dateElement = episode.querySelector(
-          ".c-teaser__item__body__info__date",
-        );
-        const dateText = dateElement?.textContent?.trim() || "";
+        for (const episode of episodeElements) {
+          // Finde den ersten Link mit dem Episode-Titel
+          const linkElement = episode.querySelector(
+            'a[ng-href*="/sendungen/gespraeche/phoenix-runde/"]',
+          ) as HTMLAnchorElement;
+          if (!linkElement) continue;
 
-        if (url && dateText) {
-          results.push({ url, title, date: dateText });
+          const url = linkElement.href;
+
+          // Extrahiere Untertitel (eigentlicher Episode-Titel)
+          const titleElement = episode.querySelector(
+            ".c-teaser__item__body__title__subline",
+          );
+          const title = titleElement?.textContent?.trim() || "";
+
+          // Extrahiere Datum
+          const dateElement = episode.querySelector(
+            ".c-teaser__item__body__info__date",
+          );
+          const dateText = dateElement?.textContent?.trim() || "";
+
+          if (url && dateText) {
+            results.push({ url, title, date: dateText });
+          }
         }
-      }
 
-      return results;
-    });
+        return results;
+      });
 
     console.log(`📺 ${episodes.length} Episoden gefunden`);
 
@@ -195,11 +196,6 @@ export default async function CrawlPhoenixRunde() {
 
         if (guestNames.length === 0) continue;
 
-        // Analysiere politische Themen (verwende den Titel)
-        const politicalAreaIds = await getPoliticalArea(
-          episode.title + " " + guestsText,
-        );
-
         // Prüfe jeden Gast auf Politiker-Status
         const politicians = [];
         for (const guestName of guestNames) {
@@ -241,7 +237,7 @@ export default async function CrawlPhoenixRunde() {
           }`,
         );
 
-        // Speichere Politiker
+        // Speichere Politiker und verknüpfte Daten
         if (politicians.length > 0) {
           const inserted = await insertMultipleTvShowPoliticians(
             "Phoenix",
@@ -255,16 +251,20 @@ export default async function CrawlPhoenixRunde() {
             episodeUrl: episode.url,
             episodeDate: episodeDate,
           });
-        }
 
-        // Speichere politische Themenbereiche
-        if (politicalAreaIds && politicalAreaIds.length > 0) {
-          const insertedAreas = await insertEpisodePoliticalAreas(
-            "Phoenix Runde",
-            episodeDate,
-            politicalAreaIds,
-          );
-          totalPoliticalAreasInserted += insertedAreas;
+          // Analysiere politische Themen (verwende den Titel)
+          const politicalAreaIds =
+            (await getPoliticalArea(episode.title + " " + guestsText)) || [];
+
+          // Speichere politische Themenbereiche
+          if (politicalAreaIds.length > 0) {
+            const insertedAreas = await insertEpisodePoliticalAreas(
+              "Phoenix Runde",
+              episodeDate,
+              politicalAreaIds,
+            );
+            totalPoliticalAreasInserted += insertedAreas;
+          }
         }
       } catch (error) {
         console.error(

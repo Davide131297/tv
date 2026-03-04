@@ -112,28 +112,6 @@ export default async function CrawlBlomePfeffer() {
           }
 
           if (!guestNames.length) {
-            // trotzdem versuchen Themenbereiche zu speichern
-            try {
-              const areaIds = await getPoliticalArea(
-                ep.description || ep.title,
-              );
-              if (Array.isArray(areaIds) && areaIds.length > 0) {
-                const insertedAreas = await insertEpisodePoliticalAreas(
-                  "Blome & Pfeffer",
-                  ep.isoDate!,
-                  areaIds,
-                );
-                totalPoliticalAreasInserted += insertedAreas;
-                console.log(
-                  `🏷️ Themenbereiche für Folge "${ep.title}" gespeichert: ${insertedAreas}/${areaIds.length}`,
-                );
-              }
-            } catch (areaErr) {
-              console.error(
-                `❌ Fehler beim Ermitteln/Speichern der Themenbereiche für ${ep.title}:`,
-                areaErr,
-              );
-            }
             continue;
           }
 
@@ -188,27 +166,29 @@ export default async function CrawlBlomePfeffer() {
             } catch (insErr) {
               console.error("❌ Fehler beim Speichern der Politiker:", insErr);
             }
-          }
 
-          // Extrahiere und speichere politische Themenbereiche aus der Episoden-Beschreibung
-          try {
-            const areaIds = await getPoliticalArea(ep.description || ep.title);
-            if (Array.isArray(areaIds) && areaIds.length > 0) {
-              const insertedAreas = await insertEpisodePoliticalAreas(
-                "Blome & Pfeffer",
-                ep.isoDate!,
-                areaIds,
+            // Extrahiere und speichere politische Themenbereiche aus der Episoden-Beschreibung
+            try {
+              const areaIds = await getPoliticalArea(
+                ep.description || ep.title,
               );
-              totalPoliticalAreasInserted += insertedAreas;
-              console.log(
-                `🏷️ Themenbereiche für Folge "${ep.title}" gespeichert: ${insertedAreas}/${areaIds.length}`,
+              if (Array.isArray(areaIds) && areaIds.length > 0) {
+                const insertedAreas = await insertEpisodePoliticalAreas(
+                  "Blome & Pfeffer",
+                  ep.isoDate!,
+                  areaIds,
+                );
+                totalPoliticalAreasInserted += insertedAreas;
+                console.log(
+                  `🏷️ Themenbereiche für Folge "${ep.title}" gespeichert: ${insertedAreas}/${areaIds.length}`,
+                );
+              }
+            } catch (areaErr) {
+              console.error(
+                `❌ Fehler beim Ermitteln/Speichern der Themenbereiche für ${ep.title}:`,
+                areaErr,
               );
             }
-          } catch (areaErr) {
-            console.error(
-              `❌ Fehler beim Ermitteln/Speichern der Themenbereiche für ${ep.title}:`,
-              areaErr,
-            );
           }
         } catch (aiErr) {
           console.error("❌ Fehler bei AI-Analyse der Beschreibung:", aiErr);
