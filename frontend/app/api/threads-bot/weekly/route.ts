@@ -222,6 +222,8 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    fullText += `\nMehr zu sehen auf www.polittalk-watcher.de\n\n#Polittalk`;
+
     const chunks = splitTextForThreads(fullText);
 
     // 6. Publish to Threads
