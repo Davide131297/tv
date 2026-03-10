@@ -106,7 +106,7 @@ const ARD_TRACKED_SHOWS = ["hart aber fair", "maischberger", "miosga"];
 
 function parseARDDate(html: string): string | null {
   const h1Match = html.match(
-    /<h1[^>]*>.*?Einschaltquoten vom (\d{1,2})\.\s*(\w+).*?<\/h1>/is,
+    /<h1[^>]*>.*?Einschaltquoten vom (\d{1,2})\.\s*([a-zA-Z\u00e4\u00f6\u00fc\u00c4\u00d6\u00dc]+).*?<\/h1>/is,
   );
   if (!h1Match) return null;
 
