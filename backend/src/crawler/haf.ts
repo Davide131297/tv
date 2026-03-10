@@ -1,9 +1,10 @@
 import {
-  getLatestEpisodeDate,
+  getExistingEpisodeDates,
   insertMultipleTvShowPoliticians,
   insertMultipleShowLinks,
   insertEpisodePoliticalAreas,
   checkPolitician,
+  extractGuestsWithAI,
 } from "../lib/utils.js";
 import { Page } from "puppeteer";
 import { createBrowser, setupSimplePage } from "../lib/browser-configs.js";
@@ -284,183 +285,279 @@ async function extractEpisodeDetails(
   }
 }
 
-export default async function crawlHartAberFair() {
-  console.log("=== Hart aber Fair Crawler gestartet ===");
 
-  const currentYear = new Date().getFullYear();
-  const latestEpisodeDate = await getLatestEpisodeDate("Hart aber fair");
-
-  console.log(
-    `Aktuelles Jahr: ${currentYear}, Neueste DB-Episode: ${latestEpisodeDate}`,
-  );
-
-  const browser = await createBrowser();
-
-  // Stats
-  let processedCount = 0;
-  let totalPoliticiansInserted = 0;
-  let totalEpisodeLinksInserted = 0;
-
+// ─────────────────────────────────────────────
+// ARD Mediathek URL + Beschreibung aus einer Episodenseite holen
+// Kein Browser nötig – OG Meta-Tags sind serverseitig gerendert
+// ─────────────────────────────────────────────
+async function fetchEpisodeDetails(
+  wdrUrl: string,
+): Promise<{ ardUrl: string; description: string }> {
   try {
-    const page = await setupSimplePage(browser);
-
-    // 1. Visit Homepage
-
-    await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 30000 });
-
-    const episodesToProcess: EpisodeDetails[] = [];
-
-    // 2. Get Latest Episode (Homepage)
-    const latestEpisode = await extractLatestEpisodeFromHomepage(page);
-    if (latestEpisode && latestEpisode.date) {
-      // Simple logic: If we have a date, check if it's new
-      // Ideally we also handle the URL better
-      console.log(
-        `Homepage-Episode: ${latestEpisode.title} (${latestEpisode.date})`,
-      );
-
-      const epYear = parseInt(latestEpisode.date.split("-")[0]);
-      if (epYear >= currentYear) {
-        if (!latestEpisodeDate || latestEpisode.date > latestEpisodeDate) {
-          episodesToProcess.push(latestEpisode);
-        } else {
-          console.log(" -> Bereits in DB (überspringe)");
-        }
-      }
-    }
-
-    // 3. Get Archive Links
-    const archiveLinks = await extractArchiveLinks(page);
-    console.log(`${archiveLinks.length} Archiv-Links gefunden.`);
-
-    const relevantArchiveLinks = archiveLinks.filter((ep) => {
-      // If we don't have a date yet, we might need to visit to check.
-      // But for efficiency, usually we trust the title date if present.
-      if (ep.date) {
-        const epYear = parseInt(ep.date.split("-")[0]);
-        if (epYear < currentYear) return false;
-        // Check against DB
-        if (latestEpisodeDate && ep.date <= latestEpisodeDate) return false;
-        return true;
-      }
-      return true; // If no date in title, visit it
+    const res = await fetch(wdrUrl, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      },
     });
 
-    console.log(
-      `${relevantArchiveLinks.length} relevante Archiv-Links zum Prüfen.`,
-    );
-
-    // 4. Process Archive Links
-    for (const link of relevantArchiveLinks) {
-      // Duplicate check against homepage episode
-      if (episodesToProcess.find((e) => e.date === link.date)) continue;
-
-      const details = await extractEpisodeDetails(page, link);
-      if (details && details.date) {
-        const epYear = parseInt(details.date.split("-")[0]);
-        if (epYear >= currentYear) {
-          if (!latestEpisodeDate || details.date > latestEpisodeDate) {
-            // Add URL if missing in details but present in link
-            details.url = link.url;
-            episodesToProcess.push(details);
-          }
-        }
-      }
-      // Rate limit
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+    if (!res.ok) {
+      console.warn(`⚠️  Episodenseite nicht erreichbar (${res.status}): ${wdrUrl}`);
+      return { ardUrl: "", description: "" };
     }
 
-    // 5. Insert Data
-    console.log(`\nVerarbeite ${episodesToProcess.length} neue Episoden...`);
+    const html = await res.text();
 
-    const episodeLinksToInsert: { episodeUrl: string; episodeDate: string }[] =
-      [];
+    // ARD Mediathek URL (bevorzuge "das-erste"-Variante)
+    const ardMatches = [
+      ...html.matchAll(
+        /href="(https?:\/\/www\.ardmediathek\.de\/video\/hart-aber-fair\/[^"]+)"/g,
+      ),
+    ];
+    const ardUrl =
+      ardMatches.find((m) => m[1].includes("/das-erste/"))?.[1] ||
+      ardMatches[0]?.[1] ||
+      "";
 
-    for (const ep of episodesToProcess) {
-      console.log(`\n🎬 Speichere: ${ep.title} (${ep.date})`);
-      processedCount++;
+    // Beschreibung: OG-Description von der ARD-Mediathek-Seite holen
+    let description = "";
+    if (ardUrl) {
+      description = await fetchArdDescription(ardUrl);
+    }
 
-      const politiciansToInsert: Array<{
-        politicianId: number;
-        politicianName: string;
-        partyId?: number;
-        partyName?: string;
-      }> = [];
+    // Fallback: OG-Description der WDR-Seite
+    if (!description) {
+      const og = html.match(
+        /<meta[^>]+property="og:description"[^>]+content="([^"]+)"/i,
+      );
+      description = og ? decodeHtmlEntities(og[1]) : "";
+    }
 
-      for (const p of ep.politicians) {
-        const pDetails = await checkPolitician(p.name, p.role);
-        if (pDetails.isPolitician && pDetails.politicianId) {
-          // Check for duplicate politicianId in the batch
-          const alreadyInBatch = politiciansToInsert.some(
-            (existing) => existing.politicianId === pDetails.politicianId,
-          );
+    return { ardUrl, description };
+  } catch (error) {
+    console.error(`❌ Fehler beim Laden von ${wdrUrl}:`, error);
+    return { ardUrl: "", description: "" };
+  }
+}
 
-          if (!alreadyInBatch) {
-            politiciansToInsert.push({
-              politicianId: pDetails.politicianId,
-              politicianName: pDetails.politicianName || p.name,
-              partyId: pDetails.party,
-              partyName: pDetails.partyName,
-            });
-            console.log(
-              `   ✅ ${pDetails.politicianName} (${pDetails.partyName})`,
-            );
-          }
-        }
-        await new Promise((resolve) => setTimeout(resolve, 200));
+// Beschreibung via OG Meta-Tag von der ARD Mediathek holen
+async function fetchArdDescription(ardUrl: string): Promise<string> {
+  try {
+    const res = await fetch(ardUrl, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      },
+    });
+
+    if (!res.ok) return "";
+
+    const html = await res.text();
+
+    const match = html.match(
+      /<meta[^>]+property="og:description"[^>]+content="([^"]+)"/i,
+    );
+    if (match) return decodeHtmlEntities(match[1]);
+
+    const fallback = html.match(
+      /<meta[^>]+name="description"[^>]+content="([^"]+)"/i,
+    );
+    return fallback ? decodeHtmlEntities(fallback[1]) : "";
+  } catch {
+    return "";
+  }
+}
+
+// HTML-Entities dekodieren (z. B. &amp; → &)
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&auml;/g, "ä")
+    .replace(/&ouml;/g, "ö")
+    .replace(/&uuml;/g, "ü")
+    .replace(/&Auml;/g, "Ä")
+    .replace(/&Ouml;/g, "Ö")
+    .replace(/&Uuml;/g, "Ü")
+    .replace(/&szlig;/g, "ß");
+}
+
+// ─────────────────────────────────────────────
+// Politiker für eine Episode prüfen & strukturiert zurückgeben
+// ─────────────────────────────────────────────
+async function processPoliticians(guestNames: string[]) {
+  const politicians = [];
+
+  for (const name of guestNames) {
+    const details = await checkPolitician(name);
+
+    if (details.isPolitician && details.politicianId && details.politicianName) {
+      politicians.push({
+        politicianId: details.politicianId,
+        politicianName: details.politicianName,
+        partyId: details.party,
+        partyName: details.partyName,
+      });
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  }
+
+  return politicians;
+}
+
+// Hilfsfunktion: Hole alle bekannten Episode-Links von der Sendungsseite (via Browser)
+async function fetchEpisodeList(): Promise<
+  Array<{ url: string; title: string; date: string }>
+> {
+  const browser = await createBrowser();
+  try {
+    const page = await setupSimplePage(browser);
+    await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 30000 });
+
+    const episodesToProcess: Array<{ url: string; title: string; date: string }> = [];
+
+    const latestEpisode = await extractLatestEpisodeFromHomepage(page);
+    if (latestEpisode && latestEpisode.date) {
+      episodesToProcess.push({
+        url: latestEpisode.url ?? LIST_URL,
+        title: latestEpisode.title,
+        date: latestEpisode.date,
+      });
+    }
+
+    const archiveLinks = await extractArchiveLinks(page);
+    for (const link of archiveLinks) {
+      if (link.date && !episodesToProcess.find((e) => e.date === link.date)) {
+        episodesToProcess.push({
+          url: link.url.startsWith("http") ? link.url : `${BASE_URL}${link.url}`,
+          title: link.title,
+          date: link.date,
+        });
+      }
+    }
+
+    return episodesToProcess.sort((a, b) => b.date.localeCompare(a.date));
+  } finally {
+    await browser.close().catch(() => {});
+  }
+}
+
+// ─────────────────────────────────────────────
+// Hauptfunktion: Inkrementeller Crawl
+// Holt nur Episoden die noch nicht in Supabase sind
+// ─────────────────────────────────────────────
+export default async function crawlHartAberFair(): Promise<void> {
+  console.log("🚀 Starte Hart aber fair Crawler...");
+
+  const existingDates = await getExistingEpisodeDates("Hart aber fair");
+  console.log(`📅 Bereits ${existingDates.size} Episoden in DB vorhanden`);
+
+  // Alle Episoden von der Sendungsseite holen
+  const allEpisodes = await fetchEpisodeList();
+  console.log(`📋 ${allEpisodes.length} Episoden auf der Sendungsseite gefunden`);
+
+  // Nur neue Episoden (nicht in DB)
+  const newEpisodes = allEpisodes.filter(
+    (ep) => ep.date && !existingDates.has(ep.date),
+  );
+
+  if (newEpisodes.length === 0) {
+    console.log("✅ Keine neuen Episoden gefunden – alles aktuell!");
+    return;
+  }
+
+  console.log(`\n🔄 ${newEpisodes.length} neue Episoden zu verarbeiten...\n`);
+
+  let totalPoliticiansInserted = 0;
+  let totalEpisodeLinksInserted = 0;
+  let episodesProcessed = 0;
+  const episodeLinksToInsert: { episodeUrl: string; episodeDate: string }[] = [];
+
+  // Älteste zuerst verarbeiten
+  const sortedEpisodes = [...newEpisodes].sort((a, b) =>
+    a.date.localeCompare(b.date),
+  );
+
+  for (const ep of sortedEpisodes) {
+    try {
+      console.log(`\n🎬 Verarbeite: ${ep.title} (${ep.date})`);
+
+      // Beschreibung + ARD-URL von der Episodenseite holen
+      const { ardUrl, description } = await fetchEpisodeDetails(ep.url);
+
+      // Gäste mit AI aus Beschreibung extrahieren
+      const guestNames = await extractGuestsWithAI(description || ep.title);
+
+      console.log(`   👥 Gäste: ${guestNames.join(", ") || "–"}`);
+      console.log(`   🔗 ARD URL: ${ardUrl || "–"}`);
+
+      if (guestNames.length === 0) {
+        console.log(`   ⚠️  Keine Gäste gefunden – überspringe`);
+        continue;
       }
 
-      let insertedCount = 0;
-      if (politiciansToInsert.length > 0) {
-        insertedCount = await insertMultipleTvShowPoliticians(
+      // Politische Themenbereiche
+      const politicalAreaIds = await getPoliticalArea(description);
+
+      // Politiker prüfen
+      const politicians = await processPoliticians(guestNames);
+
+      if (politicians.length > 0) {
+        console.log(
+          `   ✅ Politiker: ${politicians.map((p) => `${p.politicianName} (${p.partyName || "?"})`).join(", ")}`,
+        );
+
+        const inserted = await insertMultipleTvShowPoliticians(
           "Das Erste",
           "Hart aber fair",
           ep.date,
-          politiciansToInsert,
+          politicians,
         );
-        totalPoliticiansInserted += insertedCount;
-
-        // Ensure URL is absolute for storage
-        const finalUrl = ep.url
-          ? ep.url.startsWith("http")
-            ? ep.url
-            : `${BASE_URL}${ep.url}`
-          : LIST_URL;
-
-        episodeLinksToInsert.push({
-          episodeUrl: finalUrl,
-          episodeDate: ep.date,
-        });
-
-        // Topics
-        if (ep.description) {
-          const areaIds = await getPoliticalArea(ep.description);
-          if (areaIds?.length) {
-            await insertEpisodePoliticalAreas(
-              "Hart aber fair",
-              ep.date,
-              areaIds,
-            );
-          }
-        }
+        totalPoliticiansInserted += inserted;
       }
-    }
 
-    // 6. Insert Links (Batch)
-    if (episodeLinksToInsert.length > 0) {
-      totalEpisodeLinksInserted = await insertMultipleShowLinks(
-        "Hart aber fair",
-        episodeLinksToInsert,
-      );
-    }
+      // Episode-URL speichern (ARD Mediathek URL bevorzugt, fallback auf WDR-URL)
+      episodeLinksToInsert.push({
+        episodeUrl: ardUrl || ep.url,
+        episodeDate: ep.date,
+      });
 
-    console.log(`\n=== Crawling abgeschlossen ===`);
-    console.log(`${processedCount} neue Episoden verarbeitet`);
-    console.log(`${totalPoliticiansInserted} Politiker gesamt eingefügt`);
-    console.log(`${totalEpisodeLinksInserted} Episode-URLs eingefügt`);
-  } catch (error) {
-    console.error("Critical Crawler Error:", error);
-  } finally {
-    await browser.close();
+      // Politische Themenbereiche speichern
+      if (politicalAreaIds?.length) {
+        await insertEpisodePoliticalAreas(
+          "Hart aber fair",
+          ep.date,
+          politicalAreaIds,
+        );
+      }
+
+      episodesProcessed++;
+
+      // Kurze Pause zwischen Seiten-Requests
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    } catch (error) {
+      console.error(`❌ Fehler beim Verarbeiten von ${ep.date}:`, error);
+    }
   }
+
+  // Episode-URLs batch-speichern
+  if (episodeLinksToInsert.length > 0) {
+    totalEpisodeLinksInserted = await insertMultipleShowLinks(
+      "Hart aber fair",
+      episodeLinksToInsert,
+    );
+  }
+
+  console.log(`\n=== Hart aber fair Zusammenfassung ===`);
+  console.log(`Episoden verarbeitet: ${episodesProcessed}/${sortedEpisodes.length}`);
+  console.log(`Politiker eingefügt: ${totalPoliticiansInserted}`);
+  console.log(`Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
 }

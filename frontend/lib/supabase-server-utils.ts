@@ -37,7 +37,7 @@ interface InsertShowLinkData {
 // Hilfsfunktion zum Validieren der Abgeordnetenwatch-URL
 async function validateAbgeordnetenwatchUrl(
   url: string,
-  politicianName: string
+  politicianName: string,
 ): Promise<string> {
   try {
     const response = await axios.head(url, {
@@ -48,20 +48,20 @@ async function validateAbgeordnetenwatchUrl(
     // Wenn 404 oder andere Client-Fehler, verwende Google Search
     if (response.status >= 400 && response.status < 500) {
       console.log(
-        `⚠️  Abgeordnetenwatch-URL für ${politicianName} nicht gefunden (${response.status}), verwende Google Search`
+        `⚠️  Abgeordnetenwatch-URL für ${politicianName} nicht gefunden (${response.status}), verwende Google Search`,
       );
       return `https://www.google.com/search?q=${encodeURIComponent(
-        politicianName
+        politicianName,
       )}`;
     }
 
     return url;
   } catch {
     console.log(
-      `⚠️  Fehler beim Validieren der URL für ${politicianName}, verwende Google Search`
+      `⚠️  Fehler beim Validieren der URL für ${politicianName}, verwende Google Search`,
     );
     return `https://www.google.com/search?q=${encodeURIComponent(
-      politicianName
+      politicianName,
     )}`;
   }
 }
@@ -108,11 +108,19 @@ export const POLITICIAN_OVERRIDES: Record<string, GuestDetails> = {
     party: 2,
     partyName: "CDU",
   },
+  "Daniel Günther": {
+    name: "Daniel Günther",
+    isPolitician: true,
+    politicianId: 130775,
+    politicianName: "Daniel Günther",
+    party: 2, // CDU
+    partyName: "CDU",
+  },
 };
 
 // Füge einen Politiker zu einer TV-Sendung hinzu (Supabase Version)
 export async function insertTvShowPolitician(
-  data: InsertTvShowPoliticianData
+  data: InsertTvShowPoliticianData,
 ): Promise<boolean> {
   try {
     const { error } = await supabase.from("tv_show_politicians").upsert(
@@ -129,7 +137,7 @@ export async function insertTvShowPolitician(
       {
         onConflict: "show_name,episode_date,politician_id",
         ignoreDuplicates: false,
-      }
+      },
     );
 
     if (error) {
@@ -148,7 +156,7 @@ export async function insertTvShowPolitician(
 export function checkPoliticianOverride(name: string): GuestDetails | null {
   if (POLITICIAN_OVERRIDES[name]) {
     console.log(
-      `✅ Override angewendet für ${name} -> ${POLITICIAN_OVERRIDES[name].partyName}`
+      `✅ Override angewendet für ${name} -> ${POLITICIAN_OVERRIDES[name].partyName}`,
     );
     return POLITICIAN_OVERRIDES[name];
   }
@@ -165,7 +173,7 @@ export async function insertMultipleTvShowPoliticians(
     politicianName: string;
     partyId?: number;
     partyName?: string;
-  }>
+  }>,
 ): Promise<number> {
   let insertedCount = 0;
 
@@ -186,7 +194,7 @@ export async function insertMultipleTvShowPoliticians(
       const validatedUrl = abgeordnetenwatchUrl
         ? await validateAbgeordnetenwatchUrl(
             abgeordnetenwatchUrl,
-            politician.politicianName
+            politician.politicianName,
           )
         : null;
 
@@ -201,7 +209,7 @@ export async function insertMultipleTvShowPoliticians(
         updated_at: new Date().toISOString(),
         abgeordnetenwatch_url: validatedUrl,
       };
-    })
+    }),
   );
 
   try {
@@ -244,7 +252,7 @@ export async function insertMultipleTvShowPoliticians(
 
 // Hole das Datum der neuesten Episode für eine bestimmte Sendung (Supabase Version)
 export async function getLatestEpisodeDate(
-  showName: string
+  showName: string,
 ): Promise<string | null> {
   try {
     const { data, error } = await supabase
@@ -266,9 +274,33 @@ export async function getLatestEpisodeDate(
   }
 }
 
+// Hole alle bereits gecrawlten Episode-Daten aus show_links
+// Zuverlässiger als getLatestEpisodeDate, da show_links immer befüllt wird
+// (unabhängig davon, ob die Episode Politiker enthält)
+export async function getExistingEpisodeDates(
+  showName: string,
+): Promise<Set<string>> {
+  try {
+    const { data, error } = await supabase
+      .from("show_links")
+      .select("episode_date")
+      .eq("show_name", showName);
+
+    if (error || !data) {
+      console.error("Fehler beim Abrufen der Episode-Daten:", error);
+      return new Set();
+    }
+
+    return new Set(data.map((row) => row.episode_date));
+  } catch (error) {
+    console.error("Fehler beim Abrufen der Episode-Daten:", error);
+    return new Set();
+  }
+}
+
 // Füge Episode-URL zur show_links Tabelle hinzu (Supabase Version)
 export async function insertShowLink(
-  data: InsertShowLinkData
+  data: InsertShowLinkData,
 ): Promise<boolean> {
   try {
     const { error } = await supabase.from("show_links").upsert(
@@ -280,7 +312,7 @@ export async function insertShowLink(
       {
         onConflict: "show_name,episode_date",
         ignoreDuplicates: true,
-      }
+      },
     );
 
     if (error) {
@@ -301,7 +333,7 @@ export async function insertMultipleShowLinks(
   episodes: Array<{
     episodeUrl: string;
     episodeDate: string;
-  }>
+  }>,
 ): Promise<number> {
   if (episodes.length === 0) return 0;
 
@@ -371,7 +403,7 @@ export function splitFirstLast(name: string) {
 // Disambiguierung basierend auf Rolle/Beschreibung
 export function disambiguateByRole(
   politicians: AbgeordnetenwatchPolitician[],
-  role: string
+  role: string,
 ): AbgeordnetenwatchPolitician | null {
   const roleUpper = role.toUpperCase();
 
@@ -400,7 +432,7 @@ export function disambiguateByRole(
   for (const [party, variants] of Object.entries(partyMappings)) {
     if (variants.some((variant) => roleUpper.includes(variant))) {
       const partyMatch = politicians.find(
-        (p) => p.party && p.party.label.toUpperCase().includes(party)
+        (p) => p.party && p.party.label.toUpperCase().includes(party),
       );
       if (partyMatch) {
         console.log(`✅ Partei-Match gefunden: ${party}`);
@@ -424,7 +456,7 @@ export function disambiguateByRole(
 // Politiker-Prüfung mit Abgeordnetenwatch API
 export async function checkPolitician(
   name: string,
-  role?: string
+  role?: string,
 ): Promise<GuestDetails> {
   const override = checkPoliticianOverride(name);
   if (override) {
@@ -441,7 +473,7 @@ export async function checkPolitician(
   }
 
   const url = `https://www.abgeordnetenwatch.de/api/v2/politicians?first_name=${encodeURIComponent(
-    first
+    first,
   )}&last_name=${encodeURIComponent(last)}`;
 
   try {
@@ -461,12 +493,12 @@ export async function checkPolitician(
       (name.includes("Söder") || name.includes("Soder"))
     ) {
       console.log(
-        `🎯 Spezialbehandlung für Markus Söder - wähle CSU-Politiker`
+        `🎯 Spezialbehandlung für Markus Söder - wähle CSU-Politiker`,
       );
       const csuSoeder = politicians.find((p) => p.party?.label === "CSU");
       if (csuSoeder) {
         console.log(
-          `✅ CSU-Söder gefunden: ${csuSoeder.label} (ID: ${csuSoeder.id})`
+          `✅ CSU-Söder gefunden: ${csuSoeder.label} (ID: ${csuSoeder.id})`,
         );
         return {
           name,
@@ -493,13 +525,13 @@ export async function checkPolitician(
 
     if (role && politicians.length > 1) {
       console.log(
-        `🔍 Disambiguierung für ${name}: ${politicians.length} Treffer gefunden, Rolle: "${role}"`
+        `🔍 Disambiguierung für ${name}: ${politicians.length} Treffer gefunden, Rolle: "${role}"`,
       );
 
       const selectedPolitician = disambiguateByRole(politicians, role);
       if (selectedPolitician) {
         console.log(
-          `✅ Politiker ausgewählt: ${selectedPolitician.label} (${selectedPolitician.party?.label})`
+          `✅ Politiker ausgewählt: ${selectedPolitician.label} (${selectedPolitician.party?.label})`,
         );
         return {
           name,
@@ -513,7 +545,7 @@ export async function checkPolitician(
     }
 
     console.log(
-      `⚠️  Keine eindeutige Zuordnung für ${name}, verwende ersten Treffer`
+      `⚠️  Keine eindeutige Zuordnung für ${name}, verwende ersten Treffer`,
     );
     const hit = politicians[0];
     return {
@@ -537,7 +569,7 @@ export async function checkPolitician(
 export async function insertEpisodePoliticalAreas(
   showName: string,
   episodeDate: string,
-  politicalAreaIds: number[]
+  politicalAreaIds: number[],
 ): Promise<number> {
   if (!politicalAreaIds.length) return 0;
 
@@ -558,7 +590,7 @@ export async function insertEpisodePoliticalAreas(
     if (error) {
       console.error(
         "Fehler beim Speichern der politischen Themenbereiche:",
-        error
+        error,
       );
       return 0;
     }
@@ -567,7 +599,7 @@ export async function insertEpisodePoliticalAreas(
   } catch (error) {
     console.error(
       "Fehler beim Speichern der politischen Themenbereiche:",
-      error
+      error,
     );
     return 0;
   }

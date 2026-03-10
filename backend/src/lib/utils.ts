@@ -111,6 +111,14 @@ export const POLITICIAN_OVERRIDES: Record<string, GuestDetails> = {
     party: 2,
     partyName: "CDU",
   },
+  "Daniel Günther": {
+    name: "Daniel Günther",
+    isPolitician: true,
+    politicianId: 130775,
+    politicianName: "Daniel Günther",
+    party: 2, // CDU
+    partyName: "CDU",
+  },
 };
 
 export const FETCH_HEADERS = {
@@ -609,6 +617,30 @@ export async function getLatestEpisodeDate(
   } catch (error) {
     console.error("Fehler beim Abrufen des neuesten Datums:", error);
     return null;
+  }
+}
+
+// Hole alle bereits gecrawlten Episode-Daten aus show_links
+// Zuverlässiger als getLatestEpisodeDate, da show_links immer befüllt wird
+// (unabhängig davon, ob die Episode Politiker enthält)
+export async function getExistingEpisodeDates(
+  showName: string,
+): Promise<Set<string>> {
+  try {
+    const { data, error } = await supabase
+      .from("show_links")
+      .select("episode_date")
+      .eq("show_name", showName);
+
+    if (error || !data) {
+      console.error("Fehler beim Abrufen der Episode-Daten:", error);
+      return new Set();
+    }
+
+    return new Set(data.map((row) => row.episode_date));
+  } catch (error) {
+    console.error("Fehler beim Abrufen der Episode-Daten:", error);
+    return new Set();
   }
 }
 
