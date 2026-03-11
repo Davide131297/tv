@@ -147,16 +147,16 @@ export default function PoliticianTable({
   });
 
   return (
-    <div className="bg-white rounded-b-lg shadow-lg overflow-hidden relative border-t border-gray-100">
-      <div className="px-4 py-2 bg-gray-50 border-b border-gray-200">
-        <p className="text-gray-600 text-sm font-medium">
+    <div className="bg-white dark:bg-transparent rounded-b-lg shadow-lg overflow-hidden relative border-t border-gray-100 dark:border-gray-800">
+      <div className="px-4 py-2 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-800">
+        <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">
           {totalCount} Auftritte gefunden
         </p>
       </div>
 
       {/* Mobile Card Layout */}
       <div className="block sm:hidden">
-        <div className="divide-y divide-gray-200">
+        <div className="divide-y divide-gray-200 dark:divide-gray-800">
           {table.getRowModel().rows.map((row) => {
             const rowData = row.original;
             const date = new Date(rowData.episode_date);
@@ -171,7 +171,7 @@ export default function PoliticianTable({
                         politicianParty={rowData.party_name}
                         className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded text-sm text-blue-600"
                       />
-                      <div className="text-xs text-gray-500 mt-1">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                         {date.toLocaleDateString("de-DE")}
                       </div>
                     </div>
@@ -215,14 +215,14 @@ export default function PoliticianTable({
 
       {/* Desktop Table Layout */}
       <div className="hidden sm:block overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
+          <thead className="bg-gray-50 dark:bg-gray-900/50">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800/80"
                     onClick={header.column.getToggleSortingHandler()}
                   >
                     <div className="flex items-center gap-2">
@@ -237,16 +237,16 @@ export default function PoliticianTable({
               </tr>
             ))}
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white dark:bg-transparent divide-y divide-gray-200 dark:divide-gray-800">
             {table.getRowModel().rows.map((row, index) => (
               <tr
                 key={row.id}
-                className={`hover:bg-gray-50 transition-colors ${
-                  index % 2 === 0 ? "bg-white" : "bg-gray-25"
+                className={`hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
+                  index % 2 === 0 ? "bg-white dark:bg-transparent" : "bg-gray-50 dark:bg-gray-900/30"
                 }`}
               >
                 {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm">
+                  <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-200">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
                 ))}
@@ -257,11 +257,11 @@ export default function PoliticianTable({
       </div>
 
       {/* Pagination */}
-      <div className="bg-white px-4 sm:px-6 py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div className="bg-white dark:bg-transparent px-4 sm:px-6 py-4 border-t border-gray-200 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-2">
-          <p className="text-sm text-gray-700">
-            Seite <span className="font-semibold text-gray-900">{currentPage}</span> von{" "}
-            <span className="font-semibold text-gray-900">{Math.ceil(totalCount / pageSize)}</span>
+          <p className="text-sm text-gray-700 dark:text-gray-300">
+            Seite <span className="font-semibold text-gray-900 dark:text-gray-100">{currentPage}</span> von{" "}
+            <span className="font-semibold text-gray-900 dark:text-gray-100">{Math.ceil(totalCount / pageSize)}</span>
           </p>
         </div>
 

@@ -13,8 +13,8 @@ export default function Footer() {
   };
 
   return (
-    <footer className="bg-white border-t mt-auto">
-      <div className="text-center text-gray-500 text-sm py-4 px-4">
+    <footer className="bg-white dark:bg-gray-950 border-t border-gray-200 dark:border-gray-800 mt-auto transition-colors">
+      <div className="text-center text-gray-500 dark:text-gray-400 text-sm py-4 px-4">
         <p>
           Daten basierend auf Markus Lanz, Maybritt Illner, Caren Miosga,
           Maischberger, Hart aber fair (2024 - {currentYear})
@@ -25,7 +25,7 @@ export default function Footer() {
             href={"https://abgeordnetenwatch.de"}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-black/70 hover:text-black/90 hover:underline"
+            className="text-black/70 dark:text-gray-300 hover:text-black/90 dark:hover:text-white hover:underline transition-colors"
           >
             Abgeordnetenwatch.de
           </Link>
@@ -36,25 +36,25 @@ export default function Footer() {
           <div className="flex gap-4">
             <Link
               href="/datenschutz"
-              className="text-black/70 hover:text-black/90 hover:underline"
+              className="text-black/70 dark:text-gray-300 hover:text-black/90 dark:hover:text-white hover:underline transition-colors"
             >
               Datenschutz
             </Link>
             <Link
               href="/impressum"
-              className="text-black/70 hover:text-black/90 hover:underline"
+              className="text-black/70 dark:text-gray-300 hover:text-black/90 dark:hover:text-white hover:underline transition-colors"
             >
               Impressum
             </Link>
             <Link
               href="/api-docs"
-              className="text-black/70 hover:text-black/90 hover:underline"
+              className="text-black/70 dark:text-gray-300 hover:text-black/90 dark:hover:text-white hover:underline transition-colors"
             >
               API
             </Link>
             <button
               onClick={openCookieSettings}
-              className="flex items-center gap-1 text-black/70 hover:text-black/90 hover:underline"
+              className="flex items-center gap-1 text-black/70 dark:text-gray-300 hover:text-black/90 dark:hover:text-white hover:underline transition-colors"
             >
               <Cookie className="size-4" />
               Cookies
@@ -63,7 +63,7 @@ export default function Footer() {
               href="https://www.threads.net/@polittalk.watcher"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-black/70 hover:text-black/90"
+              className="text-black/70 dark:text-gray-300 hover:text-black/90 dark:hover:text-white transition-colors"
             >
               <FaSquareThreads className="size-5" />
             </Link>

@@ -85,42 +85,42 @@ export default function TopicPartyHeatmap({
   };
 
   const getIntensityClass = (count: number) => {
-    if (count === 0) return "bg-gray-50 text-gray-300";
+    if (count === 0) return "bg-gray-50 dark:bg-gray-800/50 text-gray-300 dark:text-gray-600";
     const ratio = count / maxCount;
     // Modern Indigo Palette
-    if (ratio < 0.2) return "bg-indigo-100 text-indigo-900";
-    if (ratio < 0.4) return "bg-indigo-300 text-indigo-900";
-    if (ratio < 0.6) return "bg-indigo-500 text-white shadow-sm";
-    if (ratio < 0.8) return "bg-indigo-600 text-white shadow-md";
-    return "bg-indigo-800 text-white shadow-lg font-bold";
+    if (ratio < 0.2) return "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-900 dark:text-indigo-200";
+    if (ratio < 0.4) return "bg-indigo-300 dark:bg-indigo-700/60 text-indigo-900 dark:text-indigo-100";
+    if (ratio < 0.6) return "bg-indigo-500 dark:bg-indigo-500 text-white shadow-sm";
+    if (ratio < 0.8) return "bg-indigo-600 dark:bg-indigo-600 text-white shadow-md";
+    return "bg-indigo-800 dark:bg-indigo-400 text-white shadow-lg font-bold";
   };
 
   return (
     <div
-      className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden mt-8 flex flex-col"
+      className="bg-white dark:bg-transparent rounded-xl shadow-lg border border-gray-100 dark:border-gray-800 overflow-hidden mt-8 flex flex-col"
       id="themen-partei-matrix"
     >
-      <div className="p-4 md:p-6 border-b border-gray-100 bg-linear-to-r from-white to-gray-50/50">
-        <h2 className="text-xl font-bold text-gray-900 tracking-tight">
+      <div className="p-4 md:p-6 border-b border-gray-100 dark:border-gray-800 bg-linear-to-r from-white to-gray-50/50 dark:from-transparent dark:to-gray-900/20">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
           Themen-Partei Matrix
         </h2>
-        <p className="text-sm text-gray-500 mt-1 max-w-2xl">
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-2xl">
           Visualisierung der Gesprächshäufigkeit: Wer spricht wie oft über
           welches Thema?
         </p>
       </div>
 
-      <div className="relative overflow-auto max-h-[600px] scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
+      <div className="relative overflow-auto max-h-[600px] scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-gray-700 scrollbar-track-transparent">
         <table className="min-w-full text-sm border-separate border-spacing-0">
-          <thead className="bg-gray-50/95 backdrop-blur z-20 sticky top-0">
+          <thead className="bg-gray-50/95 dark:bg-gray-900/95 backdrop-blur z-20 sticky top-0">
             <tr>
-              <th className="sticky left-0 top-0 z-30 bg-gray-50 px-4 py-3 text-left font-semibold text-gray-600 min-w-[160px] md:min-w-[200px] border-b border-r border-gray-200 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.05)]">
+              <th className="sticky left-0 top-0 z-30 bg-gray-50 dark:bg-gray-900/95 px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300 min-w-[160px] md:min-w-[200px] border-b border-r border-gray-200 dark:border-gray-800 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.05)]">
                 Themenbereich
               </th>
               {data.parties.map((party) => (
                 <th
                   key={party}
-                  className="px-2 py-3 text-center font-semibold text-gray-800 min-w-[80px] border-b border-gray-200"
+                  className="px-2 py-3 text-center font-semibold text-gray-800 dark:text-gray-200 min-w-[80px] border-b border-gray-200 dark:border-gray-800"
                 >
                   <div className="truncate w-full px-1" title={party}>
                     {party}
@@ -129,13 +129,13 @@ export default function TopicPartyHeatmap({
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
             {data.topics.map((topic) => (
               <tr
                 key={topic.id}
-                className="group hover:bg-gray-50/50 transition-colors"
+                className="group hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors"
               >
-                <td className="sticky left-0 z-10 bg-white group-hover:bg-gray-50/50 px-4 py-3 text-gray-700 font-medium text-xs md:text-sm border-r border-gray-100 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.05)]">
+                <td className="sticky left-0 z-10 bg-white dark:bg-gray-900 group-hover:bg-gray-50/50 dark:group-hover:bg-gray-800/50 px-4 py-3 text-gray-700 dark:text-gray-300 font-medium text-xs md:text-sm border-r border-gray-100 dark:border-gray-800 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.05)]">
                   <span className="line-clamp-2">{topic.label}</span>
                 </td>
                 {data.parties.map((party) => {
@@ -167,18 +167,18 @@ export default function TopicPartyHeatmap({
       </div>
 
       {/* Legend / Footer */}
-      <div className="p-4 md:px-6 md:py-4 bg-gray-50/50 border-t border-gray-100 text-xs text-gray-500 flex flex-wrap items-center gap-4 justify-between">
+      <div className="p-4 md:px-6 md:py-4 bg-gray-50/50 dark:bg-gray-900/30 border-t border-gray-100 dark:border-gray-800 text-xs text-gray-500 dark:text-gray-400 flex flex-wrap items-center gap-4 justify-between">
         <div className="flex items-center gap-2">
           <span>Häufigkeit:</span>
           <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded bg-indigo-100"></div>
-            <div className="w-3 h-3 rounded bg-indigo-300"></div>
+            <div className="w-3 h-3 rounded bg-indigo-100 dark:bg-indigo-900/40"></div>
+            <div className="w-3 h-3 rounded bg-indigo-300 dark:bg-indigo-700/60"></div>
             <div className="w-3 h-3 rounded bg-indigo-500"></div>
             <div className="w-3 h-3 rounded bg-indigo-800"></div>
           </div>
           <span className="ml-1">(Niedrig → Hoch)</span>
         </div>
-        <div className="text-[10px] uppercase tracking-wider text-gray-400">
+        <div className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500">
           Daten basieren anhand der Episodenbeschreibung und automatisierter
           zuordnung mit Künstlicher Intelligenz
         </div>

@@ -5,6 +5,7 @@ import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import ChatBot from "@/components/ChatBot";
 import { CookieBanner } from "@/components/CookieBanner";
+import { ThemeProvider } from "@/components/ThemeProvider";
 //import YearReview2025Modal from "@/components/YearReview2025Modal";
 
 const geistSans = Geist({
@@ -130,7 +131,7 @@ export default function RootLayout({
   const gaId = process.env.NEXT_PUBLIC_GA_ID;
 
   return (
-    <html lang="de" className="h-full">
+    <html lang="de" className="h-full" suppressHydrationWarning>
       <head>
         {gaId && (
           <>
@@ -155,14 +156,21 @@ export default function RootLayout({
         )}
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 min-h-full flex flex-col`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 dark:bg-gray-950 dark:text-gray-50 min-h-full flex flex-col transition-colors duration-300`}
       >
-        <Navigation />
-        <main className="grow">{children}</main>
-        <Footer />
-        {process.env.NEXT_PUBLIC_CHATBOXLive === "true" && <ChatBot />}
-        {/* <YearReview2025Modal />  Jahresrückblick 2025*/}
-        <CookieBanner />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <Navigation />
+          <main className="grow">{children}</main>
+          <Footer />
+          {process.env.NEXT_PUBLIC_CHATBOXLive === "true" && <ChatBot />}
+          {/* <YearReview2025Modal />  Jahresrückblick 2025*/}
+          <CookieBanner />
+        </ThemeProvider>
       </body>
     </html>
   );

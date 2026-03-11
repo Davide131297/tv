@@ -13,16 +13,16 @@ type LastShowTableProps = {
 
 export default function LastShowTable({ episodes }: LastShowTableProps) {
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden">
-      <div className="p-4 sm:p-6 border-b border-gray-200">
-        <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
+    <div className="bg-white dark:bg-transparent border border-transparent dark:border-gray-800 rounded-lg shadow-md overflow-hidden">
+      <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-800">
+        <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">
           Letzte Sendungen
         </h2>
       </div>
 
       {/* Mobile Card Layout */}
       <div className="block sm:hidden">
-        <div className="divide-y divide-gray-200">
+        <div className="divide-y divide-gray-200 dark:divide-gray-800">
           {episodes.map((episode) => {
             const date = new Date(episode.episode_date);
             const formattedDate = format(date, "dd.MM.yyyy");
@@ -31,24 +31,24 @@ export default function LastShowTable({ episodes }: LastShowTableProps) {
             return (
               <div
                 key={episode.episode_date}
-                className="p-4 space-y-3 hover:bg-blue-50 cursor-pointer transition-colors"
+                className="p-4 space-y-3 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors"
               >
                 <div className="flex justify-between items-start">
                   <div>
-                    <div className="font-medium text-gray-900 text-sm">
+                    <div className="font-medium text-gray-900 dark:text-gray-100 text-sm">
                       {formattedDate}
                     </div>
-                    <div className="text-xs text-gray-500">{weekday}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">{weekday}</div>
                   </div>
                   <div className="text-right flex flex-col items-end space-y-1">
-                    <div className="text-sm font-semibold text-gray-900">
+                    <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                       {episode.politician_count} Politiker
                     </div>
                     {episode.episode_url ? (
                       <Link
                         href={episode.episode_url}
                         target="_blank"
-                        className="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm"
+                        className="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm"
                       >
                         🔗 Episode öffnen
                       </Link>
@@ -60,7 +60,7 @@ export default function LastShowTable({ episodes }: LastShowTableProps) {
 
                 {episode.politicians.length > 0 ? (
                   <div className="space-y-2">
-                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Anwesende Politiker
                     </div>
                     <div className="space-y-1">
@@ -79,7 +79,7 @@ export default function LastShowTable({ episodes }: LastShowTableProps) {
                               "text-xs px-2 py-1 rounded",
                               politician.party_name
                                 ? getPartyBadgeClasses(politician.party_name)
-                                : "bg-gray-100 text-gray-600",
+                                : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300",
                             )}
                           >
                             {politician.party_name}
@@ -101,27 +101,27 @@ export default function LastShowTable({ episodes }: LastShowTableProps) {
 
       {/* Desktop Table Layout */}
       <div className="hidden sm:block overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
+          <thead className="bg-gray-50 dark:bg-gray-900/50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Datum
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Anzahl
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Anwesende Politiker
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Wochentag
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Episode
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white dark:bg-transparent divide-y divide-gray-200 dark:divide-gray-800">
             {episodes.map((episode, index) => {
               const date = new Date(episode.episode_date);
               const formattedDate = format(date, "dd.MM.yyyy");
@@ -130,19 +130,19 @@ export default function LastShowTable({ episodes }: LastShowTableProps) {
               return (
                 <tr
                   key={episode.episode_date}
-                  className={`${index % 2 === 0 ? "bg-white" : "bg-gray-50"} ${
+                  className={`${index % 2 === 0 ? "bg-white dark:bg-transparent" : "bg-gray-50 dark:bg-gray-900/30"} ${
                     episode.episode_url
-                      ? "hover:bg-blue-50 cursor-pointer transition-colors"
+                      ? "hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors"
                       : ""
                   }`}
                 >
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-200">
                     {formattedDate}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-200">
                     {episode.politician_count}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-900 max-w-xs">
+                  <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-200 max-w-xs">
                     {episode.politicians.length > 0 ? (
                       <div className="space-y-1">
                         {episode.politicians.map((politician, idx) => (
@@ -160,7 +160,7 @@ export default function LastShowTable({ episodes }: LastShowTableProps) {
                                 "text-xs px-2 py-1 rounded",
                                 politician.party_name
                                   ? getPartyBadgeClasses(politician.party_name)
-                                  : "bg-gray-100 text-gray-600",
+                                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300",
                               )}
                             >
                               {politician.party_name}
@@ -169,22 +169,22 @@ export default function LastShowTable({ episodes }: LastShowTableProps) {
                         ))}
                       </div>
                     ) : (
-                      <span className="text-gray-500 italic">
+                      <span className="text-gray-500 dark:text-gray-400 italic">
                         Keine Politik-Gäste
                       </span>
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                     {weekday}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                     {episode.episode_url ? (
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Link
                             href={episode.episode_url}
                             target="_blank"
-                            className="inline-flex items-center text-blue-600 hover:text-blue-800"
+                            className="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
                           >
                             🔗 Episode öffnen
                           </Link>

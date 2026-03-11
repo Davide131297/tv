@@ -20,7 +20,7 @@ export function OverviewSkeleton() {
       {/* Stat cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="bg-white rounded-lg shadow-md p-6 space-y-3">
+          <div key={i} className="bg-white dark:bg-gray-900/60 border border-transparent dark:border-gray-800 rounded-lg shadow-md p-6 space-y-3">
             <Skeleton className="h-8 w-16" />
             <Skeleton className="h-4 w-32" />
           </div>
@@ -28,7 +28,7 @@ export function OverviewSkeleton() {
       </div>
 
       {/* Averages section */}
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-white dark:bg-gray-900/60 border border-transparent dark:border-gray-800 rounded-lg shadow-md p-6">
         <Skeleton className="h-6 w-48 mb-4" />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -62,7 +62,7 @@ export function TableSkeleton() {
       {/* Stats row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="bg-white rounded-lg shadow-sm p-4 space-y-2">
+          <div key={i} className="bg-white dark:bg-gray-900/60 border border-transparent dark:border-gray-800 rounded-lg shadow-sm p-4 space-y-2">
             <Skeleton className="h-6 w-12" />
             <Skeleton className="h-3 w-24" />
           </div>
@@ -70,8 +70,8 @@ export function TableSkeleton() {
       </div>
 
       {/* Table header */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <div className="border-b px-4 py-3 flex gap-4">
+      <div className="bg-white dark:bg-transparent border border-transparent dark:border-gray-800 rounded-lg shadow-md overflow-hidden">
+        <div className="border-b dark:border-gray-800 px-4 py-3 flex gap-4">
           <Skeleton className="h-4 w-24" />
           <Skeleton className="h-4 w-16" />
           <Skeleton className="h-4 w-32" />
@@ -79,7 +79,7 @@ export function TableSkeleton() {
         </div>
         {/* Table rows */}
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="border-b px-4 py-3 flex gap-4 items-center">
+          <div key={i} className="border-b dark:border-gray-800 px-4 py-3 flex gap-4 items-center">
             <Skeleton className="h-4 w-24" />
             <Skeleton className="h-4 w-20" />
             <Skeleton className="h-4 w-36" />
@@ -97,8 +97,8 @@ export function TableSkeleton() {
 export function TableOnlySkeleton() {
   return (
     <div className="animate-in fade-in duration-300">
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <div className="border-b px-4 py-3 flex gap-4 bg-gray-50">
+      <div className="bg-white dark:bg-transparent border border-transparent dark:border-gray-800 rounded-lg shadow-md overflow-hidden">
+        <div className="border-b dark:border-gray-800 px-4 py-3 flex gap-4 bg-gray-50 dark:bg-gray-900/50">
           <Skeleton className="h-4 w-24" />
           <Skeleton className="h-4 w-16" />
           <Skeleton className="h-4 w-32" />
@@ -106,7 +106,7 @@ export function TableOnlySkeleton() {
         </div>
         {/* Table rows */}
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="border-b px-4 py-3 flex gap-4 items-center">
+          <div key={i} className="border-b dark:border-gray-800 px-4 py-3 flex gap-4 items-center">
             <Skeleton className="h-4 w-24" />
             <Skeleton className="h-4 w-20" />
             <Skeleton className="h-4 w-36" />
@@ -127,7 +127,7 @@ export function StatsAndTableSkeleton() {
       {/* Stats row */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-8">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="bg-white rounded-lg shadow-sm p-4 space-y-2">
+          <div key={i} className="bg-white dark:bg-gray-900/60 border border-transparent dark:border-gray-800 rounded-lg shadow-sm p-4 space-y-2">
             <Skeleton className="h-6 w-12" />
             <Skeleton className="h-3 w-24" />
           </div>
@@ -135,15 +135,15 @@ export function StatsAndTableSkeleton() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <div className="border-b px-4 py-3 flex gap-4 bg-gray-50">
+      <div className="bg-white dark:bg-transparent border border-transparent dark:border-gray-800 rounded-lg shadow-md overflow-hidden">
+        <div className="border-b dark:border-gray-800 px-4 py-3 flex gap-4 bg-gray-50 dark:bg-gray-900/50">
           <Skeleton className="h-4 w-24" />
           <Skeleton className="h-4 w-16" />
           <Skeleton className="h-4 w-32" />
           <Skeleton className="h-4 w-16" />
         </div>
         {Array.from({ length: 10 }).map((_, i) => (
-          <div key={i} className="border-b px-4 py-3 flex gap-4 items-center">
+          <div key={i} className="border-b dark:border-gray-800 px-4 py-3 flex gap-4 items-center">
             <Skeleton className="h-4 w-24" />
             <Skeleton className="h-4 w-20" />
             <Skeleton className="h-4 w-36" />
@@ -175,7 +175,7 @@ export function RankingsSkeleton() {
       {Array.from({ length: 10 }).map((_, i) => (
         <div
           key={i}
-          className="bg-white rounded-lg shadow-sm p-4 mb-3 flex items-center gap-4"
+          className="bg-white dark:bg-gray-900/60 border border-transparent dark:border-gray-800 rounded-lg shadow-sm p-4 mb-3 flex items-center gap-4"
         >
           <Skeleton className="h-8 w-8 rounded-full" />
           <div className="flex-1 space-y-2">
@@ -196,7 +196,7 @@ export function RankingsSkeleton() {
 export function ChartSkeleton() {
   return (
     <div className="container mx-auto py-8 px-4 animate-in fade-in duration-300">
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-white dark:bg-transparent border border-transparent dark:border-gray-800 rounded-lg shadow-md p-6">
         <Skeleton className="h-7 w-64 mb-2" />
         <Skeleton className="h-4 w-96 mb-4" />
 
@@ -208,7 +208,7 @@ export function ChartSkeleton() {
         </div>
 
         {/* Chart area */}
-        <div className="bg-gray-50 rounded-md p-4">
+        <div className="bg-gray-50 dark:bg-gray-900/50 rounded-md p-4">
           <div className="flex items-end gap-3 h-64">
             {Array.from({ length: 8 }).map((_, i) => (
               <Skeleton
@@ -244,7 +244,7 @@ export function OverviewOnlySkeleton() {
       {/* Stat cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="bg-white rounded-lg shadow-md p-6 space-y-3">
+          <div key={i} className="bg-white dark:bg-gray-900/60 border border-transparent dark:border-gray-800 rounded-lg shadow-md p-6 space-y-3">
             <Skeleton className="h-8 w-16" />
             <Skeleton className="h-4 w-32" />
           </div>
@@ -252,7 +252,7 @@ export function OverviewOnlySkeleton() {
       </div>
 
       {/* Averages section */}
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-white dark:bg-gray-900/60 border border-transparent dark:border-gray-800 rounded-lg shadow-md p-6">
         <Skeleton className="h-6 w-48 mb-4" />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -277,7 +277,7 @@ export function RankingsOnlySkeleton() {
       {Array.from({ length: 10 }).map((_, i) => (
         <div
           key={i}
-          className="bg-white rounded-lg shadow-sm p-4 mb-3 flex items-center gap-4"
+          className="bg-white dark:bg-gray-900/60 border border-transparent dark:border-gray-800 rounded-lg shadow-sm p-4 mb-3 flex items-center gap-4"
         >
           <Skeleton className="h-8 w-8 rounded-full" />
           <div className="flex-1 space-y-2">

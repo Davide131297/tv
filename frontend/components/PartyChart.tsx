@@ -82,19 +82,19 @@ export default function PartyChart({
   const totalAuftritte = sortedData.reduce((sum, item) => sum + item.count, 0);
 
   return (
-    <Card className="border-none shadow-lg bg-white/50 backdrop-blur-sm overflow-hidden mb-6">
+    <Card className="border-none shadow-lg bg-white/50 dark:bg-transparent dark:border-solid dark:border-gray-800 dark:border overflow-hidden mb-6">
       <CardHeader className="pb-4">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <CardTitle className="text-2xl font-bold tracking-tight text-slate-800">
+            <CardTitle className="text-2xl font-bold tracking-tight text-slate-800 dark:text-slate-100">
               {getTitle()}
             </CardTitle>
-            <CardDescription className="text-slate-500 mt-1">
+            <CardDescription className="text-slate-500 dark:text-slate-400 mt-1">
               Verteilung der Politiker nach Parteien{" "}
               {selectedYear !== "all" && `im Jahr ${selectedYear}`}
             </CardDescription>
           </div>
-          <div className="bg-blue-50 text-blue-700 px-4 py-2 rounded-full font-medium flex items-center gap-2 shadow-sm shrink-0 border border-blue-100">
+          <div className="bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 px-4 py-2 rounded-full font-medium flex items-center gap-2 shadow-sm shrink-0 border border-blue-100 dark:border-blue-800/50">
             <TrendingUp className="h-4 w-4" />
             <span>Gesamt: {totalAuftritte} Auftritte</span>
           </div>
@@ -103,7 +103,7 @@ export default function PartyChart({
         <div className="flex flex-col md:flex-row justify-between mt-3 gap-5 md:gap-0">
           <div className="flex flex-col md:flex-row gap-2.5 md:gap-10">
             <div>
-              <label className="text-sm font-medium mb-2 block">Jahr:</label>
+              <label className="text-sm font-medium mb-2 block dark:text-gray-300">Jahr:</label>
               <NativeSelect
                 value={selectedYear}
                 onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
@@ -129,7 +129,7 @@ export default function PartyChart({
             />
             <label
               htmlFor="union-switch"
-              className="text-sm select-none cursor-pointer"
+              className="text-sm select-none cursor-pointer dark:text-gray-300"
             >
               CDU & CSU als Union zusammenfassen
             </label>
@@ -167,7 +167,7 @@ export default function PartyChart({
             <CartesianGrid
               vertical={false}
               strokeDasharray="4 4"
-              stroke="#e2e8f0"
+              stroke="var(--color-border)"
             />
             <XAxis
               dataKey="party"
@@ -177,19 +177,19 @@ export default function PartyChart({
               angle={-45}
               textAnchor="end"
               height={140}
-              className="text-xs sm:text-sm font-medium fill-slate-600"
+              className="text-xs sm:text-sm font-medium fill-slate-600 dark:fill-slate-400"
               interval={0}
             />
             <YAxis
               axisLine={false}
               tickLine={false}
               tickMargin={10}
-              className="text-xs sm:text-sm font-medium fill-slate-500"
+              className="text-xs sm:text-sm font-medium fill-slate-500 dark:fill-slate-400"
             />
             <ChartTooltip
-              cursor={{ fill: "rgba(241, 245, 249, 0.5)" }}
+              cursor={{ fill: "rgba(100, 116, 139, 0.1)" }}
               content={
-                <ChartTooltipContent className="bg-white border-slate-200 shadow-xl rounded-xl" />
+                <ChartTooltipContent className="bg-white dark:bg-gray-900 border-slate-200 dark:border-gray-800 shadow-xl rounded-xl dark:text-slate-100" />
               }
             />
             <Bar
@@ -223,10 +223,10 @@ export default function PartyChart({
                     <text
                       x={x + width / 2}
                       y={y - radius}
-                      fill="#334155"
+                      fill="currentColor"
                       textAnchor="middle"
                       dominantBaseline="middle"
-                      className="text-xs sm:text-sm font-bold"
+                      className="text-xs sm:text-sm font-bold fill-slate-700 dark:fill-slate-300"
                       style={{ fontSize: `${fontSize}px` }}
                     >
                       {value}

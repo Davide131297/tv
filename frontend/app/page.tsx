@@ -183,11 +183,11 @@ export default async function Home() {
               priority
               className="size-36 md:size-52"
             />
-            <h1 className="text-4xl md:text-6xl font-bold text-gray-900">
+            <h1 className="text-4xl md:text-6xl font-bold text-gray-900 dark:text-gray-100">
               TV Politik Dashboard
             </h1>
           </div>
-          <p className="text-lg sm:text-xl md:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto">
+          <p className="text-lg sm:text-xl md:text-2xl text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto">
             Entdecken Sie die Politik-Landschaft deutscher Talkshows mit
             interaktiven Statistiken und detaillierten Analysen zu
             Politiker-Auftritten.
@@ -200,39 +200,39 @@ export default async function Home() {
             className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-12"
             aria-label="Aktuelle Kennzahlen"
           >
-            <div className="bg-linear-to-br from-blue-50 to-blue-100 rounded-xl p-4 sm:p-6 text-center shadow-sm border border-blue-200/60">
+            <div className="bg-linear-to-br from-blue-50 to-blue-100 dark:from-blue-900/40 dark:to-blue-800/20 rounded-xl p-4 sm:p-6 text-center shadow-sm border border-blue-200/60 dark:border-blue-800/50">
               <AnimatedCounter
                 end={stats.totalAppearances}
-                className="text-2xl sm:text-3xl md:text-4xl font-bold text-blue-700 block"
+                className="text-2xl sm:text-3xl md:text-4xl font-bold text-blue-700 dark:text-blue-400 block"
               />
-              <span className="text-xs sm:text-sm text-blue-600 mt-1 block">
+              <span className="text-xs sm:text-sm text-blue-600 dark:text-blue-400/80 mt-1 block">
                 Auftritte gesamt
               </span>
             </div>
-            <div className="bg-linear-to-br from-green-50 to-green-100 rounded-xl p-4 sm:p-6 text-center shadow-sm border border-green-200/60">
+            <div className="bg-linear-to-br from-green-50 to-green-100 dark:from-green-900/40 dark:to-green-800/20 rounded-xl p-4 sm:p-6 text-center shadow-sm border border-green-200/60 dark:border-green-800/50">
               <AnimatedCounter
                 end={stats.totalEpisodes}
-                className="text-2xl sm:text-3xl md:text-4xl font-bold text-green-700 block"
+                className="text-2xl sm:text-3xl md:text-4xl font-bold text-green-700 dark:text-green-400 block"
               />
-              <span className="text-xs sm:text-sm text-green-600 mt-1 block">
+              <span className="text-xs sm:text-sm text-green-600 dark:text-green-400/80 mt-1 block">
                 Sendungen erfasst
               </span>
             </div>
-            <div className="bg-linear-to-br from-purple-50 to-purple-100 rounded-xl p-4 sm:p-6 text-center shadow-sm border border-purple-200/60">
+            <div className="bg-linear-to-br from-purple-50 to-purple-100 dark:from-purple-900/40 dark:to-purple-800/20 rounded-xl p-4 sm:p-6 text-center shadow-sm border border-purple-200/60 dark:border-purple-800/50">
               <AnimatedCounter
                 end={stats.uniquePoliticians}
-                className="text-2xl sm:text-3xl md:text-4xl font-bold text-purple-700 block"
+                className="text-2xl sm:text-3xl md:text-4xl font-bold text-purple-700 dark:text-purple-400 block"
               />
-              <span className="text-xs sm:text-sm text-purple-600 mt-1 block">
+              <span className="text-xs sm:text-sm text-purple-600 dark:text-purple-400/80 mt-1 block">
                 Politiker erfasst
               </span>
             </div>
-            <div className="bg-linear-to-br from-orange-50 to-orange-100 rounded-xl p-4 sm:p-6 text-center shadow-sm border border-orange-200/60">
+            <div className="bg-linear-to-br from-orange-50 to-orange-100 dark:from-orange-900/40 dark:to-orange-800/20 rounded-xl p-4 sm:p-6 text-center shadow-sm border border-orange-200/60 dark:border-orange-800/50">
               <AnimatedCounter
                 end={stats.partiesRepresented}
-                className="text-2xl sm:text-3xl md:text-4xl font-bold text-orange-700 block"
+                className="text-2xl sm:text-3xl md:text-4xl font-bold text-orange-700 dark:text-orange-400 block"
               />
-              <span className="text-xs sm:text-sm text-orange-600 mt-1 block">
+              <span className="text-xs sm:text-sm text-orange-600 dark:text-orange-400/80 mt-1 block">
                 Parteien vertreten
               </span>
             </div>
@@ -246,19 +246,19 @@ export default async function Home() {
               <Link
                 key={card.href}
                 href={card.href}
-                className={`group bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-5 sm:p-6 border border-gray-200 ${card.hoverColor} hover:-translate-y-0.5`}
+                className={`group bg-white dark:bg-gray-900/60 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-5 sm:p-6 border border-gray-200 dark:border-gray-800 ${card.hoverColor} dark:hover:border-transparent hover:-translate-y-0.5`}
               >
                 <div
-                  className={`inline-flex items-center justify-center w-12 h-12 rounded-lg bg-linear-to-br ${card.bgGradient} mb-4 text-2xl`}
+                  className={`inline-flex items-center justify-center w-12 h-12 rounded-lg bg-linear-to-br ${card.bgGradient} dark:opacity-80 mb-4 text-2xl`}
                 >
                   {card.emoji}
                 </div>
                 <h3
-                  className={`text-lg sm:text-xl font-semibold text-gray-900 mb-2 ${card.textColor} transition-colors`}
+                  className={`text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2 ${card.textColor} transition-colors`}
                 >
                   {card.title}
                 </h3>
-                <p className="text-gray-600 text-sm leading-relaxed">
+                <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
                   {card.desc}
                 </p>
               </Link>
@@ -269,18 +269,18 @@ export default async function Home() {
         {/* Recent Appearances */}
         {stats?.recentAppearances && stats.recentAppearances.length > 0 && (
           <section className="mt-12 sm:mt-16" aria-label="Letzte Auftritte">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4 sm:mb-6">
               Letzte Auftritte
             </h2>
-            <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
-              <div className="divide-y divide-gray-100">
+            <div className="bg-white dark:bg-gray-900/60 rounded-xl shadow-md border border-gray-200 dark:border-gray-800 overflow-hidden">
+              <div className="divide-y divide-gray-100 dark:divide-gray-800">
                 {stats.recentAppearances.map((appearance, idx) => (
                   <div
                     key={`${appearance.episode_date}-${appearance.politician_name}-${idx}`}
-                    className="flex items-center justify-between px-4 sm:px-6 py-3 hover:bg-gray-50 transition-colors"
+                    className="flex items-center justify-between px-4 sm:px-6 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <span className="text-sm font-medium text-gray-900 truncate">
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-200 truncate">
                         {appearance.politician_name}
                       </span>
                       {appearance.party_name && (
@@ -291,7 +291,7 @@ export default async function Home() {
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 text-xs sm:text-sm text-gray-500 whitespace-nowrap ml-4">
+                    <div className="flex items-center gap-3 text-xs sm:text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap ml-4">
                       <span className="hidden sm:inline">
                         {appearance.show_name}
                       </span>
@@ -311,10 +311,10 @@ export default async function Home() {
 
         {/* Features Section */}
         <section
-          className="bg-gray-50 rounded-xl p-6 sm:p-8 mt-12 sm:mt-16"
+          className="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-6 sm:p-8 mt-12 sm:mt-16 border border-transparent dark:border-gray-800"
           aria-label="Features"
         >
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6 text-center">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6 text-center">
             Was Sie erwartet
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
@@ -323,8 +323,8 @@ export default async function Home() {
                 <div className="text-3xl mb-3" aria-hidden="true">
                   {feature.emoji}
                 </div>
-                <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
-                <p className="text-gray-600 text-sm">{feature.desc}</p>
+                <h3 className="text-lg font-semibold dark:text-gray-200 mb-2">{feature.title}</h3>
+                <p className="text-gray-600 dark:text-gray-400 text-sm">{feature.desc}</p>
               </div>
             ))}
           </div>
@@ -332,10 +332,10 @@ export default async function Home() {
 
         {/* About Section */}
         <section className="mt-12 sm:mt-16 text-center" aria-label="Über uns">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
             Über dieses Dashboard
           </h2>
-          <p className="text-gray-600 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
+          <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
             Dieses Dashboard analysiert die Auftritte von Politikern in
             deutschen Talkshows (Markus Lanz, Maybrit Illner, Caren Miosga &
             Maischberger) und stellt die Daten in verschiedenen interaktiven

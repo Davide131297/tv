@@ -34,7 +34,7 @@ export default function RankingsFilters({
         <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">
           Politiker-Rankings
         </h1>
-        <p className="text-sm sm:text-base text-gray-600">
+        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
           Top-Listen der meistgeladenen Politiker
           {initialShow !== "all" && ` in ${initialShow}`}
         </p>

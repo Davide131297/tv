@@ -53,14 +53,14 @@ export default function PoliticianFilters({
   };
 
   return (
-    <div className="bg-white rounded-t-lg shadow-lg border-b border-gray-200 p-4 sm:p-6">
+    <div className="bg-white dark:bg-transparent rounded-t-lg shadow-lg border-b border-gray-200 dark:border-gray-800 p-4 sm:p-6">
       <div className="flex flex-col gap-4">
         <div className="flex justify-between items-center">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
             Politiker-Auftritte
           </h2>
           <div className="flex gap-2 items-center">
-            <p className="text-sm font-medium text-gray-700">Jahr</p>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Jahr</p>
             <NativeSelect
               value={initialYear}
               onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>

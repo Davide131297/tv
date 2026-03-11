@@ -34,9 +34,9 @@ const Badge = ({
   const baseClasses =
     "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border";
   const variantClasses = {
-    default: "bg-blue-100 text-blue-800 border-blue-200",
-    outline: "bg-white text-gray-700 border-gray-300",
-    secondary: "bg-gray-100 text-gray-800 border-gray-200",
+    default: "bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800",
+    outline: "bg-white dark:bg-transparent text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700",
+    secondary: "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700",
   };
 
   return (
@@ -58,23 +58,23 @@ export default function PoliticianRankings({
   };
 
   const getRankBadgeColor = (rank: number) => {
-    if (rank === 1) return "bg-yellow-500 text-white border-yellow-500";
-    if (rank === 2) return "bg-gray-400 text-white border-gray-400";
-    if (rank === 3) return "bg-orange-700 text-white border-orange-700";
-    if (rank <= 10) return "bg-blue-100 text-blue-800 border-blue-200";
-    return "bg-gray-100 text-gray-600 border-gray-200";
+    if (rank === 1) return "bg-yellow-500 dark:bg-yellow-600 text-white border-yellow-500 dark:border-yellow-600";
+    if (rank === 2) return "bg-gray-400 dark:bg-gray-500 text-white border-gray-400 dark:border-gray-500";
+    if (rank === 3) return "bg-orange-700 dark:bg-orange-600 text-white border-orange-700 dark:border-orange-600";
+    if (rank <= 10) return "bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800";
+    return "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700";
   };
 
   return (
     <div className="space-y-4">
-      <p className="text-sm sm:text-base text-gray-600 -mt-2 mb-2">
+      <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 -mt-2 mb-2">
         {initialData.length} Top-Politiker gefunden
       </p>
       <div className="space-y-2 sm:space-y-3 relative">
         {initialData.length === 0 ? (
         <Card>
           <CardContent className="pt-4 sm:pt-6">
-            <p className="text-center text-gray-500 text-sm sm:text-base">
+            <p className="text-center text-gray-500 dark:text-gray-400 text-sm sm:text-base">
               Keine Daten gefunden für die ausgewählte Show.
             </p>
           </CardContent>
@@ -134,16 +134,16 @@ export default function PoliticianRankings({
                           </Badge>
                         </div>
                         <div className="text-right">
-                          <div className="text-lg font-bold text-blue-600">
+                          <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
                             {politician.total_appearances}
                           </div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
                             Auftritte
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex justify-between items-center text-xs text-gray-500 mb-2">
+                      <div className="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400 mb-2">
                         <div className="flex gap-1">
                           {politician.shows_appeared_on > 1 && (
                             <Badge variant="outline" className="text-xs">
@@ -156,8 +156,8 @@ export default function PoliticianRankings({
                         </div>
                       </div>
 
-                      <div className="mt-2 pt-2 border-t border-gray-50">
-                        <div className="text-xs text-gray-600 mb-1">
+                      <div className="mt-2 pt-2 border-t border-gray-50 dark:border-gray-800">
+                        <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">
                           Auftritte in:
                         </div>
                         <div className="flex flex-wrap gap-1">
@@ -182,7 +182,7 @@ export default function PoliticianRankings({
                             <PoliticianModal
                               politicianName={politician.politician_name}
                               politicianParty={politician.party_name}
-                              className="hover:underline hover:text-blue-600 cursor-pointer font-bold text-lg"
+                              className="hover:underline hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer font-bold text-lg"
                             />
                             <Tooltip>
                               <TooltipTrigger>
@@ -217,15 +217,15 @@ export default function PoliticianRankings({
                         </div>
 
                         <div className="text-center">
-                          <div className="text-xl font-bold text-blue-600">
+                          <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
                             {politician.total_appearances}
                           </div>
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
                             Auftritte
                           </div>
                         </div>
 
-                        <div className="text-right text-sm text-gray-500">
+                        <div className="text-right text-sm text-gray-500 dark:text-gray-400">
                           <div>Letzter Auftritt:</div>
                           <div className="font-medium">
                             {format(
@@ -236,8 +236,8 @@ export default function PoliticianRankings({
                         </div>
                       </div>
 
-                      <div className="mt-2 pt-2 border-t border-gray-50">
-                        <div className="text-xs text-gray-600 mb-1">
+                      <div className="mt-2 pt-2 border-t border-gray-50 dark:border-gray-800">
+                        <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">
                           Auftritte in:
                         </div>
                         <div className="flex flex-wrap gap-1">

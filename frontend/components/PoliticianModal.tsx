@@ -182,7 +182,7 @@ function PoliticianModal({
             <div className="px-4 py-4 overflow-y-auto flex-1">
               {isLoading ? (
                 <div className="flex flex-col gap-5">
-                  <h2 className="text-sm text-gray-600">Lade Daten…</h2>
+                  <h2 className="text-sm text-gray-600 dark:text-gray-400">Lade Daten…</h2>
                   <LoaderOne />
                 </div>
               ) : error ? (
@@ -191,11 +191,11 @@ function PoliticianModal({
                 <>
                   <div className="flex flex-col md:flex-row items-start justify-between gap-4">
                     <div>
-                      <h1 className="text-2xl font-bold">
+                      <h1 className="text-2xl font-bold dark:text-gray-100">
                         {selectedPolitician.label}
                       </h1>
                       {selectedPolitician.occupation && (
-                        <p className="text-sm text-gray-600 mt-1">
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                           {selectedPolitician.occupation}
                         </p>
                       )}
@@ -214,7 +214,7 @@ function PoliticianModal({
                           );
                         })()}
                         {selectedPolitician.year_of_birth && (
-                          <span className="text-sm text-gray-600">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">
                             Jg. {selectedPolitician.year_of_birth}
                           </span>
                         )}
@@ -275,7 +275,7 @@ function PoliticianModal({
                       <TableBody>
                         {appearances.map((ap: Appearances) => (
                           <TableRow key={ap.id}>
-                            <TableCell className="whitespace-nowrap text-sm text-gray-600">
+                            <TableCell className="whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
                               {format(ap.episode_date, "dd.MM.yyyy")}
                             </TableCell>
                             <TableCell className="text-sm font-medium">
@@ -303,7 +303,7 @@ function PoliticianModal({
                   </div>
                 </>
               ) : (
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
                   Kein passender Politiker gefunden.
                 </p>
               )}

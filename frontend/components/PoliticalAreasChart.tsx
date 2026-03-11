@@ -244,23 +244,23 @@ export default function PoliticalAreasChart({
 
     return (
       <div
-        style={{ backgroundColor: "#ffffff", opacity: 1, zIndex: 9999 }}
-        className="px-3 py-2 border border-gray-200 rounded shadow-md text-xs"
+        style={{ opacity: 1, zIndex: 9999 }}
+        className="px-3 py-2 border border-gray-200 dark:border-gray-800 rounded shadow-md text-xs bg-white dark:bg-gray-900"
         id="auftritte"
       >
         {firstPayload && firstPayload.full_label ? (
           <div>
-            <p className="font-medium text-gray-900 leading-tight">
+            <p className="font-medium text-gray-900 dark:text-gray-100 leading-tight">
               {firstPayload.full_label}
             </p>
-            <p className="text-gray-600 leading-tight">
+            <p className="text-gray-600 dark:text-gray-400 leading-tight">
               {label}: {firstPayload.auftritte} Episoden
             </p>
           </div>
         ) : (
           // Line chart: list each series value for the month
           <div>
-            <p className="font-medium text-gray-900 leading-tight">{label}</p>
+            <p className="font-medium text-gray-900 dark:text-gray-100 leading-tight">{label}</p>
             <div className="mt-1 space-y-1">
               {payload.map((p: any) => (
                 <div key={p.dataKey} className="flex items-center gap-2">
@@ -268,8 +268,8 @@ export default function PoliticalAreasChart({
                     className="inline-block w-2 h-2 rounded"
                     style={{ backgroundColor: p.stroke || "#6b7280" }}
                   />
-                  <span className="text-gray-700 text-xs">{p.name}</span>
-                  <span className="ml-2 text-gray-900 text-xs font-medium">
+                  <span className="text-gray-700 dark:text-gray-300 text-xs">{p.name}</span>
+                  <span className="ml-2 text-gray-900 dark:text-gray-100 text-xs font-medium">
                     {p.value}
                   </span>
                 </div>
@@ -312,8 +312,8 @@ export default function PoliticalAreasChart({
       <CardContent>
         <div className="flex flex-col gap-8">
           {/* Timeline (line chart) */}
-          <div className="w-full bg-gray-50 rounded-lg p-4">
-            <h3 className="text-sm font-semibold mb-3">
+          <div className="w-full bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+            <h3 className="text-sm font-semibold mb-3 text-gray-900 dark:text-gray-100">
               Themen nach Zeitverlauf
             </h3>
             <div className="max-h-[420px] overflow-y-auto">
@@ -351,10 +351,10 @@ export default function PoliticalAreasChart({
                       key={md.__key || md.month}
                       className="flex items-center"
                     >
-                      <div className="w-10 text-xs text-gray-700">
+                      <div className="w-10 text-xs text-gray-700 dark:text-gray-300">
                         {md.month}
                       </div>
-                      <div className="flex-1 bg-gray-100 rounded overflow-hidden h-6 flex">
+                      <div className="flex-1 bg-gray-100 dark:bg-gray-800 rounded overflow-hidden h-6 flex">
                         {segments.map((seg) => {
                           const pct = total > 0 ? (seg.value / total) * 100 : 0;
                           return (
@@ -377,7 +377,7 @@ export default function PoliticalAreasChart({
                           );
                         })}
                       </div>
-                      <div className="w-12 text-right text-sm text-gray-700">
+                      <div className="w-12 text-right text-sm text-gray-700 dark:text-gray-300">
                         {total}
                       </div>
                     </div>
@@ -387,8 +387,8 @@ export default function PoliticalAreasChart({
             </div>
           </div>
 
-          <div className="p-4 bg-white rounded-md">
-            <h3 className="text-sm font-semibold mb-3">
+          <div className="p-4 bg-white dark:bg-transparent rounded-md border border-transparent dark:border-gray-800">
+            <h3 className="text-sm font-semibold mb-3 text-gray-900 dark:text-gray-100">
               Verteilung der politischen Themenbereiche
             </h3>
             <ChartContainer config={chartConfig}>
@@ -427,8 +427,8 @@ export default function PoliticalAreasChart({
           </div>
 
           {/* Legende */}
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <h3 className="text-sm font-medium text-gray-900 mb-3">
+          <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-transparent dark:border-gray-800">
+            <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
               Themenbereiche (feste Zuordnung):
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
@@ -482,10 +482,10 @@ export default function PoliticalAreasChart({
                             "#6b7280",
                         }}
                       />
-                      <span className="font-medium">{tNumber}:</span>
-                      <span className="text-gray-600">{themeName}</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">{tNumber}:</span>
+                      <span className="text-gray-600 dark:text-gray-400">{themeName}</span>
                       {!isPresent && (
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-gray-400 dark:text-gray-500">
                           (nicht vorhanden)
                         </span>
                       )}

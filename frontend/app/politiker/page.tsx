@@ -32,10 +32,10 @@ export default async function PoliticiansPage({
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
           📋 Politiker-Übersicht
         </h1>
-        <p className="text-gray-600">
+        <p className="text-gray-600 dark:text-gray-400">
           Detaillierte Übersicht aller Politiker mit ihren Auftritten in
           deutschen TV-Talkshows
         </p>
