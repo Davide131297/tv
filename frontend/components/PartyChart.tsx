@@ -1,17 +1,29 @@
 "use client";
 
-import { TrendingUp } from "lucide-react";
-import { Bar, BarChart, CartesianGrid, LabelList, XAxis } from "recharts";
+import { TrendingUp, Filter } from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  LabelList,
+  XAxis,
+  YAxis,
+  Cell,
+} from "recharts";
 import { Switch } from "./ui/switch";
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ChartConfig, ChartContainer } from "@/components/ui/chart";
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 import type { PartyChartProps } from "@/types";
 import { PARTY_COLORS } from "@/types";
 import {
@@ -55,13 +67,13 @@ export default function PartyChart({
   // Transformiere Daten für recharts
   const chartData = sortedData.map((item) => ({
     party: item.party_name,
-    auftritte: item.count,
+    Auftritte: item.count,
     fill: PARTY_COLORS[item.party_name] || "#6b7280",
   }));
 
   // Chart-Konfiguration
   const chartConfig = {
-    auftritte: {
+    Auftritte: {
       label: "Auftritte",
       color: "var(--chart-1)",
     },
@@ -70,12 +82,24 @@ export default function PartyChart({
   const totalAuftritte = sortedData.reduce((sum, item) => sum + item.count, 0);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{getTitle()}</CardTitle>
-        <CardDescription>
-          Verteilung der Politiker nach Parteien
-        </CardDescription>
+    <Card className="border-none shadow-lg bg-white/50 backdrop-blur-sm overflow-hidden mb-6">
+      <CardHeader className="pb-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <CardTitle className="text-2xl font-bold tracking-tight text-slate-800">
+              {getTitle()}
+            </CardTitle>
+            <CardDescription className="text-slate-500 mt-1">
+              Verteilung der Politiker nach Parteien{" "}
+              {selectedYear !== "all" && `im Jahr ${selectedYear}`}
+            </CardDescription>
+          </div>
+          <div className="bg-blue-50 text-blue-700 px-4 py-2 rounded-full font-medium flex items-center gap-2 shadow-sm shrink-0 border border-blue-100">
+            <TrendingUp className="h-4 w-4" />
+            <span>Gesamt: {totalAuftritte} Auftritte</span>
+          </div>
+        </div>
+
         <div className="flex flex-col md:flex-row justify-between mt-3 gap-5 md:gap-0">
           <div className="flex flex-col md:flex-row gap-2.5 md:gap-10">
             <div>
@@ -112,50 +136,108 @@ export default function PartyChart({
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="bg-gray-50 px-4 pt-2 rounded-md">
-          <ChartContainer config={chartConfig}>
-            <BarChart
-              accessibilityLayer
-              data={chartData}
-              margin={{
-                top: 20,
-                bottom: 60,
-              }}
+
+      <CardContent className="pt-2 pb-6 px-2 sm:px-6">
+        <ChartContainer config={chartConfig} className="h-[430px] w-full">
+          <BarChart
+            accessibilityLayer
+            data={chartData}
+            margin={{
+              top: 30,
+              bottom: 40,
+              left: -15,
+              right: 15,
+            }}
+          >
+            <defs>
+              {chartData.map((entry, index) => (
+                <linearGradient
+                  key={`gradient-${index}`}
+                  id={`colorGradient-${index}`}
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop offset="5%" stopColor={entry.fill} stopOpacity={0.9} />
+                  <stop offset="95%" stopColor={entry.fill} stopOpacity={0.5} />
+                </linearGradient>
+              ))}
+            </defs>
+            <CartesianGrid
+              vertical={false}
+              strokeDasharray="4 4"
+              stroke="#e2e8f0"
+            />
+            <XAxis
+              dataKey="party"
+              tickLine={false}
+              tickMargin={15}
+              axisLine={false}
+              angle={-45}
+              textAnchor="end"
+              height={140}
+              className="text-xs sm:text-sm font-medium fill-slate-600"
+              interval={0}
+            />
+            <YAxis
+              axisLine={false}
+              tickLine={false}
+              tickMargin={10}
+              className="text-xs sm:text-sm font-medium fill-slate-500"
+            />
+            <ChartTooltip
+              cursor={{ fill: "rgba(241, 245, 249, 0.5)" }}
+              content={
+                <ChartTooltipContent className="bg-white border-slate-200 shadow-xl rounded-xl" />
+              }
+            />
+            <Bar
+              dataKey="Auftritte"
+              radius={[6, 6, 0, 0]}
+              maxBarSize={60}
+              animationDuration={1500}
+              animationEasing="ease-out"
             >
-              <CartesianGrid vertical={false} />
-              <XAxis
-                dataKey="party"
-                tickLine={false}
-                tickMargin={10}
-                axisLine={false}
-                angle={-45}
-                textAnchor="end"
-                height={120}
-                fontSize={10}
-                className="text-xs sm:text-sm"
-                interval={0}
-              />
-              <Bar dataKey="auftritte" radius={8}>
-                <LabelList
-                  position="top"
-                  offset={8}
-                  className="fill-foreground text-xs sm:text-sm"
-                  fontSize={10}
+              {chartData.map((entry, index) => (
+                <Cell
+                  key={`cell-${index}`}
+                  fill={`url(#colorGradient-${index})`}
+                  stroke={entry.fill}
+                  strokeWidth={1}
                 />
-              </Bar>
-            </BarChart>
-          </ChartContainer>
-        </div>
+              ))}
+              <LabelList
+                dataKey="Auftritte"
+                position="top"
+                offset={10}
+                className="fill-slate-700 font-bold"
+                content={(props: any) => {
+                  const { x, y, width, value } = props;
+                  const radius = 10;
+                  // Dynamische Schriftgröße: Wenn der Balken sehr schmal ist (z.B. auf Handys bei vielen Parteien)
+                  // oder die Zahl sehr groß ist
+                  const fontSize = width < 30 ? 10 : 12;
+
+                  return (
+                    <text
+                      x={x + width / 2}
+                      y={y - radius}
+                      fill="#334155"
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      className="text-xs sm:text-sm font-bold"
+                      style={{ fontSize: `${fontSize}px` }}
+                    >
+                      {value}
+                    </text>
+                  );
+                }}
+              />
+            </Bar>
+          </BarChart>
+        </ChartContainer>
       </CardContent>
-      <CardFooter className="flex-col items-start gap-2 text-sm">
-        <div className="flex gap-2 leading-none font-medium">
-          Gesamt: {totalAuftritte} Auftritte <TrendingUp className="h-4 w-4" />
-        </div>
-        <div className="text-muted-foreground leading-none">
-          Anzahl der Politiker-Auftritte nach Parteien sortiert
-        </div>
-      </CardFooter>
     </Card>
   );
 }
