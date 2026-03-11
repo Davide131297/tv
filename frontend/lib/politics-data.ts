@@ -488,3 +488,76 @@ export async function getDatabaseEntries(params: {
     totalPages: Math.ceil((count || 0) / limit),
   };
 }
+
+export type PoliticianComparisonPoint = {
+  show: string;
+  A: number;
+  B: number;
+};
+
+export async function getPoliticianComparisonStats(
+  p1: string,
+  p2: string,
+  year?: string | null
+): Promise<PoliticianComparisonPoint[]> {
+  const baseShows = [
+    "Markus Lanz",
+    "Maybrit Illner",
+    "Caren Miosga",
+    "Maischberger",
+    "Hart aber fair",
+  ];
+
+  const statsMap = new Map<string, PoliticianComparisonPoint>(
+    baseShows.map((show) => [show, { show, A: 0, B: 0 }]),
+  );
+
+  const applyYearFilter = <T>(query: T): T => {
+    if (year && year !== "all") {
+      const startDate = `${year}-01-01`;
+      const endDate = `${year}-12-31`;
+      // Supabase query builders are immutable; return the refined query.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (query as any).gte("episode_date", startDate).lte("episode_date", endDate);
+    }
+    return query;
+  };
+
+  const buildQuery = (politicianName: string) =>
+    applyYearFilter(
+      supabase
+        .from("tv_show_politicians")
+        .select("show_name")
+        .eq("politician_name", politicianName)
+        .in("show_name", baseShows),
+    );
+
+  const [
+    { data: dataA, error: errA },
+    { data: dataB, error: errB },
+  ] = await Promise.all([buildQuery(p1), buildQuery(p2)]);
+
+  if (errA) {
+    throw errA;
+  }
+
+  if (errB) {
+    throw errB;
+  }
+
+  dataA?.forEach((row) => {
+    const show = row.show_name;
+    if (statsMap.has(show)) {
+      statsMap.get(show)!.A++;
+    }
+  });
+
+  dataB?.forEach((row) => {
+    const show = row.show_name;
+    if (statsMap.has(show)) {
+      statsMap.get(show)!.B++;
+    }
+  });
+
+  return Array.from(statsMap.values());
+}

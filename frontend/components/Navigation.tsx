@@ -74,6 +74,11 @@ export default function Navigation() {
           href: "/politiker-rankings",
           description: "Wer ist am häufigsten zu Gast?",
         },
+        {
+          title: "Direkt-Vergleich",
+          href: "/politiker/vergleich",
+          description: "Zwei Politiker direkt gegenüberstellen",
+        },
       ],
     },
     { title: "Sendungen", href: "/sendungen" },
