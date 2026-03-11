@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_SITE_URL || "https://polittalk-watcher.de",
   ),
   title: {
-    default: "Polittalk-Watcher – Politische Talkshows im Faktencheck",
+    default: "Polittalk-Watcher – Politische Talkshows in der Analyse",
     template: "%s | Polittalk-Watcher",
   },
   description:
@@ -108,7 +108,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Polittalk-Watcher – Politische Talkshows im Faktencheck",
+    title: "Polittalk-Watcher – Politische Talkshows in der Analyse",
     description:
       "Interaktive Statistiken und Analysen zu Markus Lanz, Maybrit Illner, Caren Miosga, Maischberger und Phoenix Runde",
     images: ["/transparent_logo.png"],

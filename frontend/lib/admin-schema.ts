@@ -32,11 +32,6 @@ export const ADMIN_TABLES: Record<string, AdminTableConfig> = {
     description: "Nutzerfeedback und offene Meldungen.",
     primaryKey: "id",
   },
-  episode_factchecks: {
-    label: "Episode Factchecks",
-    description: "Faktenchecks pro Episode.",
-    primaryKey: "id",
-  },
   documents: {
     label: "Documents",
     description: "Embedding- und Dokument-Datensätze.",

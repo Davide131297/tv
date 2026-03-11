@@ -4,7 +4,6 @@ import {
   insertEpisodePoliticalAreas,
   checkPolitician,
   getLatestEpisodeDate,
-  analyzeEpisodeSubtitleWithFactCheck,
 } from "../lib/utils.js";
 import { createBrowser, setupSimplePage } from "../lib/browser-configs.js";
 import {
@@ -450,12 +449,6 @@ export default async function CrawlLanz() {
         }));
 
       if (politicians.length > 0) {
-        await analyzeEpisodeSubtitleWithFactCheck(
-          "Markus Lanz",
-          "Markus Lanz",
-          episode.date,
-        );
-
         let politicalAreaIds: number[] = [];
         // Hole Themenbereich nur, wenn Politiker anwesend und eine Beschreibung existiert
         if (episode.description) {
