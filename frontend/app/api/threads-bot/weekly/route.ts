@@ -13,6 +13,19 @@ interface BotConfig {
   value: string;
 }
 
+interface ThreadsApiErrorPayload {
+  message?: string;
+  type?: string;
+  code?: number;
+  fbtrace_id?: string;
+}
+
+function isThreadsPermissionError(
+  error: ThreadsApiErrorPayload | undefined,
+): boolean {
+  return !!error && error.type === "THApiException" && error.code === 10;
+}
+
 async function getBotConfig() {
   const { data, error } = await supabase
     .from("bot_configuration")
@@ -241,26 +254,44 @@ export async function GET(request: NextRequest) {
 
     let lastCreationId: string | null = null;
     const publishedIds: string[] = [];
+    let fellBackToStandalonePosts = false;
 
     // Publish chunks sequentially
     currentStep = "threads_publish";
     for (const textChunk of chunks) {
       currentStep = `threads_container_chunk_${publishedIds.length + 1}`;
-      const containerUrl = new URL(
-        `https://graph.threads.net/v1.0/${USER_ID}/threads`,
-      );
-      containerUrl.searchParams.append("media_type", "TEXT");
-      containerUrl.searchParams.append("text", textChunk);
-      containerUrl.searchParams.append("access_token", ACCESS_TOKEN);
+      const createContainer = async (replyToId?: string | null) => {
+        const containerUrl = new URL(
+          `https://graph.threads.net/v1.0/${USER_ID}/threads`,
+        );
+        containerUrl.searchParams.append("media_type", "TEXT");
+        containerUrl.searchParams.append("text", textChunk);
+        containerUrl.searchParams.append("access_token", ACCESS_TOKEN);
 
-      if (lastCreationId) {
-        containerUrl.searchParams.append("reply_to_id", lastCreationId);
+        if (replyToId) {
+          containerUrl.searchParams.append("reply_to_id", replyToId);
+        }
+
+        const containerRes = await fetch(containerUrl.toString(), {
+          method: "POST",
+        });
+        return containerRes.json();
+      };
+
+      let containerJson = await createContainer(lastCreationId);
+
+      if (
+        containerJson.error &&
+        lastCreationId &&
+        isThreadsPermissionError(containerJson.error)
+      ) {
+        console.warn(
+          `Threads reply permission missing. Retrying chunk ${publishedIds.length + 1} without reply_to_id.`,
+          containerJson.error,
+        );
+        fellBackToStandalonePosts = true;
+        containerJson = await createContainer(null);
       }
-
-      const containerRes = await fetch(containerUrl.toString(), {
-        method: "POST",
-      });
-      const containerJson = await containerRes.json();
 
       if (containerJson.error) {
         throw new Error(
@@ -295,7 +326,14 @@ export async function GET(request: NextRequest) {
       await new Promise((res) => setTimeout(res, 1000));
     }
 
-    return NextResponse.json({ success: true, publishedIds: publishedIds });
+    return NextResponse.json({
+      success: true,
+      publishedIds: publishedIds,
+      mode: fellBackToStandalonePosts ? "standalone_posts" : "threaded_replies",
+      warning: fellBackToStandalonePosts
+        ? "Replies could not be created via API permission. Published remaining chunks as standalone posts."
+        : undefined,
+    });
   } catch (error: any) {
     console.error(`Error in threads-bot route (step: ${currentStep}):`, error);
     return NextResponse.json(
