@@ -18,7 +18,7 @@ export function getPartyBadgeClasses(partyName: string): string {
     .trim();
 
   const map: Record<string, string> = {
-    CDU: "bg-black text-white",
+    CDU: "bg-black text-white dark:border-gray-800 dark:border-1",
     CSU: "bg-blue-800 text-white",
     SPD: "bg-red-600 text-white",
     FDP: "bg-yellow-400 text-black",
