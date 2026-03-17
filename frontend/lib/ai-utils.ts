@@ -60,7 +60,7 @@ export async function extractGuestsWithAI(
   description: string,
   retryCount = 0,
 ): Promise<string[]> {
-  // Nach 150 Requests direkt zum Fallback wechseln
+  // Nach 150 Requests keine weiteren AI-Requests mehr ausfuehren
   if (aiRequestCount >= 150) {
     console.log("⚠️  AI Rate Limit erreicht");
     return [];

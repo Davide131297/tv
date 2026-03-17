@@ -8,201 +8,185 @@ import {
 } from "@/lib/supabase-server-utils";
 import { extractGuestsWithAI, getPoliticalArea } from "@/lib/ai-utils";
 
-// ARD Mediathek API — Caren Miosga Widget-Endpunkt
-const WIDGET_API_URL =
-  "https://api.ardmediathek.de/page-gateway/widgets/ard/asset/Y3JpZDovL2Rhc2Vyc3RlLmRlL2NhcmVuLW1pb3NnYQ";
+const ARD_AUDIO_BASE_URL = "https://www.ardaudiothek.de";
+const ARD_GRAPHQL_URL = "https://api.ardaudiothek.de/graphql";
+const MIOSGA_PROGRAM_SET_ID = "urn:ard:show:d6e5ba24e1508004";
+const PAGE_SIZE = 12;
 
-const PAGE_SIZE = 24;
+const PROGRAM_SET_EPISODES_QUERY = `
+  query ProgramSetEpisodesQuery($id: ID!, $offset: Int!, $count: Int!) {
+    result: programSet(id: $id) {
+      items(
+        offset: $offset
+        first: $count
+        filter: {
+          isPublished: { equalTo: true }
+          itemType: { notEqualTo: EVENT_LIVESTREAM }
+        }
+      ) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        nodes {
+          id
+          title
+          publishDate
+          summary
+          path
+        }
+      }
+    }
+  }
+`;
 
-// ─────────────────────────────────────────────
-// Typen aus der ARD API
-// ─────────────────────────────────────────────
-interface ArdTeaser {
+interface ArdEpisodeNode {
   id: string;
-  longTitle: string;
-  broadcastedOn: string; // ISO-8601: "2026-03-08T21:00:00Z"
-  availableTo: string;
-  duration: number;
-  links: {
-    target: {
-      urlId: string;
+  title: string;
+  publishDate: string;
+  summary: string | null;
+  path: string;
+}
+
+interface ArdEpisodesResponse {
+  data?: {
+    result?: {
+      items?: {
+        pageInfo?: {
+          hasNextPage?: boolean;
+          endCursor?: string | null;
+        };
+        nodes?: ArdEpisodeNode[];
+      };
     };
   };
+  errors?: Array<{ message?: string }>;
 }
 
-interface ArdWidgetResponse {
-  teasers: ArdTeaser[];
-  pagination: {
-    pageNumber: number;
-    pageSize: number;
-    totalElements: number;
-  };
-}
-
-interface EpisodeData {
-  id: string;
-  date: string; // "YYYY-MM-DD"
+interface MiosgaEpisode {
+  url: string;
+  date: string;
   title: string;
-  episodeUrl: string;
   description: string;
   guests: GuestWithRole[];
 }
 
-// ─────────────────────────────────────────────
-// ARD API: Eine Seite der Episode-Liste holen
-// ─────────────────────────────────────────────
-async function fetchEpisodePage(
-  pageNumber: number
-): Promise<ArdWidgetResponse> {
-  const url = `${WIDGET_API_URL}?pageNumber=${pageNumber}&pageSize=${PAGE_SIZE}`;
-  const res = await fetch(url);
-
-  if (!res.ok) {
-    throw new Error(
-      `ARD API Fehler: ${res.status} ${res.statusText} (Seite ${pageNumber})`
-    );
-  }
-
-  return res.json() as Promise<ArdWidgetResponse>;
+function buildEpisodeUrl(path: string): string {
+  return path.startsWith("http") ? path : `${ARD_AUDIO_BASE_URL}${path}`;
 }
 
-// ─────────────────────────────────────────────
-// Episodenbeschreibung via OG-Meta-Tag holen
-// ─────────────────────────────────────────────
-async function fetchEpisodeDescription(episodeUrl: string): Promise<string> {
-  try {
-    const res = await fetch(episodeUrl, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      },
-    });
-
-    if (!res.ok) {
-      console.warn(
-        `⚠️  Episode-Seite nicht erreichbar (${res.status}): ${episodeUrl}`
-      );
-      return "";
-    }
-
-    const html = await res.text();
-
-    // OG-Description aus Meta-Tag extrahieren
-    const match = html.match(
-      /<meta[^>]+property="og:description"[^>]+content="([^"]+)"/i
-    );
-
-    if (!match) {
-      // Fallback: name="description"
-      const fallback = html.match(
-        /<meta[^>]+name="description"[^>]+content="([^"]+)"/i
-      );
-      return fallback ? decodeHtmlEntities(fallback[1]) : "";
-    }
-
-    return decodeHtmlEntities(match[1]);
-  } catch (error) {
-    console.error(`❌ Fehler beim Laden der Episodenseite ${episodeUrl}:`, error);
-    return "";
-  }
+function getEpisodeDate(publishDate: string): string {
+  return publishDate.split("T")[0] ?? publishDate;
 }
 
-// HTML-Entities dekodieren (z.B. &amp; → &)
-function decodeHtmlEntities(text: string): string {
-  return text
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#039;/g, "'")
-    .replace(/&auml;/g, "ä")
-    .replace(/&ouml;/g, "ö")
-    .replace(/&uuml;/g, "ü")
-    .replace(/&Auml;/g, "Ä")
-    .replace(/&Ouml;/g, "Ö")
-    .replace(/&Uuml;/g, "Ü")
-    .replace(/&szlig;/g, "ß");
-}
-
-// ─────────────────────────────────────────────
-// Alle neuen Episoden von der API holen
-// Überspringt Episoden die bereits in der DB sind (via show_links)
-// ─────────────────────────────────────────────
-async function fetchNewEpisodes(
-  existingDates: Set<string>
-): Promise<EpisodeData[]> {
-  const newEpisodes: EpisodeData[] = [];
-  let pageNumber = 0;
-  let foundKnown = false;
-
-  // Erste Seite holen, um totalElements zu kennen
-  const firstPage = await fetchEpisodePage(0);
-  const totalPages = Math.ceil(
-    firstPage.pagination.totalElements / PAGE_SIZE
+async function fetchEpisodeBatch(
+  offset: number,
+  count: number
+): Promise<{ nodes: ArdEpisodeNode[]; hasNextPage: boolean }> {
+  const url = new URL(ARD_GRAPHQL_URL);
+  url.searchParams.set("query", PROGRAM_SET_EPISODES_QUERY);
+  url.searchParams.set(
+    "variables",
+    JSON.stringify({
+      id: MIOSGA_PROGRAM_SET_ID,
+      offset,
+      count,
+    })
   );
 
-  const processPage = async (data: ArdWidgetResponse): Promise<boolean> => {
-    // Filtere Gebärdensprache-Duplikate raus
-    const episodes = data.teasers.filter(
-      (t) => !t.longTitle.includes("Gebärdensprache")
+  const response = await fetch(url.toString(), {
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`ARD API Fehler: ${response.status} ${response.statusText}`);
+  }
+
+  const payload = (await response.json()) as ArdEpisodesResponse;
+
+  if (payload.errors?.length) {
+    const messages = payload.errors
+      .map((error) => error.message)
+      .filter(Boolean)
+      .join(", ");
+    throw new Error(`ARD GraphQL Fehler: ${messages || "Unbekannter Fehler"}`);
+  }
+
+  const items = payload.data?.result?.items;
+
+  return {
+    nodes: items?.nodes ?? [],
+    hasNextPage: items?.pageInfo?.hasNextPage ?? false,
+  };
+}
+
+async function extractGuests(
+  description: string,
+  title: string
+): Promise<GuestWithRole[]> {
+  const sourceText = description || title;
+  if (!sourceText) return [];
+
+  const guestNames = await extractGuestsWithAI(sourceText);
+
+  return [...new Set(guestNames)]
+    .filter(Boolean)
+    .map((name) => ({ name }));
+}
+
+async function fetchMiosgaEpisodes(
+  latestDbDate: string | null
+): Promise<MiosgaEpisode[]> {
+  const episodes: MiosgaEpisode[] = [];
+  let offset = 0;
+  let hasNextPage = true;
+
+  while (hasNextPage) {
+    const { nodes, hasNextPage: nextPage } = await fetchEpisodeBatch(
+      offset,
+      PAGE_SIZE
     );
 
-    for (const teaser of episodes) {
-      // ISO-Datum: "2026-03-08T21:00:00Z" → "2026-03-08"
-      const date = teaser.broadcastedOn.split("T")[0];
+    if (nodes.length === 0) break;
 
-      // Episode bereits in der DB? → überspringen
-      if (existingDates.has(date)) {
-        // Episoden sind chronologisch absteigend → können früh abbrechen
-        foundKnown = true;
-        return true;
+    for (const node of nodes) {
+      const episodeDate = getEpisodeDate(node.publishDate);
+
+      if (latestDbDate && episodeDate <= latestDbDate) {
+        return episodes;
       }
 
-      const episodeUrl = `https://www.ardmediathek.de/video/${teaser.links.target.urlId}`;
+      const description = (node.summary || "").trim();
+      const guests = await extractGuests(description, node.title);
 
-      // Lade Beschreibung von der Episodenseite
-      const description = await fetchEpisodeDescription(episodeUrl);
-
-      // Extrahiere Gäste mit AI aus der Beschreibung
-      const guestNames = await extractGuestsWithAI(description || teaser.longTitle);
-      const guests: GuestWithRole[] = guestNames.map((name) => ({ name }));
-
-      newEpisodes.push({
-        id: teaser.id,
-        date,
-        title: teaser.longTitle,
-        episodeUrl,
+      episodes.push({
+        url: buildEpisodeUrl(node.path),
+        date: episodeDate,
+        title: node.title.trim(),
         description,
         guests,
       });
-
-      console.log(
-        `📺 ${date} | "${teaser.longTitle}" | Gäste: ${guestNames.join(", ") || "–"}`
-      );
     }
 
-    return false; // Noch nicht fertig
-  };
-
-  // Erste Seite verarbeiten
-  foundKnown = await processPage(firstPage);
-
-  // Weitere Seiten paginiert abrufen
-  for (pageNumber = 1; pageNumber < totalPages && !foundKnown; pageNumber++) {
-    const page = await fetchEpisodePage(pageNumber);
-    foundKnown = await processPage(page);
+    hasNextPage = nextPage;
+    offset += PAGE_SIZE;
   }
 
-  // Neueste zuerst
-  return newEpisodes.sort((a, b) => b.date.localeCompare(a.date));
+  return episodes;
 }
 
-// ─────────────────────────────────────────────
-// Hilfsfunktion: Politiker verarbeiten
-// ─────────────────────────────────────────────
-async function processPoliticians(episode: EpisodeData) {
+async function processPoliticians(
+  episode: Pick<MiosgaEpisode, "guests">
+): Promise<
+  Array<{
+    politicianId: number;
+    politicianName: string;
+    partyId?: number;
+    partyName?: string;
+  }>
+> {
   const politicians = [];
 
   for (const guest of episode.guests) {
@@ -217,192 +201,122 @@ async function processPoliticians(episode: EpisodeData) {
       });
     }
 
-    // Kurze Pause zwischen API-Calls
     await new Promise((resolve) => setTimeout(resolve, 300));
   }
 
   return politicians;
 }
 
-// ─────────────────────────────────────────────
-// INKREMENTELLER Crawl (Standard-Modus)
-// ─────────────────────────────────────────────
+async function processEpisodes(episodes: MiosgaEpisode[]): Promise<void> {
+  let totalPoliticiansInserted = 0;
+  let episodesProcessed = 0;
+  const episodeLinksToInsert: Array<{ episodeUrl: string; episodeDate: string }> =
+    episodes.map((episode) => ({
+      episodeUrl: episode.url,
+      episodeDate: episode.date,
+    }));
+
+  const totalEpisodeLinksInserted =
+    episodeLinksToInsert.length > 0
+      ? await insertMultipleShowLinks("Caren Miosga", episodeLinksToInsert)
+      : 0;
+
+  for (const episode of episodes) {
+    try {
+      if (episode.guests.length === 0) {
+        console.log(`⚠️  Keine Gäste gefunden: ${episode.title} (${episode.date})`);
+        continue;
+      }
+
+      const politicalAreaIds = await getPoliticalArea(
+        episode.description || episode.title
+      );
+      const politicians = await processPoliticians(episode);
+      const guestNames = episode.guests.map((guest) => guest.name);
+
+      console.log(
+        `📅 ${episode.date} | 👥 ${guestNames.join(", ")}${
+          politicians.length > 0
+            ? ` | ✅ Politiker: ${politicians
+                .map((p) => `${p.politicianName} (${p.partyName || "?"})`)
+                .join(", ")}`
+            : ""
+        }`
+      );
+
+      if (politicians.length > 0) {
+        const inserted = await insertMultipleTvShowPoliticians(
+          "Das Erste",
+          "Caren Miosga",
+          episode.date,
+          politicians
+        );
+        totalPoliticiansInserted += inserted;
+      }
+
+      if (politicalAreaIds.length > 0) {
+        await insertEpisodePoliticalAreas(
+          "Caren Miosga",
+          episode.date,
+          politicalAreaIds
+        );
+      }
+
+      episodesProcessed++;
+    } catch (error) {
+      console.error(
+        `❌ Fehler beim Verarbeiten von Episode ${episode.date}:`,
+        error
+      );
+    }
+  }
+
+  console.log(`Episoden verarbeitet: ${episodesProcessed}/${episodes.length}`);
+  console.log(`Politiker eingefügt: ${totalPoliticiansInserted}`);
+  console.log(`Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
+}
+
 export async function crawlIncrementalCarenMiosgaEpisodes(): Promise<void> {
-  console.log("🚀 Starte inkrementellen Caren Miosga Crawl (ARD API)...");
+  console.log("🚀 Starte inkrementellen Caren Miosga Crawl...");
 
   const existingDates = await getExistingEpisodeDates("Caren Miosga");
   console.log(`📅 Bereits ${existingDates.size} Episoden in DB vorhanden`);
 
-  const newEpisodes = await fetchNewEpisodes(existingDates);
+  const latestDbDate =
+    existingDates.size > 0 ? [...existingDates].sort().reverse()[0] : null;
+  const newEpisodes = await fetchMiosgaEpisodes(latestDbDate);
 
   if (newEpisodes.length === 0) {
     console.log("✅ Keine neuen Episoden gefunden – alles aktuell!");
     return;
   }
 
-  console.log(`\n🔄 ${newEpisodes.length} neue Episoden zu verarbeiten...\n`);
+  const sortedEpisodes = [...newEpisodes].sort((a, b) =>
+    a.date.localeCompare(b.date)
+  );
 
-  let totalPoliticiansInserted = 0;
-  let totalEpisodeLinksInserted = 0;
-  let episodesProcessed = 0;
-  const episodeLinksToInsert: { episodeUrl: string; episodeDate: string }[] = [];
-
-  for (const episode of newEpisodes) {
-    try {
-      if (episode.guests.length === 0) continue;
-
-      // Politische Themenbereiche
-      const politicalAreaIds = await getPoliticalArea(episode.description);
-
-      // Politiker prüfen
-      const politicians = await processPoliticians(episode);
-
-      const guestNames = episode.guests.map((g) => g.name);
-      console.log(
-        `📅 ${episode.date} | 👥 ${guestNames.join(", ")}${
-          politicians.length > 0
-            ? ` | ✅ Politiker: ${politicians
-                .map((p) => `${p.politicianName} (${p.partyName || "?"})`)
-                .join(", ")}`
-            : ""
-        }`
-      );
-
-      // Politiker in DB speichern
-      if (politicians.length > 0) {
-        const inserted = await insertMultipleTvShowPoliticians(
-          "Das Erste",
-          "Caren Miosga",
-          episode.date,
-          politicians
-        );
-        totalPoliticiansInserted += inserted;
-        episodeLinksToInsert.push({
-          episodeUrl: episode.episodeUrl,
-          episodeDate: episode.date,
-        });
-      }
-
-      // Politische Themenbereiche speichern
-      if (politicalAreaIds && politicalAreaIds.length > 0) {
-        await insertEpisodePoliticalAreas(
-          "Caren Miosga",
-          episode.date,
-          politicalAreaIds
-        );
-      }
-
-      episodesProcessed++;
-    } catch (error) {
-      console.error(
-        `❌ Fehler beim Verarbeiten von Episode ${episode.date}:`,
-        error
-      );
-    }
-  }
-
-  // Episode-URLs batch-speichern
-  if (episodeLinksToInsert.length > 0) {
-    totalEpisodeLinksInserted = await insertMultipleShowLinks(
-      "Caren Miosga",
-      episodeLinksToInsert
-    );
-  }
+  console.log(`\n🔄 ${sortedEpisodes.length} neue Episoden zu verarbeiten...\n`);
+  await processEpisodes(sortedEpisodes);
 
   console.log(`\n=== Caren Miosga Zusammenfassung ===`);
-  console.log(`Episoden verarbeitet: ${episodesProcessed}`);
-  console.log(`Politiker eingefügt: ${totalPoliticiansInserted}`);
-  console.log(`Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
 }
 
-// ─────────────────────────────────────────────
-// VOLLSTÄNDIGER historischer Crawl (alle Seiten)
-// ─────────────────────────────────────────────
 export async function crawlAllCarenMiosgaEpisodes(): Promise<void> {
-  console.log("🚀 Starte vollständigen Caren Miosga Crawl (ARD API)...");
+  console.log("🚀 Starte vollständigen Caren Miosga Crawl...");
 
-  // Leeres Set = kein Filter → alle Episoden holen
-  const allEpisodes = await fetchNewEpisodes(new Set());
+  const allEpisodes = await fetchMiosgaEpisodes(null);
 
   if (allEpisodes.length === 0) {
     console.log("Keine Episoden gefunden.");
     return;
   }
 
-  // Älteste zuerst für historischen Crawl
   const sortedEpisodes = [...allEpisodes].sort((a, b) =>
     a.date.localeCompare(b.date)
   );
 
   console.log(`\n🔄 ${sortedEpisodes.length} Episoden zu verarbeiten...\n`);
-
-  let totalPoliticiansInserted = 0;
-  let totalEpisodeLinksInserted = 0;
-  let episodesProcessed = 0;
-  let episodesWithErrors = 0;
-
-  // Episode-URLs batch speichern
-  const episodeLinksToInsert = sortedEpisodes.map((ep) => ({
-    episodeUrl: ep.episodeUrl,
-    episodeDate: ep.date,
-  }));
-
-  if (episodeLinksToInsert.length > 0) {
-    totalEpisodeLinksInserted = await insertMultipleShowLinks(
-      "Caren Miosga",
-      episodeLinksToInsert
-    );
-  }
-
-  for (const episode of sortedEpisodes) {
-    try {
-      if (episode.guests.length === 0) continue;
-
-      const politicalAreaIds = await getPoliticalArea(episode.description);
-      const politicians = await processPoliticians(episode);
-
-      const guestNames = episode.guests.map((g) => g.name);
-      console.log(
-        `📅 ${episode.date} | 👥 ${guestNames.join(", ")}${
-          politicians.length > 0
-            ? ` | ✅ Politiker: ${politicians
-                .map((p) => `${p.politicianName} (${p.partyName || "?"})`)
-                .join(", ")}`
-            : ""
-        }`
-      );
-
-      if (politicians.length > 0) {
-        const inserted = await insertMultipleTvShowPoliticians(
-          "Das Erste",
-          "Caren Miosga",
-          episode.date,
-          politicians
-        );
-        totalPoliticiansInserted += inserted;
-      }
-
-      if (politicalAreaIds && politicalAreaIds.length > 0) {
-        await insertEpisodePoliticalAreas(
-          "Caren Miosga",
-          episode.date,
-          politicalAreaIds
-        );
-      }
-
-      episodesProcessed++;
-    } catch (error) {
-      console.error(
-        `❌ Fehler beim Verarbeiten von Episode ${episode.date}:`,
-        error
-      );
-      episodesWithErrors++;
-    }
-  }
+  await processEpisodes(sortedEpisodes);
 
   console.log(`\n=== Caren Miosga FULL Zusammenfassung ===`);
-  console.log(`Episoden verarbeitet: ${episodesProcessed}/${sortedEpisodes.length}`);
-  console.log(`Fehler: ${episodesWithErrors}`);
-  console.log(`Politiker eingefügt: ${totalPoliticiansInserted}`);
-  console.log(`Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
 }
