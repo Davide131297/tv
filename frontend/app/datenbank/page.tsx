@@ -26,10 +26,10 @@ export default async function DatabasePage({
     <div className="container mx-auto py-8 px-4">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
             Datenbank Einträge
           </h1>
-          <p className="mt-2 text-gray-600">
+          <p className="mt-2 text-gray-600 dark:text-gray-400">
             Alle TV-Show-Politiker-Einträge aus der Datenbank. Du kannst
             Feedback zu einzelnen Einträgen geben.
           </p>
@@ -45,9 +45,9 @@ export default async function DatabasePage({
 
 async function DatabaseDataWrapper({ page }: { page: number }) {
   const data = await getDatabaseEntries({ page, limit: 50 });
-  
+
   return (
-    <DatabaseEntries 
+    <DatabaseEntries
       initialData={data.entries}
       totalCount={data.totalCount}
       currentPage={data.page}

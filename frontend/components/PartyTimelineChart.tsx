@@ -134,7 +134,10 @@ export default function PartyTimelineChart({
     (config, party) => {
       config[party] = {
         label: party,
-        color: party === "Union" ? "#000000" : PARTY_COLORS[party] || "#6b7280",
+        color:
+          party === "Union"
+            ? "var(--color-foreground)"
+            : PARTY_COLORS[party] || "#6b7280",
       };
       return config;
     },
@@ -241,7 +244,7 @@ export default function PartyTimelineChart({
         </div>
 
         {/* Chart Container mit sichtbarer horizontaler Scrollbar */}
-        <div className="w-full overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-2 scrollbar-visible bg-gray-50 rounded-md">
+        <div className="scrollbar-visible -mx-4 w-full overflow-x-auto rounded-md border border-transparent bg-gray-50 px-4 pb-2 dark:border-gray-800 dark:bg-gray-900/50 sm:mx-0 sm:px-0">
           {/* Make the inner container wider depending on number of months so user can scroll */}
           <div
             style={{ minWidth: Math.max(600, processedData.data.length * 80) }}
@@ -260,7 +263,7 @@ export default function PartyTimelineChart({
                   bottom: 12,
                 }}
               >
-                <CartesianGrid vertical={false} />
+                <CartesianGrid vertical={false} stroke="var(--color-border)" />
                 <XAxis
                   dataKey="month"
                   tickLine={false}
@@ -285,13 +288,13 @@ export default function PartyTimelineChart({
                     if (typeof value === "string") return value.slice(0, 3);
                     return String(value);
                   }}
-                  className="text-xs"
+                  className="fill-muted-foreground text-xs"
                 />
                 <YAxis
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
-                  className="text-xs"
+                  className="fill-muted-foreground text-xs"
                 />
                 <ChartTooltip
                   cursor={false}
@@ -301,7 +304,7 @@ export default function PartyTimelineChart({
                   const isSelected = isPartySelected(party);
                   const color =
                     party === "Union"
-                      ? "#000000"
+                      ? "var(--color-foreground)"
                       : PARTY_COLORS[party] || "#6b7280";
                   return (
                     <Line

@@ -9,9 +9,9 @@ interface OverviewPageContentProps {
   initialShow: string;
 }
 
-function OverviewPageContent({ 
-  initialData, 
-  initialShow, 
+function OverviewPageContent({
+  initialData,
+  initialShow,
 }: OverviewPageContentProps) {
   return (
     <div className="animate-in fade-in duration-300">
@@ -19,7 +19,7 @@ function OverviewPageContent({
         <>
           {/* Show-spezifische Überschrift */}
           <div className="mb-6">
-            <h2 className="text-xl font-semibold text-gray-800">
+            <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
               📊 Statistiken für:{" "}
               {initialData.show_name ||
                 SHOW_OPTIONS.find((opt) => opt.value === initialShow)?.label}
@@ -51,39 +51,41 @@ function OverviewPageContent({
           </div>
 
           {/* Durchschnittswerte */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold mb-4">
+          <div className="rounded-lg border border-transparent bg-white p-6 shadow-md dark:border-gray-800 dark:bg-transparent">
+            <h2 className="mb-4 text-xl font-semibold text-gray-900 dark:text-gray-100">
               📊 Durchschnittswerte
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-gray-900 mb-1">
+              <div className="rounded-lg border border-gray-100 bg-gray-50/80 p-5 text-center dark:border-gray-800 dark:bg-gray-900/40">
+                <div className="mb-1 text-2xl font-bold text-gray-900 dark:text-gray-100">
                   {(
-                    initialData.total_appearances / initialData.total_episodes || 0
+                    initialData.total_appearances /
+                      initialData.total_episodes || 0
                   ).toFixed(1)}
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
                   Politiker pro Sendung
                 </div>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-gray-900 mb-1">
+              <div className="rounded-lg border border-gray-100 bg-gray-50/80 p-5 text-center dark:border-gray-800 dark:bg-gray-900/40">
+                <div className="mb-1 text-2xl font-bold text-gray-900 dark:text-gray-100">
                   {(
-                    initialData.total_appearances / initialData.unique_politicians || 0
+                    initialData.total_appearances /
+                      initialData.unique_politicians || 0
                   ).toFixed(1)}
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
                   Auftritte pro Politiker
                 </div>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-gray-900 mb-1">
+              <div className="rounded-lg border border-gray-100 bg-gray-50/80 p-5 text-center dark:border-gray-800 dark:bg-gray-900/40">
+                <div className="mb-1 text-2xl font-bold text-gray-900 dark:text-gray-100">
                   {(
-                    initialData.unique_politicians / initialData.parties_represented ||
-                    0
+                    initialData.unique_politicians /
+                      initialData.parties_represented || 0
                   ).toFixed(1)}
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
                   Politiker pro Partei
                 </div>
               </div>
