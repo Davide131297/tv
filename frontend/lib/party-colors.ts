@@ -23,7 +23,7 @@ export function getPartyBadgeClasses(partyName: string): string {
     SPD: "bg-red-600 text-white",
     FDP: "bg-yellow-400 text-black",
     "Die Linke": "bg-[#DF007D] text-white",
-    "BÜNDNIS 90/DIE GRÜNEN": "bg-green-400 text-white",
+    "BÜNDNIS 90/DIE GRÜNEN": "bg-green-400 text-white dark:text-black",
     Grüne: "bg-green-600 text-white",
     AfD: "bg-blue-600 text-white",
     BSW: "bg-yellow-700 text-white",
