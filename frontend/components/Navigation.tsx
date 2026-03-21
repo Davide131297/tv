@@ -110,6 +110,8 @@ export default function Navigation() {
                   fill
                   className="object-contain"
                   priority
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+
                 />
               </div>
               <div className="flex flex-col transform transition-transform duration-300 group-hover:translate-x-1">

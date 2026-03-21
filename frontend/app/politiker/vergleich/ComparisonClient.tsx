@@ -434,7 +434,7 @@ export default function ComparisonClient({
                       "border-gray-200 bg-gray-50/80 dark:border-slate-800 dark:bg-slate-900/60",
                   )}
                 >
-                  <p className="text-sm font-bold text-gray-900 dark:text-white">
+                  <p className="text-xs font-bold text-gray-900 dark:text-white">
                     {item.show}
                   </p>
                   <div className="mt-3 flex items-center justify-between text-sm">
