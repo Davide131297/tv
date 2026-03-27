@@ -8,7 +8,7 @@ import {
 import { extractGuestsWithAI, getPoliticalArea } from "@/lib/ai-utils";
 
 const BASE_URL = "https://www1.wdr.de";
-const SENDUNGEN_URL = `${BASE_URL}/daserste/hartaberfair/sendungen/index.html`;
+const SENDUNGEN_URL = `${BASE_URL}/daserste/hartaberfair/index.html`;
 
 // ─────────────────────────────────────────────
 // Episoden-Links + Datum aus der WDR-Sendungen-Seite extrahieren
@@ -28,13 +28,30 @@ async function fetchEpisodeList(): Promise<
   if (!res.ok) throw new Error(`WDR Seite nicht erreichbar: ${res.status}`);
 
   const html = await res.text();
-
-  // Link-Pattern: <a href="/daserste/hartaberfair/sendungen/..." title="Titel (DD.MM.YYYY)">
-  const linkRegex =
-    /href="(\/daserste\/hartaberfair\/sendungen\/[^"]+\.html)"[^>]*title="([^"]+)"/g;
-
   const episodes: { url: string; title: string; date: string }[] = [];
   const seen = new Set<string>();
+
+  // Featured episode on the homepage.
+  // WDR occasionally shows a stale archive URL further down the page while the
+  // current episode only exists in the hero block.
+  const featuredMatch = html.match(
+    /<h2 class="conHeadline">\s*Sendung vom (\d{2})\.(\d{2})\.(\d{4})\s*<\/h2>[\s\S]*?<a href="(https?:\/\/www\.ardmediathek\.de\/video\/hart-aber-fair\/[^"]+)"[^>]*title="([^"]+)"/i,
+  );
+
+  if (featuredMatch) {
+    const [, day, month, year, featuredUrl, featuredTitle] = featuredMatch;
+    episodes.push({
+      url: featuredUrl,
+      title: decodeHtmlEntities(featuredTitle).trim(),
+      date: `${year}-${month}-${day}`,
+    });
+    seen.add(`${year}-${month}-${day}`);
+  }
+
+  // Archive link pattern:
+  // <a href="/daserste/hartaberfair/sendungen/..." title="Titel (DD.MM.YYYY)">
+  const linkRegex =
+    /href="(\/daserste\/hartaberfair\/sendungen\/[^"]+\.html)"[^>]*title="([^"]+)"/g;
   let match: RegExpExecArray | null;
 
   while ((match = linkRegex.exec(html)) !== null) {
@@ -54,10 +71,13 @@ async function fetchEpisodeList(): Promise<
       ? `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}`
       : "";
 
+    if (date && seen.has(date)) continue;
+
     const title = titleRaw.replace(/\s*\(\d{2}\.\d{2}\.\d{4}\)\s*$/, "").trim();
     const url = `${BASE_URL}${relUrl}`;
 
     episodes.push({ url, title, date });
+    if (date) seen.add(date);
   }
 
   // Neueste zuerst
@@ -69,10 +89,13 @@ async function fetchEpisodeList(): Promise<
 // Kein Browser nötig – OG Meta-Tags sind serverseitig gerendert
 // ─────────────────────────────────────────────
 async function fetchEpisodeDetails(
-  wdrUrl: string,
-): Promise<{ ardUrl: string; description: string }> {
+  episodeUrl: string,
+): Promise<{ ardUrl: string; description: string; guestNames: string[] }> {
   try {
-    const res = await fetch(wdrUrl, {
+    const isArdUrl = episodeUrl.includes("ardmediathek.de/video/");
+    const detailsUrl = isArdUrl ? SENDUNGEN_URL : episodeUrl;
+
+    const res = await fetch(detailsUrl, {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -82,42 +105,102 @@ async function fetchEpisodeDetails(
     });
 
     if (!res.ok) {
-      console.warn(`⚠️  Episodenseite nicht erreichbar (${res.status}): ${wdrUrl}`);
-      return { ardUrl: "", description: "" };
+      console.warn(`⚠️  Episodenseite nicht erreichbar (${res.status}): ${detailsUrl}`);
+      return { ardUrl: "", description: "", guestNames: [] };
     }
 
     const html = await res.text();
 
-    // ARD Mediathek URL (bevorzuge "das-erste"-Variante)
-    const ardMatches = [
-      ...html.matchAll(
-        /href="(https?:\/\/www\.ardmediathek\.de\/video\/hart-aber-fair\/[^"]+)"/g,
-      ),
-    ];
-    const ardUrl =
-      ardMatches.find((m) => m[1].includes("/das-erste/"))?.[1] ||
-      ardMatches[0]?.[1] ||
-      "";
+    const guestNames = extractGuestNamesFromHtml(html);
+    const pageDescription = extractEpisodeDescriptionFromHtml(html);
+    const wdrArdUrl = extractArdUrlFromHtml(html);
+    const ardUrl = isArdUrl ? episodeUrl : wdrArdUrl;
+
+    let description = pageDescription;
 
     // Beschreibung: OG-Description von der ARD-Mediathek-Seite holen
-    let description = "";
     if (ardUrl) {
-      description = await fetchArdDescription(ardUrl);
+      const ardDescription = await fetchArdDescription(ardUrl);
+      if (
+        ardDescription &&
+        !/Das Polit-Talkmagazin im Ersten mit Louis Klamroth/i.test(ardDescription)
+      ) {
+        description = ardDescription;
+      }
     }
 
-    // Fallback: OG-Description der WDR-Seite (oft generisch)
-    if (!description) {
-      const og = html.match(
-        /<meta[^>]+property="og:description"[^>]+content="([^"]+)"/i,
-      );
-      description = og ? decodeHtmlEntities(og[1]) : "";
-    }
-
-    return { ardUrl, description };
+    return { ardUrl, description, guestNames };
   } catch (error) {
-    console.error(`❌ Fehler beim Laden von ${wdrUrl}:`, error);
-    return { ardUrl: "", description: "" };
+    console.error(`❌ Fehler beim Laden von ${episodeUrl}:`, error);
+    return { ardUrl: "", description: "", guestNames: [] };
   }
+}
+
+function extractArdUrlFromHtml(html: string): string {
+  const ardMatches = [
+    ...html.matchAll(
+      /href="(https?:\/\/www\.ardmediathek\.de\/video\/hart-aber-fair\/[^"]+)"/g,
+    ),
+  ];
+
+  return (
+    ardMatches.find((m) => m[1].includes("/das-erste/"))?.[1] ||
+    ardMatches[0]?.[1] ||
+    ""
+  );
+}
+
+function extractEpisodeDescriptionFromHtml(html: string): string {
+  const paragraphPatterns = [
+    /<p class="teasertext">\s*([^<][\s\S]*?)\s*&nbsp;\|\s*&nbsp;\s*<strong>(?:video|mehr)<\/strong>\s*<\/p>/i,
+    /<meta[^>]+property="og:description"[^>]+content="([^"]+)"/i,
+    /<meta[^>]+name="description"[^>]+content="([^"]+)"/i,
+  ];
+
+  for (const pattern of paragraphPatterns) {
+    const match = html.match(pattern);
+    if (!match?.[1]) continue;
+
+    const text = decodeHtmlEntities(stripHtml(match[1])).trim();
+    if (text) return text;
+  }
+
+  return "";
+}
+
+function extractGuestNamesFromHtml(html: string): string[] {
+  const guestSectionMatch = html.match(
+    /<h2 class="conHeadline">\s*Gäste\s*<\/h2>([\s\S]*?)(?:<h2 class="conHeadline">|<\/body>)/i,
+  );
+  const guestSection = guestSectionMatch?.[1] ?? html;
+  const names = new Set<string>();
+
+  for (const match of guestSection.matchAll(
+    /<h4[^>]*class="headline"[^>]*>\s*([\s\S]*?)\s*<\/h4>/g,
+  )) {
+    const text = decodeHtmlEntities(stripHtml(match[1]))
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (!text || text.length < 3) continue;
+    if (/^(Gäste|Diskutieren Sie mit!|Gästebuch)$/i.test(text)) continue;
+    if (text.includes("Sendung vom")) continue;
+
+    names.add(text);
+  }
+
+  return [...names].map(normalizeGuestName);
+}
+
+function stripHtml(text: string): string {
+  return text.replace(/<[^>]+>/g, " ");
+}
+
+function normalizeGuestName(name: string): string {
+  return name
+    .replace(/\s+/g, " ")
+    .replace(/,\s*(SPD|CDU|CSU|FDP|AfD|BSW|Die Linke|Bündnis 90\/Die Grünen|Grüne)$/i, "")
+    .trim();
 }
 
 // Beschreibung via OG Meta-Tag von der ARD Mediathek holen
@@ -232,10 +315,14 @@ export default async function crawlHartAberFair(): Promise<void> {
       console.log(`\n🎬 Verarbeite: ${ep.title} (${ep.date})`);
 
       // Beschreibung + ARD-URL von der Episodenseite holen
-      const { ardUrl, description } = await fetchEpisodeDetails(ep.url);
+      const { ardUrl, description, guestNames: htmlGuestNames } =
+        await fetchEpisodeDetails(ep.url);
 
-      // Gäste mit AI aus Beschreibung extrahieren
-      const guestNames = await extractGuestsWithAI(description || ep.title);
+      // Bevorzuge direkte HTML-Gästeliste. AI ist nur Fallback.
+      const guestNames =
+        htmlGuestNames.length > 0
+          ? htmlGuestNames
+          : await extractGuestsWithAI(description || ep.title);
 
       console.log(`   👥 Gäste: ${guestNames.join(", ") || "–"}`);
       console.log(`   🔗 ARD URL: ${ardUrl || "–"}`);
