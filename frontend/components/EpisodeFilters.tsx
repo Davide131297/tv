@@ -38,7 +38,7 @@ export default function EpisodeFilters({
         />
 
         <div className="flex gap-2 items-center">
-          <p className="text-sm font-medium text-gray-700">Jahr</p>
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-400">Jahr</p>
           <NativeSelect
             value={initialYear}
             onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
@@ -56,7 +56,7 @@ export default function EpisodeFilters({
       </div>
 
       <div className="mt-4">
-        <h2 className="text-xl font-semibold text-gray-800">
+        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-400">
           📊 Aktuelle Ansicht: {initialShow}
         </h2>
       </div>
