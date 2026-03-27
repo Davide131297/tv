@@ -16,8 +16,432 @@ const googleApiKey = process.env.GOOGLE_GENAI_API_KEY;
 const ai = new GoogleGenAI({ apiKey: googleApiKey });
 const MODEL = process.env.GOOGLE_AI_MODEL;
 
+const SHOW_NAMES = [
+  "Markus Lanz",
+  "Maybrit Illner",
+  "Caren Miosga",
+  "Maischberger",
+  "Hart aber Fair",
+  "Phoenix Runde",
+  "Phoenix Persönlich",
+  "Pinar Atalay",
+  "Blome & Pfeffer",
+] as const;
+
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+type DocumentRow = {
+  content: string;
+  metadata: {
+    type?: string;
+    show?: string;
+    date?: string;
+    latest_date?: string;
+    guest_count?: number;
+    year?: number;
+    party?: string;
+    politician?: string;
+    topic?: string;
+    count?: number;
+    total?: number;
+  } | null;
+};
+
+type ChatIntent =
+  | "latest_guest"
+  | "show_guest_ranking"
+  | "politician_show_count"
+  | "politician_ranking"
+  | "party_ranking"
+  | "topic_lookup"
+  | "general";
+
+type RetrievalPlan = {
+  intent: ChatIntent;
+  showName: string | null;
+  year: number | null;
+  docTypes: string[];
+};
+
+function normalizeText(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function findReferencedShow(message: string): string | null {
+  const normalizedMessage = normalizeText(message);
+
+  for (const show of SHOW_NAMES) {
+    if (normalizedMessage.includes(normalizeText(show))) {
+      return show;
+    }
+  }
+
+  return null;
+}
+
+function extractYear(message: string): number | null {
+  const yearMatch = message.match(/\b(20\d{2})\b/);
+  if (!yearMatch) return null;
+
+  return Number(yearMatch[1]);
+}
+
+function classifyIntent(message: string): ChatIntent {
+  const normalizedMessage = normalizeText(message);
+
+  if (isLatestGuestQuestion(message)) {
+    return "latest_guest";
+  }
+
+  if (
+    normalizedMessage.includes("am haufigsten bei") ||
+    normalizedMessage.includes("am häufigsten bei") ||
+    normalizedMessage.includes("top-gaste") ||
+    normalizedMessage.includes("top gäste")
+  ) {
+    return "show_guest_ranking";
+  }
+
+  if (
+    normalizedMessage.includes("wie oft war") &&
+    (normalizedMessage.includes("bei ") || normalizedMessage.includes("in "))
+  ) {
+    return "politician_show_count";
+  }
+
+  if (
+    normalizedMessage.includes("welche partei") ||
+    normalizedMessage.includes("partei") ||
+    normalizedMessage.includes("parteien-ranking")
+  ) {
+    return "party_ranking";
+  }
+
+  if (
+    normalizedMessage.includes("wer war am haufigsten") ||
+    normalizedMessage.includes("wer war am häufigsten") ||
+    normalizedMessage.includes("top-politiker") ||
+    normalizedMessage.includes("politiker-ranking")
+  ) {
+    return "politician_ranking";
+  }
+
+  if (
+    normalizedMessage.includes("thema") ||
+    normalizedMessage.includes("themen") ||
+    normalizedMessage.includes("besprochen") ||
+    normalizedMessage.includes("behandelt")
+  ) {
+    return "topic_lookup";
+  }
+
+  return "general";
+}
+
+function buildRetrievalPlan(message: string): RetrievalPlan {
+  const intent = classifyIntent(message);
+  const showName = findReferencedShow(message);
+  const year = extractYear(message);
+
+  switch (intent) {
+    case "latest_guest":
+      return {
+        intent,
+        showName,
+        year,
+        docTypes: ["show_latest_summary", "episode_detail"],
+      };
+    case "show_guest_ranking":
+      return {
+        intent,
+        showName,
+        year,
+        docTypes: ["show_top_guests", "politician_show_stats", "episode_detail"],
+      };
+    case "politician_show_count":
+      return {
+        intent,
+        showName,
+        year,
+        docTypes: ["politician_show_stats", "show_top_guests", "episode_detail"],
+      };
+    case "politician_ranking":
+      return {
+        intent,
+        showName,
+        year,
+        docTypes: ["politician_ranking", "yearly_politician_ranking", "yearly_politician_stats"],
+      };
+    case "party_ranking":
+      return {
+        intent,
+        showName,
+        year,
+        docTypes: ["party_ranking", "party_stats", "yearly_party_ranking", "yearly_party_stats"],
+      };
+    case "topic_lookup":
+      return {
+        intent,
+        showName,
+        year,
+        docTypes: [
+          "episode_topics",
+          "topic_stats",
+          "topic_show_ranking",
+          "topic_year_ranking",
+          "topic_year_show_stats",
+        ],
+      };
+    default:
+      return {
+        intent,
+        showName,
+        year,
+        docTypes: [],
+      };
+  }
+}
+
+function tokenizeForRetrieval(message: string): string[] {
+  const stopWords = new Set([
+    "wer",
+    "war",
+    "ist",
+    "sind",
+    "die",
+    "der",
+    "das",
+    "den",
+    "dem",
+    "ein",
+    "eine",
+    "und",
+    "oder",
+    "bei",
+    "in",
+    "am",
+    "im",
+    "vom",
+    "von",
+    "zu",
+    "mit",
+    "wie",
+    "oft",
+    "letzte",
+    "letzten",
+    "zuletzt",
+    "sendung",
+    "talkshow",
+    "talkshows",
+    "gast",
+    "gaste",
+    "gaste?",
+    "politiker",
+  ]);
+
+  return normalizeText(message)
+    .split(/[^a-z0-9]+/)
+    .filter((token) => token.length >= 3 && !stopWords.has(token));
+}
+
+function scoreDocument(
+  query: string,
+  plan: RetrievalPlan,
+  document: DocumentRow,
+): number {
+  const normalizedContent = normalizeText(document.content);
+  const queryTokens = tokenizeForRetrieval(query);
+  let score = 0;
+
+  for (const token of queryTokens) {
+    if (normalizedContent.includes(token)) {
+      score += 3;
+    }
+    if (normalizeText(JSON.stringify(document.metadata ?? {})).includes(token)) {
+      score += 2;
+    }
+  }
+
+  if (
+    plan.showName &&
+    document.metadata?.show &&
+    document.metadata.show === plan.showName
+  ) {
+    score += 8;
+  }
+
+  if (
+    plan.year &&
+    (document.metadata?.year === plan.year ||
+      document.metadata?.date?.startsWith(String(plan.year)) ||
+      document.metadata?.latest_date?.startsWith(String(plan.year)) ||
+      document.content.includes(String(plan.year)))
+  ) {
+    score += 6;
+  }
+
+  if (
+    plan.docTypes.length > 0 &&
+    document.metadata?.type &&
+    plan.docTypes.includes(document.metadata.type)
+  ) {
+    score += 10;
+  }
+
+  const sortableDate = document.metadata?.latest_date ?? document.metadata?.date;
+  if (sortableDate) {
+    score += new Date(sortableDate).getTime() / 1_000_000_000_000;
+  }
+
+  return score;
+}
+
+async function fetchStructuredDocuments(
+  query: string,
+  plan: RetrievalPlan,
+  limit = 6,
+): Promise<DocumentRow[]> {
+  let builder = supabase.from("documents").select("content, metadata");
+
+  if (plan.showName) {
+    builder = builder.contains("metadata", { show: plan.showName });
+  }
+
+  const { data, error } = await builder.limit(plan.showName ? 500 : 2000);
+
+  if (error) {
+    console.error("❌ Fehler beim Laden strukturierter Dokumente:", error);
+    return [];
+  }
+
+  const rows = ((data ?? []) as DocumentRow[]).filter((row) => {
+    const type = row.metadata?.type;
+
+    if (plan.docTypes.length > 0 && (!type || !plan.docTypes.includes(type))) {
+      return false;
+    }
+
+    if (
+      plan.year &&
+      row.metadata?.year !== plan.year &&
+      !row.metadata?.date?.startsWith(String(plan.year)) &&
+      !row.metadata?.latest_date?.startsWith(String(plan.year)) &&
+      !row.content.includes(String(plan.year))
+    ) {
+      return false;
+    }
+
+    return true;
+  });
+
+  return rows
+    .map((row) => ({
+      row,
+      score: scoreDocument(query, plan, row),
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map(({ row }) => row);
+}
+
+function isLatestGuestQuestion(message: string): boolean {
+  const normalizedMessage = normalizeText(message);
+
+  return [
+    "wer war zuletzt bei",
+    "wer war zuletzt in",
+    "wer war in der letzten sendung",
+    "wer war zuletzt zu gast",
+    "wer war zuletzt gast",
+    "letzter gast",
+    "letzte gaste",
+    "letzte gäste",
+  ].some((pattern) => normalizedMessage.includes(pattern));
+}
+
+function extractLatestGuestsFromContent(content: string): string | null {
+  const summaryMatch = content.match(
+    /am\s+(\d{1,2}\.\d{1,2}\.\d{4})\s+\(Gäste\s*\/\s*Politiker:\s*([^)]+(?:\)[^;]*)?)\)/i,
+  );
+  if (summaryMatch) {
+    return `${summaryMatch[2]} am ${summaryMatch[1]}`;
+  }
+
+  const episodeMatch = content.match(
+    /Am\s+(\d{1,2}\.\d{1,2}\.\d{4})\s+waren.*?:\s*(.+)\.$/i,
+  );
+  if (episodeMatch) {
+    return `${episodeMatch[2]} am ${episodeMatch[1]}`;
+  }
+
+  return null;
+}
+
+async function getLatestShowAnswer(showName: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("documents")
+    .select("content, metadata")
+    .contains("metadata", { show: showName });
+
+  if (error) {
+    console.error("❌ Fehler beim Laden des Show-Dokuments:", error);
+    return null;
+  }
+
+  const rows = (data ?? []) as DocumentRow[];
+  const preferredDoc =
+    rows.find((row) => row.metadata?.type === "show_latest_summary") ??
+    rows
+      .filter((row) => row.metadata?.type === "episode_detail")
+      .sort((a, b) => {
+        const left = a.metadata?.date ?? "";
+        const right = b.metadata?.date ?? "";
+        return right.localeCompare(left);
+      })[0];
+
+  if (!preferredDoc) {
+    return null;
+  }
+
+  const latestGuests = extractLatestGuestsFromContent(preferredDoc.content);
+  const latestDate =
+    preferredDoc.metadata?.latest_date ?? preferredDoc.metadata?.date;
+
+  if (latestGuests && latestDate) {
+    return `Zuletzt war${latestGuests.includes(",") ? "en" : ""} bei ${showName} ${latestGuests}. Das stammt aus der zuletzt erfassten Sendung vom ${new Date(latestDate).toLocaleDateString("de-DE")}.`;
+  }
+
+  if (latestGuests) {
+    return `Zuletzt war${latestGuests.includes(",") ? "en" : ""} bei ${showName} ${latestGuests}.`;
+  }
+
+  return preferredDoc.content;
+}
+
+function createSseResponse(message: string) {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(
+        encoder.encode(`data: ${JSON.stringify({ content: message })}\n\n`),
+      );
+      controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+      controller.close();
+    },
+  });
+
+  return new NextResponse(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
+}
 
 /**
  * Streamt eine Antwort vom lokalen LM Studio (OpenAI-kompatibel)
@@ -117,11 +541,23 @@ async function generateEmbedding(text: string): Promise<number[] | null> {
  * Sucht relevante Dokumente via Vektorähnlichkeit (RAG)
  */
 async function searchRelevantDocuments(
+  query: string,
   queryEmbedding: number[],
+  plan: RetrievalPlan,
   matchThreshold = 0.35,
   matchCount = 5,
 ): Promise<string> {
   try {
+    const structuredDocs = await fetchStructuredDocuments(query, plan, matchCount);
+    if (structuredDocs.length > 0) {
+      const structuredContext = structuredDocs.map(
+        (doc) =>
+          `- [Typ: ${doc.metadata?.type ?? "unbekannt"} | Sendung: ${doc.metadata?.show ?? "n/a"} | Datum/Jahr: ${doc.metadata?.latest_date ?? doc.metadata?.date ?? doc.metadata?.year ?? "n/a"}] ${doc.content}`,
+      );
+
+      return `\n\nRELEVANTE WISSENSBASIS (STRUKTURIERTES RETRIEVAL):\n${structuredContext.join("\n")}`;
+    }
+
     const { data, error } = await supabase.rpc("match_documents", {
       query_embedding: queryEmbedding,
       match_threshold: matchThreshold,
@@ -139,8 +575,8 @@ async function searchRelevantDocuments(
     }
 
     const contextParts = data.map(
-      (doc: { content: string; similarity: number }) =>
-        `- ${doc.content} (Ähnlichkeit: ${(doc.similarity * 100).toFixed(0)}%)`,
+      (doc: { content: string; similarity: number; metadata?: DocumentRow["metadata"] }) =>
+        `- [Typ: ${doc.metadata?.type ?? "unbekannt"} | Sendung: ${doc.metadata?.show ?? "n/a"}] ${doc.content} (Ähnlichkeit: ${(doc.similarity * 100).toFixed(0)}%)`,
     );
 
     return `\n\nRELEVANTE WISSENSBASIS (RAG):\n${contextParts.join("\n")}`;
@@ -173,6 +609,19 @@ export async function POST(request: NextRequest) {
     const lastUserMessage = messages
       .filter((m: Message) => m.role === "user")
       .pop();
+    const retrievalPlan = lastUserMessage
+      ? buildRetrievalPlan(lastUserMessage.content)
+      : buildRetrievalPlan("");
+
+    if (lastUserMessage) {
+      const referencedShow = findReferencedShow(lastUserMessage.content);
+      if (referencedShow && isLatestGuestQuestion(lastUserMessage.content)) {
+        const directAnswer = await getLatestShowAnswer(referencedShow);
+        if (directAnswer) {
+          return createSseResponse(directAnswer);
+        }
+      }
+    }
 
     let ragContext = "";
     let rateLimitError = false;
@@ -181,7 +630,27 @@ export async function POST(request: NextRequest) {
       // RAG-Embedding immer ausführen (Supabase, kein Gemini)
       const embeddingResult = await generateEmbedding(lastUserMessage.content);
       if (embeddingResult !== null) {
-        ragContext = await searchRelevantDocuments(embeddingResult);
+        ragContext = await searchRelevantDocuments(
+          lastUserMessage.content,
+          embeddingResult,
+          retrievalPlan,
+          retrievalPlan.intent === "general" ? 0.35 : 0.45,
+          retrievalPlan.intent === "general" ? 5 : 6,
+        );
+      } else {
+        const structuredFallback = await fetchStructuredDocuments(
+          lastUserMessage.content,
+          retrievalPlan,
+          6,
+        );
+        if (structuredFallback.length > 0) {
+          ragContext = `\n\nRELEVANTE WISSENSBASIS (STRUKTURIERTES RETRIEVAL):\n${structuredFallback
+            .map(
+              (doc) =>
+                `- [Typ: ${doc.metadata?.type ?? "unbekannt"} | Sendung: ${doc.metadata?.show ?? "n/a"} | Datum/Jahr: ${doc.metadata?.latest_date ?? doc.metadata?.date ?? doc.metadata?.year ?? "n/a"}] ${doc.content}`,
+            )
+            .join("\n")}`;
+        }
       }
     }
 
@@ -227,6 +696,9 @@ export async function POST(request: NextRequest) {
       - Heutiges Datum: ${formattedDate}
       - Aktuelles Jahr: ${currentYear}
       - Aktueller Monat: ${currentMonth}
+      - Erkannte Nutzerintention: ${retrievalPlan.intent}
+      - Erkannte Sendung: ${retrievalPlan.showName ?? "keine"}
+      - Erkannter Jahresfilter: ${retrievalPlan.year ?? "keiner"}
 
       Du hast Zugriff auf aktuelle Statistiken und Daten über folgende Sendungen:
       - Markus Lanz (ZDF)
@@ -239,7 +711,10 @@ export async function POST(request: NextRequest) {
       - Pinar Atalay (NTV)
       - Blome & Pfeffer (NTV)
       ${ragContext}
+      - Nutze zuerst die strukturiert gelieferten Treffer. Wenn mehrere Treffer vorliegen, beantworte nur das, was zur erkannten Nutzerintention passt.
       - Wenn RAG-Wissensbasis vorhanden ist, nutze diese als primäre Informationsquelle
+      - Wenn die Frage nach Gästen in einer konkreten Sendung fragt, antworte mit den Gästen oder Politikern aus den Daten und NICHT mit dem Moderator der Sendung
+      - Vermische keine Dokumenttypen. Rankings beantworten keine Frage nach einer letzten Sendung, und Episoden-Details beantworten kein Gesamtranking.
       - Wenn Daten nicht verfügbar sind, sage das ehrlich
       - Antworte präzise, informativ und freundlich auf Deutsch
       - Formatiere deine Antworten mit Markdown. Stelle tabellarische Daten IMMER als Markdown-Tabelle dar (z.B. | Spalte 1 | Spalte 2 | ...).
