@@ -9,7 +9,8 @@
     "dev": "tsx src/app.ts",
     "start": "node dist/app.js",
     "dev:ts-node": "node --loader ts-node/esm src/app.ts",
-    "watch": "tsc --watch"
+    "watch": "tsc --watch",
+    "test": "jest"
   },
   "dependencies": {
     "@google-cloud/vertexai": "^1.10.0",
@@ -28,8 +29,10 @@
     "@types/cheerio": "^0.22.35",
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.13",
+    "@types/jest": "^30.0.0",
     "@types/node": "^16.11.7",
     "@types/puppeteer": "^5.4.7",
+    "jest": "^30.3.0",
     "ts-jest": "^29.4.4",
     "ts-node": "^10.9.2",
     "tsx": "^4.20.6",
