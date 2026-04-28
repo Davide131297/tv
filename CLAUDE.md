@@ -34,13 +34,13 @@ Yarn 4.9.2 is used. Use `yarn` commands inside `frontend/` or `backend/` directo
 ## Architecture
 
 ### Active vs. Deprecated
-- **`frontend/`** — The active, full application (Next.js 16 App Router). All new development happens here.
-- **`backend/`** — **DEPRECATED** Express.js server. Do not modify.
+- **`frontend/`** — The active UI application (Next.js 16 App Router). All new UI development happens here. The crawlers in `frontend/crawler/*.ts` are **DEPRECATED** — do not modify or rely on them.
+- **`backend/`** — The active crawler backend, deployed to Google Cloud Run. All crawling logic lives here.
 
 ### Data Flow
 ```
 ZDF/ARD/RTL Mediathek websites
-  → Puppeteer crawlers (frontend/crawler/*.ts)
+  → Puppeteer crawlers (backend/src/crawler/*.ts) — hosted on Cloud Run
   → Guest extraction + abgeordnetenwatch.de API validation
   → AI topic classification (Gemini / local LM Studio)
   → Supabase PostgreSQL
@@ -50,7 +50,7 @@ ZDF/ARD/RTL Mediathek websites
 
 ### Frontend Structure (`frontend/`)
 
-**Crawlers** (`frontend/crawler/*.ts`): One file per show. Each crawler uses Puppeteer to scrape the show's mediathek page, extracts politician guests, validates them against abgeordnetenwatch.de, and writes to Supabase. Shared utilities in `lib/crawler-utils.ts`.
+**Crawlers** (`frontend/crawler/*.ts`): **DEPRECATED** — crawling has moved to the backend (Cloud Run). Do not modify these files.
 
 **API Routes** (`frontend/app/api/`):
 - `/api/crawl/[show]` — Trigger crawl for a specific show (POST). Protected by `CRAWL_API_KEY`.
@@ -91,7 +91,7 @@ GEMINI_API_KEY
 
 ## Key Conventions
 
-- All crawler files follow the same pattern: fetch episode list → for each episode, extract guests → validate against abgeordnetenwatch → classify topics via AI → upsert to Supabase.
+- All crawler files (`backend/src/crawler/*.ts`) follow the same pattern: fetch episode list → for each episode, extract guests → validate against abgeordnetenwatch → classify topics via AI → upsert to Supabase.
 - The frontend uses Next.js App Router with server components where possible; client components are marked `"use client"`.
 - TailwindCSS v4 with shadcn/ui components (in `components/ui/`).
 - German is used for route names, UI labels, and most comments/variable names related to show names or political topics.

@@ -599,6 +599,13 @@ export async function insertTvShowPolitician(
   }
 }
 
+// Entfernt unsichtbare Unicode-Zeichen (Soft Hyphen U+00AD, Zero-Width-Spaces etc.) aus Parteinamen
+function sanitizePartyName(name: string | undefined): string | undefined {
+  if (!name) return name;
+  // U+00AD Soft Hyphen, U+200B Zero-Width Space, U+200C Non-Joiner, U+200D Joiner, U+2060 Word Joiner, U+FEFF BOM
+  return name.replace(/[­​‌‍⁠﻿]/g, "").trim();
+}
+
 // Politiker-Prüfung mit Abgeordnetenwatch API
 export async function checkPolitician(
   name: string,
@@ -641,7 +648,7 @@ export async function checkPolitician(
         const hit = politicians[0];
 
         // Korrektur: Bayernpartei → CSU (häufiges Problem bei bayerischen CSU-Politikern)
-        let correctedPartyName = hit.party?.label;
+        let correctedPartyName = sanitizePartyName(hit.party?.label);
         if (correctedPartyName === "Bayernpartei") {
           console.log(`🔧 Korrigiere Bayernpartei → CSU für ${hit.label}`);
           correctedPartyName = "CSU";
@@ -670,7 +677,7 @@ export async function checkPolitician(
           );
 
           // Korrektur: Bayernpartei → CSU
-          let correctedPartyName = selectedPolitician.party?.label;
+          let correctedPartyName = sanitizePartyName(selectedPolitician.party?.label);
           if (correctedPartyName === "Bayernpartei") {
             console.log(
               `🔧 Korrigiere Bayernpartei → CSU für ${selectedPolitician.label}`,
@@ -696,7 +703,7 @@ export async function checkPolitician(
       const hit = politicians[0];
 
       // Korrektur: Bayernpartei → CSU
-      let correctedPartyName = hit.party?.label;
+      let correctedPartyName = sanitizePartyName(hit.party?.label);
       if (correctedPartyName === "Bayernpartei") {
         console.log(`🔧 Korrigiere Bayernpartei → CSU für ${hit.label}`);
         correctedPartyName = "CSU";
