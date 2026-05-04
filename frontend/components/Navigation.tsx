@@ -82,6 +82,7 @@ export default function Navigation() {
       ],
     },
     { title: "Sendungen", href: "/sendungen" },
+    { title: "Einschaltquoten", href: "/einschaltquoten" },
     { title: "Datenbank", href: "/datenbank" },
   ];
 

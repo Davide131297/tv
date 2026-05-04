@@ -123,6 +123,43 @@ export interface EpisodeData {
   episode_url?: string; // Optional URL from show_links table
 }
 
+export interface TvRatingOverview {
+  show_name: string;
+  episode_date: string;
+  market_share: number;
+  viewers_millions: number;
+  episode_url: string | null;
+  politicians: PoliticianInEpisode[];
+}
+
+export interface TvRatingsSummary {
+  total_ratings: number;
+  total_viewers_millions: number;
+  average_market_share: number;
+  average_viewers_millions: number;
+}
+
+export interface PoliticianTvRatingsStat {
+  politician_name: string;
+  party_name: string;
+  appearances: number;
+  total_viewers_millions: number;
+  average_viewers_millions: number;
+  total_market_share: number;
+  average_market_share: number;
+  latest_episode: string;
+}
+
+export interface PartyTvRatingsStat {
+  party_name: string;
+  rated_episodes: number;
+  total_viewers_millions: number;
+  average_viewers_millions: number;
+  total_market_share: number;
+  average_market_share: number;
+  latest_episode: string;
+}
+
 // =============================================================================
 // SHOW & OPTION TYPES
 // =============================================================================

@@ -1,4 +1,11 @@
 import { supabase } from "./supabase";
+import type {
+  PartyTvRatingsStat,
+  PoliticianInEpisode,
+  PoliticianTvRatingsStat,
+  TvRatingOverview,
+  TvRatingsSummary,
+} from "@/types";
 
 /**
  * Wendet die Standardfilter (Show, Jahr, Sender) auf eine Supabase-Query an.
@@ -458,6 +465,219 @@ export async function getPartyTimeline(params: {
   });
 
   return { data: results, parties: Array.from(allParties), year };
+}
+
+export async function getTvRatingsDashboardData(): Promise<{
+  summary: TvRatingsSummary;
+  ratings: TvRatingOverview[];
+  politicianStats: PoliticianTvRatingsStat[];
+  partyStats: PartyTvRatingsStat[];
+}> {
+  const { data: ratingsData, error: ratingsError } = await supabase
+    .from("tv_ratings")
+    .select("show_name, episode_date, market_share, viewers_millions")
+    .order("episode_date", { ascending: false })
+    .order("viewers_millions", { ascending: false });
+
+  if (ratingsError) throw ratingsError;
+
+  const ratings = ratingsData || [];
+
+  if (ratings.length === 0) {
+    return {
+      summary: {
+        total_ratings: 0,
+        total_viewers_millions: 0,
+        average_market_share: 0,
+        average_viewers_millions: 0,
+      },
+      ratings: [],
+      politicianStats: [],
+      partyStats: [],
+    };
+  }
+
+  const showNames = Array.from(new Set(ratings.map((row) => row.show_name)));
+  const episodeDates = ratings.map((row) => row.episode_date);
+  const minDate = episodeDates.reduce((min, date) => (date < min ? date : min));
+  const maxDate = episodeDates.reduce((max, date) => (date > max ? date : max));
+
+  const [{ data: showLinksData, error: showLinksError }, { data: politiciansData, error: politiciansError }] =
+    await Promise.all([
+      supabase
+        .from("show_links")
+        .select("show_name, episode_date, episode_url")
+        .in("show_name", showNames)
+        .gte("episode_date", minDate)
+        .lte("episode_date", maxDate),
+      supabase
+        .from("tv_show_politicians")
+        .select("show_name, episode_date, politician_name, party_name")
+        .in("show_name", showNames)
+        .gte("episode_date", minDate)
+        .lte("episode_date", maxDate),
+    ]);
+
+  if (showLinksError) throw showLinksError;
+  if (politiciansError) throw politiciansError;
+
+  const episodeUrlMap = new Map<string, string>();
+  (showLinksData || []).forEach((row) => {
+    episodeUrlMap.set(`${row.show_name}|${row.episode_date}`, row.episode_url);
+  });
+
+  const politiciansByEpisode = new Map<string, PoliticianInEpisode[]>();
+  (politiciansData || []).forEach((row) => {
+    const key = `${row.show_name}|${row.episode_date}`;
+    const list = politiciansByEpisode.get(key) || [];
+    list.push({
+      name: row.politician_name,
+      party_name: row.party_name || "Unbekannt",
+    });
+    politiciansByEpisode.set(key, list);
+  });
+
+  const ratingRows: TvRatingOverview[] = ratings.map((row) => {
+    const key = `${row.show_name}|${row.episode_date}`;
+    return {
+      ...row,
+      episode_url: episodeUrlMap.get(key) || null,
+      politicians: politiciansByEpisode.get(key) || [],
+    };
+  });
+
+  const politicianMap = new Map<string, PoliticianTvRatingsStat>();
+  const partyEpisodeMap = new Map<
+    string,
+    {
+      party_name: string;
+      show_name: string;
+      episode_date: string;
+      market_share: number;
+      viewers_millions: number;
+    }
+  >();
+
+  ratingRows.forEach((row) => {
+    row.politicians.forEach((politician) => {
+      const existing = politicianMap.get(politician.name);
+      if (existing) {
+        existing.appearances += 1;
+        existing.total_viewers_millions += row.viewers_millions;
+        existing.total_market_share += row.market_share;
+        if (row.episode_date > existing.latest_episode) {
+          existing.latest_episode = row.episode_date;
+        }
+      } else {
+        politicianMap.set(politician.name, {
+          politician_name: politician.name,
+          party_name: politician.party_name,
+          appearances: 1,
+          total_viewers_millions: row.viewers_millions,
+          average_viewers_millions: 0,
+          total_market_share: row.market_share,
+          average_market_share: 0,
+          latest_episode: row.episode_date,
+        });
+      }
+
+      const partyKey = `${politician.party_name}|${row.show_name}|${row.episode_date}`;
+      if (!partyEpisodeMap.has(partyKey)) {
+        partyEpisodeMap.set(partyKey, {
+          party_name: politician.party_name,
+          show_name: row.show_name,
+          episode_date: row.episode_date,
+          market_share: row.market_share,
+          viewers_millions: row.viewers_millions,
+        });
+      }
+    });
+  });
+
+  const politicianStats = Array.from(politicianMap.values())
+    .map((row) => ({
+      ...row,
+      total_viewers_millions: Number(row.total_viewers_millions.toFixed(2)),
+      average_viewers_millions: Number(
+        (row.total_viewers_millions / row.appearances).toFixed(2),
+      ),
+      total_market_share: Number(row.total_market_share.toFixed(2)),
+      average_market_share: Number(
+        (row.total_market_share / row.appearances).toFixed(2),
+      ),
+    }))
+    .sort((a, b) => {
+      if (b.average_viewers_millions !== a.average_viewers_millions) {
+        return b.average_viewers_millions - a.average_viewers_millions;
+      }
+      if (b.appearances !== a.appearances) {
+        return b.appearances - a.appearances;
+      }
+      return b.total_viewers_millions - a.total_viewers_millions;
+    });
+
+  const partyAccumulator = new Map<string, PartyTvRatingsStat>();
+  Array.from(partyEpisodeMap.values()).forEach((row) => {
+    const existing = partyAccumulator.get(row.party_name);
+    if (existing) {
+      existing.rated_episodes += 1;
+      existing.total_viewers_millions += row.viewers_millions;
+      existing.total_market_share += row.market_share;
+      if (row.episode_date > existing.latest_episode) {
+        existing.latest_episode = row.episode_date;
+      }
+    } else {
+      partyAccumulator.set(row.party_name, {
+        party_name: row.party_name,
+        rated_episodes: 1,
+        total_viewers_millions: row.viewers_millions,
+        average_viewers_millions: 0,
+        total_market_share: row.market_share,
+        average_market_share: 0,
+        latest_episode: row.episode_date,
+      });
+    }
+  });
+
+  const partyStats = Array.from(partyAccumulator.values())
+    .map((row) => ({
+      ...row,
+      total_viewers_millions: Number(row.total_viewers_millions.toFixed(2)),
+      average_viewers_millions: Number(
+        (row.total_viewers_millions / row.rated_episodes).toFixed(2),
+      ),
+      total_market_share: Number(row.total_market_share.toFixed(2)),
+      average_market_share: Number(
+        (row.total_market_share / row.rated_episodes).toFixed(2),
+      ),
+    }))
+    .sort((a, b) => {
+      if (b.average_viewers_millions !== a.average_viewers_millions) {
+        return b.average_viewers_millions - a.average_viewers_millions;
+      }
+      if (b.rated_episodes !== a.rated_episodes) {
+        return b.rated_episodes - a.rated_episodes;
+      }
+      return b.total_viewers_millions - a.total_viewers_millions;
+    });
+
+  const totalViewers = ratings.reduce(
+    (sum, row) => sum + row.viewers_millions,
+    0,
+  );
+  const totalMarketShare = ratings.reduce((sum, row) => sum + row.market_share, 0);
+
+  return {
+    summary: {
+      total_ratings: ratings.length,
+      total_viewers_millions: Number(totalViewers.toFixed(2)),
+      average_market_share: Number((totalMarketShare / ratings.length).toFixed(2)),
+      average_viewers_millions: Number((totalViewers / ratings.length).toFixed(2)),
+    },
+    ratings: ratingRows,
+    politicianStats,
+    partyStats,
+  };
 }
 
 export async function getDatabaseEntries(params: {
