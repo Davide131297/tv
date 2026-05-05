@@ -446,7 +446,7 @@ export default function TvRatingsPageContent({
         <div className="space-y-4">
           <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800/50 dark:bg-amber-900/20 p-4 sm:p-5">
             <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
-              3. Partei mit den höchsten durchschnittlichen Einschaltquoten
+              Partei mit den höchsten durchschnittlichen Einschaltquoten
             </p>
             {topParty ? (
               <p className="mt-2 text-lg text-amber-950 dark:text-amber-100">
