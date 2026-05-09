@@ -48,6 +48,17 @@ const compactFormatter = new Intl.NumberFormat("de-DE", {
   maximumFractionDigits: 2,
 });
 
+const TV_RATINGS_SOURCES = [
+  {
+    label: "WDR / ARD-Einschaltquoten",
+    href: "https://www1.wdr.de/unternehmen/der-wdr/profil/quoten-tv-ard-100.html",
+  },
+  {
+    label: "ZDF Teletext, Seite 448",
+    href: "https://teletext.zdf.de/teletext/zdf/seiten/448.html",
+  },
+] as const;
+
 function formatDate(date: string) {
   return new Date(date).toLocaleDateString("de-DE");
 }
@@ -565,6 +576,24 @@ export default function TvRatingsPageContent({
             />
           }
         />
+      </div>
+
+      <div className="mt-8 border-t border-gray-200 pt-4 text-sm text-gray-500 dark:border-gray-800 dark:text-gray-400">
+        Einschaltquoten-Daten sind in diesem Dashboard erst ab dem 23.02.2026
+        vorhanden. Quellen:{" "}
+        {TV_RATINGS_SOURCES.map((source, index) => (
+          <span key={source.href}>
+            <Link
+              href={source.href}
+              target="_blank"
+              rel="noreferrer"
+              className="underline decoration-gray-300 underline-offset-2 hover:text-gray-700 dark:decoration-gray-700 dark:hover:text-gray-200"
+            >
+              {source.label}
+            </Link>
+            {index < TV_RATINGS_SOURCES.length - 1 ? ", " : "."}
+          </span>
+        ))}
       </div>
     </div>
   );
