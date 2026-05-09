@@ -1,12 +1,20 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { FaSquareThreads } from "react-icons/fa6";
+import { FaSquareThreads, FaBluesky } from "react-icons/fa6";
 import { format } from "date-fns";
 import { Cookie } from "lucide-react";
 
 export default function Footer() {
-  const currentYear = new Date().getFullYear();
+  const [currentYear, setCurrentYear] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+
+  useEffect(() => {
+    const now = new Date();
+    setCurrentYear(String(now.getFullYear()));
+    setLastUpdated(format(now, "dd.MM.yyyy"));
+  }, []);
 
   const openCookieSettings = () => {
     window.dispatchEvent(new Event("open-cookie-banner"));
@@ -17,7 +25,8 @@ export default function Footer() {
       <div className="text-center text-gray-500 dark:text-gray-400 text-sm py-4 px-4">
         <p>
           Daten basierend auf Markus Lanz, Maybritt Illner, Caren Miosga,
-          Maischberger, Hart aber fair (2024 - {currentYear})
+          Maischberger, Hart aber fair (2024
+          {currentYear ? ` - ${currentYear}` : ""})
         </p>
         <p>
           und der API von{" "}
@@ -32,7 +41,7 @@ export default function Footer() {
           .
         </p>
         <div className="flex flex-col md:flex-row justify-center items-center gap-2 md:gap-4 mt-2">
-          <p>Letztes Update: {format(new Date(), "dd.MM.yyyy")}</p>
+          <p>Letztes Update: {lastUpdated ?? "-"}</p>
           <div className="flex gap-4">
             <Link
               href="/datenschutz"
@@ -66,6 +75,14 @@ export default function Footer() {
               className="text-black/70 dark:text-gray-300 hover:text-black/90 dark:hover:text-white transition-colors"
             >
               <FaSquareThreads className="size-5" />
+            </Link>
+            <Link
+              href="https://bsky.app/profile/polittalk-watcher.bsky.social"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-black/70 dark:text-gray-300 hover:text-black/90 dark:hover:text-white transition-colors"
+            >
+              <FaBluesky className="size-5"/>
             </Link>
           </div>
         </div>
