@@ -1,0 +1,64 @@
+name: Bluesky Bot Posts
+
+on:
+  schedule:
+    # Weekly post every Monday at 15:00 UTC
+    - cron: "0 15 * * 1"
+    # Monthly post on the 1st at 11:00 UTC
+    - cron: "0 11 1 * *"
+  workflow_dispatch:
+    inputs:
+      period:
+        description: "Period to trigger"
+        required: true
+        type: choice
+        options:
+          - weekly
+          - monthly
+
+jobs:
+  post-weekly:
+    if: github.event.schedule == '0 15 * * 1' || github.event.inputs.period == 'weekly'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Weekly Bluesky Bot API
+        run: |
+          echo "🚀 Starte wöchentlichen Bluesky Bot..."
+          RESPONSE=$(curl --silent --show-error --fail \
+            --max-time 1800 \
+            --request GET \
+            --header "Authorization: Bearer ${{ secrets.CRAWL_API_KEY }}" \
+            --header "Content-Type: application/json" \
+            "${{ secrets.DEPLOYMENT_URL }}/api/bluesky-bot/weekly")
+
+          echo "✅:"
+          echo "$RESPONSE" | python3 -m json.tool || echo "$RESPONSE"
+
+  post-monthly:
+    if: github.event.schedule == '0 11 1 * *' || github.event.inputs.period == 'monthly'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Monthly Bluesky Bot API
+        run: |
+          echo "🚀 Starte monatlichen Bluesky Bot..."
+          RESPONSE=$(curl --silent --show-error --fail \
+            --max-time 1800 \
+            --request GET \
+            --header "Authorization: Bearer ${{ secrets.CRAWL_API_KEY }}" \
+            --header "Content-Type: application/json" \
+            "${{ secrets.DEPLOYMENT_URL }}/api/bluesky-bot/monthly")
+
+          echo "✅:"
+          echo "$RESPONSE" | python3 -m json.tool || echo "$RESPONSE"
+
+  report-failure:
+    if: failure()
+    needs:
+      - post-weekly
+      - post-monthly
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fehler melden
+        run: |
+          echo "❌ Bluesky Bot Job fehlgeschlagen!"
+          exit 1

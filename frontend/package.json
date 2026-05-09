@@ -9,9 +9,12 @@
     "lint": "eslint",
     "prepare": "husky",
     "ts-check": "tsc --noEmit",
-    "test": "jest"
+    "test": "jest",
+    "test:bluesky-bot": "node __tests__/bluesky-bot.manual.mjs",
+    "test:bluesky-bot:live": "node __tests__/bluesky-bot.manual.mjs --live"
   },
   "dependencies": {
+    "@atproto/api": "^0.19.16",
     "@google/genai": "^1.30.0",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",

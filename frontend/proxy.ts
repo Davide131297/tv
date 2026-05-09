@@ -19,6 +19,7 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/api/political-areas") ||
     pathname.startsWith("/api/politician-details") ||
     pathname.startsWith("/api/threads-bot") ||
+    pathname.startsWith("/api/bluesky-bot") ||
     pathname.startsWith("/api/embed-documents");
 
   if (!isProtectedAPIRoute) {
@@ -99,6 +100,7 @@ function handleAPIProtection(request: NextRequest) {
     if (
       pathname.startsWith("/api/crawl/") ||
       pathname.startsWith("/api/threads-bot") ||
+      pathname.startsWith("/api/bluesky-bot") ||
       pathname.startsWith("/api/embed-documents")
     ) {
       requireAuth = !!(CRAWL_API_KEY && CRAWL_API_KEY !== "default-dev-key");
@@ -151,6 +153,7 @@ export const config = {
     "/api/crawl/:path*",
     "/api/politics",
     "/api/threads-bot/:path*",
+    "/api/bluesky-bot/:path*",
     "/api/embed-documents/:path*",
   ],
 };
