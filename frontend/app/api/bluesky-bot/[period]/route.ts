@@ -317,11 +317,21 @@ export async function GET(
       });
     }
 
-    const agent = new AtpAgent({
-    service: 'https://bsky.social',
-  })
-    await agent.login({ identifier: process.env.BLUESKY_USERNAME!, password: process.env.BLUESKY_PASSWORD!})
+    const blueskyUsername = process.env.BLUESKY_USERNAME;
+    const blueskyPassword = process.env.BLUESKY_PASSWORD;
 
+    if (!blueskyUsername || !blueskyPassword) {
+      return NextResponse.json(
+        {
+          error:
+            "Missing Bluesky credentials: BLUESKY_USERNAME and BLUESKY_PASSWORD environment variables must be set.",
+        },
+        { status: 503 },
+      );
+    }
+
+    const agent = new AtpAgent({ service: "https://bsky.social" });
+    await agent.login({ identifier: blueskyUsername, password: blueskyPassword });
 
     let rootRef: { uri: string; cid: string } | null = null;
     let parentRef: { uri: string; cid: string } | null = null;
