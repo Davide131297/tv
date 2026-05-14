@@ -24,15 +24,24 @@ jobs:
       - name: Trigger Weekly Bluesky Bot API
         run: |
           echo "🚀 Starte wöchentlichen Bluesky Bot..."
-          RESPONSE=$(curl --silent --show-error --fail \
+          HTTP_STATUS=$(curl --silent --show-error \
             --max-time 1800 \
             --request GET \
             --header "Authorization: Bearer ${{ secrets.CRAWL_API_KEY }}" \
             --header "Content-Type: application/json" \
+            --output /tmp/bluesky_response.json \
+            --write-out "%{http_code}" \
             "${{ secrets.DEPLOYMENT_URL }}/api/bluesky-bot/weekly")
 
-          echo "✅:"
-          echo "$RESPONSE" | python3 -m json.tool || echo "$RESPONSE"
+          echo "HTTP Status: $HTTP_STATUS"
+          echo "Response:"
+          cat /tmp/bluesky_response.json | python3 -m json.tool || cat /tmp/bluesky_response.json
+
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "❌ Request failed with HTTP $HTTP_STATUS"
+            exit 1
+          fi
+          echo "✅ Bluesky Bot erfolgreich ausgeführt."
 
   post-monthly:
     if: github.event.schedule == '0 11 1 * *' || github.event.inputs.period == 'monthly'
@@ -41,15 +50,24 @@ jobs:
       - name: Trigger Monthly Bluesky Bot API
         run: |
           echo "🚀 Starte monatlichen Bluesky Bot..."
-          RESPONSE=$(curl --silent --show-error --fail \
+          HTTP_STATUS=$(curl --silent --show-error \
             --max-time 1800 \
             --request GET \
             --header "Authorization: Bearer ${{ secrets.CRAWL_API_KEY }}" \
             --header "Content-Type: application/json" \
+            --output /tmp/bluesky_response.json \
+            --write-out "%{http_code}" \
             "${{ secrets.DEPLOYMENT_URL }}/api/bluesky-bot/monthly")
 
-          echo "✅:"
-          echo "$RESPONSE" | python3 -m json.tool || echo "$RESPONSE"
+          echo "HTTP Status: $HTTP_STATUS"
+          echo "Response:"
+          cat /tmp/bluesky_response.json | python3 -m json.tool || cat /tmp/bluesky_response.json
+
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "❌ Request failed with HTTP $HTTP_STATUS"
+            exit 1
+          fi
+          echo "✅ Bluesky Bot erfolgreich ausgeführt."
 
   report-failure:
     if: failure()
