@@ -11,9 +11,11 @@ import { createBrowser, setupSimplePage } from "../lib/browser-configs.js";
 import { getPoliticalArea } from "../lib/utils.js";
 
 interface EpisodeLink {
-  url: string;
+  wdrUrl: string;
   title: string;
   date: string;
+  ardUrl?: string;
+  guestNames?: string[];
 }
 
 interface EpisodeDetails {
@@ -158,7 +160,7 @@ async function extractArchiveLinks(page: Page): Promise<EpisodeLink[]> {
 
           if (href && title) {
             episodes.push({
-              url: href,
+              wdrUrl: href,
               title: title.replace(/\s*\(\d{2}\.\d{2}\.\d{4}\)\s*$/, "").trim(),
               date: date,
             });
@@ -180,9 +182,9 @@ async function extractEpisodeDetails(
   episodeLink: EpisodeLink,
 ): Promise<EpisodeDetails | null> {
   try {
-    const fullUrl = episodeLink.url.startsWith("http")
-      ? episodeLink.url
-      : `${BASE_URL}${episodeLink.url}`;
+    const fullUrl = episodeLink.wdrUrl.startsWith("http")
+      ? episodeLink.wdrUrl
+      : `${BASE_URL}${episodeLink.wdrUrl}`;
 
     await page.goto(fullUrl, { waitUntil: "networkidle2", timeout: 30000 });
 
@@ -415,21 +417,23 @@ async function processPoliticians(guestNames: string[]) {
 
 // Hilfsfunktion: Hole alle bekannten Episode-Links von der Sendungsseite (via Browser)
 async function fetchEpisodeList(): Promise<
-  Array<{ url: string; title: string; date: string }>
+  Array<EpisodeLink>
 > {
   const browser = await createBrowser();
   try {
     const page = await setupSimplePage(browser);
     await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 30000 });
 
-    const episodesToProcess: Array<{ url: string; title: string; date: string }> = [];
+    const episodesToProcess: EpisodeLink[] = [];
 
     const latestEpisode = await extractLatestEpisodeFromHomepage(page);
     if (latestEpisode && latestEpisode.date) {
       episodesToProcess.push({
-        url: latestEpisode.url ?? LIST_URL,
+        wdrUrl: LIST_URL,
+        ardUrl: latestEpisode.url || undefined,
         title: latestEpisode.title,
         date: latestEpisode.date,
+        guestNames: latestEpisode.politicians.map((guest) => guest.name),
       });
     }
 
@@ -437,7 +441,9 @@ async function fetchEpisodeList(): Promise<
     for (const link of archiveLinks) {
       if (link.date && !episodesToProcess.find((e) => e.date === link.date)) {
         episodesToProcess.push({
-          url: link.url.startsWith("http") ? link.url : `${BASE_URL}${link.url}`,
+          wdrUrl: link.wdrUrl.startsWith("http")
+            ? link.wdrUrl
+            : `${BASE_URL}${link.wdrUrl}`,
           title: link.title,
           date: link.date,
         });
@@ -480,75 +486,100 @@ export default async function crawlHartAberFair(): Promise<void> {
   let totalEpisodeLinksInserted = 0;
   let episodesProcessed = 0;
   const episodeLinksToInsert: { episodeUrl: string; episodeDate: string }[] = [];
+  const browser = await createBrowser();
 
-  // Älteste zuerst verarbeiten
-  const sortedEpisodes = [...newEpisodes].sort((a, b) =>
-    a.date.localeCompare(b.date),
-  );
+  try {
+    const detailPage = await setupSimplePage(browser);
 
-  for (const ep of sortedEpisodes) {
-    try {
-      console.log(`\n🎬 Verarbeite: ${ep.title} (${ep.date})`);
+    // Älteste zuerst verarbeiten
+    const sortedEpisodes = [...newEpisodes].sort((a, b) =>
+      a.date.localeCompare(b.date),
+    );
 
-      // Beschreibung + ARD-URL von der Episodenseite holen
-      const { ardUrl, description } = await fetchEpisodeDetails(ep.url);
+    for (const ep of sortedEpisodes) {
+      try {
+        console.log(`\n🎬 Verarbeite: ${ep.title} (${ep.date})`);
 
-      // Gäste mit AI aus Beschreibung extrahieren
-      const guestNames = await extractGuestsWithAI(description || ep.title);
+        const structuredDetails =
+          (ep.guestNames?.length ?? 0) > 0
+            ? null
+            : await extractEpisodeDetails(detailPage, ep);
 
-      console.log(`   👥 Gäste: ${guestNames.join(", ") || "–"}`);
-      console.log(`   🔗 ARD URL: ${ardUrl || "–"}`);
+        // Beschreibung + ARD-URL von der Episodenseite holen
+        const fetchedDetails = await fetchEpisodeDetails(ep.wdrUrl);
+        const ardUrl = ep.ardUrl || fetchedDetails.ardUrl;
+        const description =
+          fetchedDetails.description || structuredDetails?.description || "";
 
-      if (guestNames.length === 0) {
-        console.log(`   ⚠️  Keine Gäste gefunden – überspringe`);
-        continue;
+        const scrapedGuestNames = [
+          ...(ep.guestNames || []),
+          ...((structuredDetails?.politicians || []).map((guest) => guest.name)),
+        ].filter((name, index, arr) => Boolean(name) && arr.indexOf(name) === index);
+
+        const guestNames =
+          scrapedGuestNames.length > 0
+            ? scrapedGuestNames
+            : await extractGuestsWithAI(description || ep.title);
+
+        console.log(`   👥 Gäste: ${guestNames.join(", ") || "–"}`);
+        console.log(`   🔗 ARD URL: ${ardUrl || "–"}`);
+
+        if (guestNames.length === 0) {
+          console.log(`   ⚠️  Keine Gäste gefunden – überspringe`);
+          continue;
+        }
+
+        // Politische Themenbereiche
+        const politicalAreaIds = await getPoliticalArea(description);
+
+        // Politiker prüfen
+        const politicians = await processPoliticians(guestNames);
+
+        if (politicians.length > 0) {
+          console.log(
+            `   ✅ Politiker: ${politicians.map((p) => `${p.politicianName} (${p.partyName || "?"})`).join(", ")}`,
+          );
+
+          const inserted = await insertMultipleTvShowPoliticians(
+            "Das Erste",
+            "Hart aber fair",
+            ep.date,
+            politicians,
+          );
+          totalPoliticiansInserted += inserted;
+        }
+
+        // Episode-URL speichern (ARD Mediathek URL bevorzugt, fallback auf WDR-URL)
+        episodeLinksToInsert.push({
+          episodeUrl: ardUrl || ep.wdrUrl,
+          episodeDate: ep.date,
+        });
+
+        // Politische Themenbereiche speichern
+        if (politicalAreaIds?.length) {
+          await insertEpisodePoliticalAreas(
+            "Hart aber fair",
+            ep.date,
+            politicalAreaIds,
+          );
+        }
+
+        episodesProcessed++;
+
+        // Kurze Pause zwischen Seiten-Requests
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      } catch (error) {
+        console.error(`❌ Fehler beim Verarbeiten von ${ep.date}:`, error);
       }
-
-      // Politische Themenbereiche
-      const politicalAreaIds = await getPoliticalArea(description);
-
-      // Politiker prüfen
-      const politicians = await processPoliticians(guestNames);
-
-      if (politicians.length > 0) {
-        console.log(
-          `   ✅ Politiker: ${politicians.map((p) => `${p.politicianName} (${p.partyName || "?"})`).join(", ")}`,
-        );
-
-        const inserted = await insertMultipleTvShowPoliticians(
-          "Das Erste",
-          "Hart aber fair",
-          ep.date,
-          politicians,
-        );
-        totalPoliticiansInserted += inserted;
-      }
-
-      // Episode-URL speichern (ARD Mediathek URL bevorzugt, fallback auf WDR-URL)
-      episodeLinksToInsert.push({
-        episodeUrl: ardUrl || ep.url,
-        episodeDate: ep.date,
-      });
-
-      // Politische Themenbereiche speichern
-      if (politicalAreaIds?.length) {
-        await insertEpisodePoliticalAreas(
-          "Hart aber fair",
-          ep.date,
-          politicalAreaIds,
-        );
-      }
-
-      episodesProcessed++;
-
-      // Kurze Pause zwischen Seiten-Requests
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    } catch (error) {
-      console.error(`❌ Fehler beim Verarbeiten von ${ep.date}:`, error);
     }
+  } finally {
+    await browser.close().catch(() => {});
   }
 
   // Episode-URLs batch-speichern
+  const sortedEpisodes = [...newEpisodes].sort((a, b) =>
+    a.date.localeCompare(b.date),
+  );
   if (episodeLinksToInsert.length > 0) {
     totalEpisodeLinksInserted = await insertMultipleShowLinks(
       "Hart aber fair",
