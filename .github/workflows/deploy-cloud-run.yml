@@ -1,4 +1,4 @@
-name: Deploy to Cloud Run
+name: Deploy Backend to AWS
 
 on:
   push:
@@ -6,61 +6,102 @@ on:
       - main
     paths:
       - "backend/**"
+      - "terraform/aws/**"
       - ".github/workflows/deploy-cloud-run.yml"
 
+permissions:
+  id-token: write
+  contents: read
+
 env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  REGION: ${{ secrets.GCP_REGION }}
-  SERVICE_NAME: polittalk-crawler
-  REGISTRY: europe-west1-docker.pkg.dev
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  TF_WORKING_DIR: terraform/aws
+  TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+  TF_VAR_project_name: ${{ vars.AWS_PROJECT_NAME || 'polittalk-watcher' }}
+  TF_VAR_environment: ${{ vars.AWS_ENVIRONMENT || 'prod' }}
+  TF_VAR_ecr_repository_name: ${{ vars.ECR_REPOSITORY_NAME || 'polittalk-crawler' }}
+  TF_VAR_container_image_tag: latest
+  TF_VAR_container_port: ${{ vars.AWS_CONTAINER_PORT || '8080' }}
+  TF_VAR_health_check_path: /
+  TF_VAR_service_desired_count: ${{ vars.AWS_SERVICE_DESIRED_COUNT || '1' }}
+  TF_VAR_task_cpu: ${{ vars.AWS_TASK_CPU || '2048' }}
+  TF_VAR_task_memory: ${{ vars.AWS_TASK_MEMORY || '4096' }}
+  TF_VAR_allowed_cidr_blocks: '["0.0.0.0/0"]'
+  TF_VAR_supabase_url_secret_arn: ${{ secrets.AWS_SUPABASE_URL_SECRET_ARN }}
+  TF_VAR_supabase_anon_key_secret_arn: ${{ secrets.AWS_SUPABASE_ANON_KEY_SECRET_ARN }}
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
 
-      - name: Configure Docker for Artifact Registry
-        run: |
-          gcloud auth configure-docker ${{ env.REGISTRY }}
-
-      - name: Build Docker Image
-        working-directory: ./backend
+      - name: Terraform init
+        working-directory: ${{ env.TF_WORKING_DIR }}
         env:
-          IMAGE_NAME: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/polittalk-crawler/backend
+          TF_STATE_BUCKET: ${{ secrets.AWS_TERRAFORM_STATE_BUCKET }}
+          TF_STATE_LOCK_TABLE: ${{ secrets.AWS_TERRAFORM_LOCK_TABLE }}
+        run: |
+          if [ -n "${TF_STATE_BUCKET}" ] && [ -n "${TF_STATE_LOCK_TABLE}" ]; then
+            terraform init \
+              -backend-config="bucket=${TF_STATE_BUCKET}" \
+              -backend-config="key=polittalk-watcher/aws-prod.tfstate" \
+              -backend-config="region=${AWS_REGION}" \
+              -backend-config="dynamodb_table=${TF_STATE_LOCK_TABLE}"
+          else
+            terraform init -backend=false
+          fi
+
+      - name: Terraform apply
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform apply -auto-approve
+
+      - name: Read Terraform outputs
+        id: tf
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          echo "ecr_repository_url=$(terraform output -raw ecr_repository_url)" >> "$GITHUB_OUTPUT"
+          echo "ecs_cluster_name=$(terraform output -raw ecs_cluster_name)" >> "$GITHUB_OUTPUT"
+          echo "ecs_service_name=$(terraform output -raw ecs_service_name)" >> "$GITHUB_OUTPUT"
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build Docker image
+        working-directory: backend
+        env:
+          IMAGE_NAME: ${{ steps.tf.outputs.ecr_repository_url }}
         run: |
           docker build \
-            -t "${IMAGE_NAME}:${{ github.sha }}" \
+            -t "${IMAGE_NAME}:${GITHUB_SHA}" \
             -t "${IMAGE_NAME}:latest" \
             .
 
-      - name: Push Docker Image
+      - name: Push Docker image
+        env:
+          IMAGE_NAME: ${{ steps.tf.outputs.ecr_repository_url }}
         run: |
-          docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/polittalk-crawler/backend:${{ github.sha }}
-          docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/polittalk-crawler/backend:latest
+          docker push "${IMAGE_NAME}:${GITHUB_SHA}"
+          docker push "${IMAGE_NAME}:latest"
 
-      - name: Deploy to Cloud Run
+      - name: Force ECS deployment
         run: |
-          gcloud run deploy ${{ env.SERVICE_NAME }} \
-            --image=${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/polittalk-crawler/backend:${{ github.sha }} \
-            --platform=managed \
-            --region=${{ env.REGION }} \
-            --memory=2Gi \
-            --cpu=2 \
-            --timeout=3600 \
-            --max-instances=1 \
-            --min-instances=0 \
-            --no-allow-unauthenticated \
-            --port=8080 \
-            --set-env-vars="NODE_ENV=production" \
-            --update-secrets="SUPABASE_URL=SUPABASE_URL:latest,SUPABASE_ANON_KEY=SUPABASE_ANON_KEY:latest"
+          aws ecs update-service \
+            --cluster "${{ steps.tf.outputs.ecs_cluster_name }}" \
+            --service "${{ steps.tf.outputs.ecs_service_name }}" \
+            --force-new-deployment
+
+          aws ecs wait services-stable \
+            --cluster "${{ steps.tf.outputs.ecs_cluster_name }}" \
+            --services "${{ steps.tf.outputs.ecs_service_name }}"

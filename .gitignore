@@ -50,3 +50,9 @@ frontend/dist/
 # supabase
 supabase-local/
 crawl_all.sh
+
+# terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
