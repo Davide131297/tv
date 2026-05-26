@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import Image from "next/image";
-import { supabase } from "@/lib/supabase";
+import { supabaseServer as supabase } from "@/lib/supabase-server";
 import { AnimatedCounter } from "@/components/AnimatedCounter";
 import { getPartyBorderedBadgeClasses } from "@/lib/party-colors";
 

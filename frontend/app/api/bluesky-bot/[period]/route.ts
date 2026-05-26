@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AtpAgent, RichText } from "@atproto/api";
-import { supabase } from "@/lib/supabase";
+import { supabaseServer as supabase } from "@/lib/supabase-server";
 
 
 export const runtime = "nodejs";
