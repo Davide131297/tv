@@ -44,18 +44,6 @@ export default function Footer() {
           <p>Letztes Update: {lastUpdated ?? "-"}</p>
           <div className="flex gap-4">
             <Link
-              href="/datenschutz"
-              className="text-black/70 dark:text-gray-300 hover:text-black/90 dark:hover:text-white hover:underline transition-colors"
-            >
-              Datenschutz
-            </Link>
-            <Link
-              href="/impressum"
-              className="text-black/70 dark:text-gray-300 hover:text-black/90 dark:hover:text-white hover:underline transition-colors"
-            >
-              Impressum
-            </Link>
-            <Link
               href="/api-docs"
               className="text-black/70 dark:text-gray-300 hover:text-black/90 dark:hover:text-white hover:underline transition-colors"
             >
