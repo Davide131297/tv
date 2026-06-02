@@ -1,0 +1,44 @@
+name: TV Ratings Crawl
+
+on:
+  schedule:
+    # Jeden Tag um 15:00 Uhr UTC (= 16:00 Uhr MEZ / 17:00 Uhr MESZ)
+    - cron: "0 15 * * *"
+  workflow_dispatch:
+
+jobs:
+  crawl-tv-ratings:
+    name: Crawl TV Ratings
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: TV-Ratings API aufrufen
+        run: |
+          echo "🚀 Starte TV-Ratings-Crawler..."
+          RESPONSE_BODY=$(mktemp)
+
+          http_code=$(curl --write-out "%{http_code}" \
+            --silent --show-error --output "$RESPONSE_BODY" \
+            --request POST \
+            --header "Authorization: Bearer ${{ secrets.CRAWL_API_KEY }}" \
+            --header "Content-Type: application/json" \
+            "${{ secrets.DEPLOYMENT_URL }}/api/crawl/tv-ratings")
+
+          echo "Antwort:"
+          cat "$RESPONSE_BODY"
+
+          if [ "$http_code" -ne 200 ]; then
+            echo "::error::TV-Ratings-Crawler fehlgeschlagen (HTTP $http_code)"
+            rm "$RESPONSE_BODY"
+            exit 1
+          fi
+
+          rm "$RESPONSE_BODY"
+          echo "✅ TV-Ratings-Crawler erfolgreich abgeschlossen."
+
+      - name: Fehler melden
+        if: failure()
+        run: |
+          echo "❌ TV-Ratings-Crawler fehlgeschlagen."
+          exit 1
