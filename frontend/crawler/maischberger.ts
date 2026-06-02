@@ -1,4 +1,4 @@
-import type { GuestWithRole } from "@/types";
+import axios from "axios";
 import {
   insertMultipleTvShowPoliticians,
   getExistingEpisodeDates,
@@ -14,16 +14,13 @@ const WIDGET_API_URL =
 
 const PAGE_SIZE = 24;
 
-// ─────────────────────────────────────────────
-// Typen aus der ARD API
-// ─────────────────────────────────────────────
 interface ArdTeaser {
   id: string;
   longTitle: string;
-  broadcastedOn: string; // ISO-8601: "2026-03-04T21:50:00Z"
+  broadcastedOn: string;
   availableTo: string;
-  duration: number; // Sekunden
-  coreAssetType: string; // "EPISODE" | "SECTION" | "EXTRA_BONUS_CONTENT"
+  duration: number;
+  coreAssetType: string;
   links: {
     target: {
       urlId: string;
@@ -40,64 +37,53 @@ interface ArdWidgetResponse {
   };
 }
 
+interface EpisodeGuest {
+  name: string;
+}
+
 interface EpisodeData {
   id: string;
-  date: string; // "YYYY-MM-DD"
+  date: string;
   title: string;
   episodeUrl: string;
   description: string;
-  guests: GuestWithRole[];
+  guests: EpisodeGuest[];
 }
 
-// ─────────────────────────────────────────────
-// ARD API: Eine Seite der Episode-Liste holen
-// ─────────────────────────────────────────────
+interface ProcessedPolitician {
+  politicianId: number;
+  politicianName: string;
+  partyId?: number;
+  partyName?: string;
+}
+
 async function fetchEpisodePage(
   pageNumber: number,
 ): Promise<ArdWidgetResponse> {
   const url = `${WIDGET_API_URL}?pageNumber=${pageNumber}&pageSize=${PAGE_SIZE}`;
-  const res = await fetch(url);
+  const res = await axios.get<ArdWidgetResponse>(url);
 
-  if (!res.ok) {
-    throw new Error(
-      `ARD API Fehler: ${res.status} ${res.statusText} (Seite ${pageNumber})`,
-    );
-  }
-
-  return res.json() as Promise<ArdWidgetResponse>;
+  return res.data;
 }
 
-// ─────────────────────────────────────────────
-// Episodenbeschreibung via OG-Meta-Tag holen
-// (serverseitig gerendert — kein Browser nötig)
-// ─────────────────────────────────────────────
 async function fetchEpisodeDescription(episodeUrl: string): Promise<string> {
   try {
-    const res = await fetch(episodeUrl, {
+    const res = await axios.get<string>(episodeUrl, {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         Accept:
           "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       },
+      responseType: "text",
     });
 
-    if (!res.ok) {
-      console.warn(
-        `⚠️  Episode-Seite nicht erreichbar (${res.status}): ${episodeUrl}`,
-      );
-      return "";
-    }
-
-    const html = await res.text();
-
-    // OG-Description aus Meta-Tag extrahieren
+    const html = res.data;
     const match = html.match(
       /<meta[^>]+property="og:description"[^>]+content="([^"]+)"/i,
     );
 
     if (!match) {
-      // Fallback: name="description"
       const fallback = html.match(
         /<meta[^>]+name="description"[^>]+content="([^"]+)"/i,
       );
@@ -106,6 +92,13 @@ async function fetchEpisodeDescription(episodeUrl: string): Promise<string> {
 
     return decodeHtmlEntities(match[1]);
   } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      console.warn(
+        `⚠️  Episode-Seite nicht erreichbar (${error.response.status}): ${episodeUrl}`,
+      );
+      return "";
+    }
+
     console.error(
       `❌ Fehler beim Laden der Episodenseite ${episodeUrl}:`,
       error,
@@ -114,7 +107,6 @@ async function fetchEpisodeDescription(episodeUrl: string): Promise<string> {
   }
 }
 
-// HTML-Entities dekodieren (z.B. &amp; → &)
 function decodeHtmlEntities(text: string): string {
   return text
     .replace(/&amp;/g, "&")
@@ -131,10 +123,6 @@ function decodeHtmlEntities(text: string): string {
     .replace(/&szlig;/g, "ß");
 }
 
-// ─────────────────────────────────────────────
-// Prüft ob eine Episode ein Gebärdensprache-Duplikat ist
-// (ID endet auf "/gebaerdensprache" ODER Titel enthält "Gebärdensprache")
-// ─────────────────────────────────────────────
 function isSignLanguageVariant(teaser: ArdTeaser): boolean {
   return (
     teaser.id.endsWith("/gebaerdensprache") ||
@@ -142,26 +130,16 @@ function isSignLanguageVariant(teaser: ArdTeaser): boolean {
   );
 }
 
-// ─────────────────────────────────────────────
-// Prüft ob eine Episode eine vollständige Sendung ist
-// (coreAssetType === "EPISODE", nicht SECTION oder EXTRA_BONUS_CONTENT)
-// ─────────────────────────────────────────────
 function isFullEpisode(teaser: ArdTeaser): boolean {
   return teaser.coreAssetType === "EPISODE";
 }
 
-// ─────────────────────────────────────────────
-// Alle neuen Episoden von der ARD API holen
-// Stoppt sobald ein bereits bekanntes Datum gefunden wird
-// ─────────────────────────────────────────────
 async function fetchNewEpisodes(
   existingDates: Set<string>,
 ): Promise<EpisodeData[]> {
   const newEpisodes: EpisodeData[] = [];
-  let pageNumber = 0;
   let foundKnown = false;
 
-  // Erste Seite holen, um totalElements zu kennen
   const firstPage = await fetchEpisodePage(0);
   const { totalElements } = firstPage.pagination;
   const totalPages = Math.ceil(totalElements / PAGE_SIZE);
@@ -171,16 +149,13 @@ async function fetchNewEpisodes(
   );
 
   const processPage = async (data: ArdWidgetResponse): Promise<boolean> => {
-    // Filtere: nur vollständige Episoden, keine Gebärdensprache-Duplikate
     const episodes = data.teasers.filter(
-      (t) => isFullEpisode(t) && !isSignLanguageVariant(t),
+      (teaser) => isFullEpisode(teaser) && !isSignLanguageVariant(teaser),
     );
 
     for (const teaser of episodes) {
-      // ISO-Datum: "2026-03-04T21:50:00Z" → "2026-03-04"
       const date = teaser.broadcastedOn.split("T")[0];
 
-      // Episode bereits in der DB? → Stoppe hier (chronologisch absteigend)
       if (existingDates.has(date)) {
         console.log(
           `🛑 Datum ${date} bereits in DB — keine weiteren Seiten nötig`,
@@ -189,19 +164,17 @@ async function fetchNewEpisodes(
         return true;
       }
 
-      // Episoden-URL aufbauen
       const episodeUrl = `https://www.ardmediathek.de/video/${teaser.links.target.urlId}`;
 
       console.log(`🔍 Lade Beschreibung für ${date}: ${teaser.longTitle}`);
 
-      // Beschreibung von der Mediathek-Seite holen (OG meta tag)
       const description = await fetchEpisodeDescription(episodeUrl);
-
-      // Gäste mit AI aus Beschreibung extrahieren
       const guestNames = await extractGuestsWithAI(
         description || teaser.longTitle,
       );
-      const guests: GuestWithRole[] = guestNames.map((name) => ({ name }));
+      const guests: EpisodeGuest[] = guestNames.map((name: string) => ({
+        name,
+      }));
 
       newEpisodes.push({
         id: teaser.id,
@@ -217,28 +190,24 @@ async function fetchNewEpisodes(
       );
     }
 
-    return false; // Noch nicht fertig
+    return false;
   };
 
-  // Erste Seite verarbeiten
   foundKnown = await processPage(firstPage);
 
-  // Weitere Seiten paginiert abrufen bis bekanntes Datum gefunden
-  for (pageNumber = 1; pageNumber < totalPages && !foundKnown; pageNumber++) {
+  for (let pageNumber = 1; pageNumber < totalPages && !foundKnown; pageNumber++) {
     console.log(`📄 Lade Seite ${pageNumber + 1}/${totalPages}...`);
     const page = await fetchEpisodePage(pageNumber);
     foundKnown = await processPage(page);
   }
 
-  // Neueste zuerst
   return newEpisodes.sort((a, b) => b.date.localeCompare(a.date));
 }
 
-// ─────────────────────────────────────────────
-// Hilfsfunktion: Politiker für eine Episode prüfen & zurückgeben
-// ─────────────────────────────────────────────
-async function processPoliticians(episode: EpisodeData) {
-  const politicians = [];
+async function processPoliticians(
+  episode: EpisodeData,
+): Promise<ProcessedPolitician[]> {
+  const politicians: ProcessedPolitician[] = [];
 
   for (const guest of episode.guests) {
     const details = await checkPolitician(guest.name);
@@ -256,21 +225,15 @@ async function processPoliticians(episode: EpisodeData) {
       });
     }
 
-    // Kurze Pause zwischen API-Calls
     await new Promise((resolve) => setTimeout(resolve, 300));
   }
 
   return politicians;
 }
 
-// ─────────────────────────────────────────────
-// INKREMENTELLER Crawl (Standard-Modus)
-// Holt nur Episoden die noch nicht in Supabase sind
-// ─────────────────────────────────────────────
 export async function crawlNewMaischbergerEpisodes(): Promise<void> {
   console.log("🚀 Starte inkrementellen Maischberger Crawl (ARD API)...");
 
-  // Bereits gespeicherte Episodendaten aus Supabase holen
   const existingDates = await getExistingEpisodeDates("Maischberger");
   console.log(`📅 Bereits ${existingDates.size} Episoden in DB vorhanden`);
 
@@ -294,7 +257,6 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
   const episodeLinksToInsert: { episodeUrl: string; episodeDate: string }[] =
     [];
 
-  // Älteste zuerst verarbeiten (chronologisch)
   const sortedEpisodes = [...newEpisodes].sort((a, b) =>
     a.date.localeCompare(b.date),
   );
@@ -306,13 +268,10 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
         continue;
       }
 
-      // Politische Themenbereiche bestimmen
       const politicalAreaIds = await getPoliticalArea(episode.description);
-
-      // Politiker prüfen
       const politicians = await processPoliticians(episode);
 
-      const guestNames = episode.guests.map((g) => g.name);
+      const guestNames = episode.guests.map((guest) => guest.name);
       console.log(
         `📅 ${episode.date} | 👥 ${guestNames.join(", ")}${
           politicians.length > 0
@@ -323,7 +282,6 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
         }`,
       );
 
-      // Politiker in DB speichern
       if (politicians.length > 0) {
         const inserted = await insertMultipleTvShowPoliticians(
           "Das Erste",
@@ -334,13 +292,11 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
         totalPoliticiansInserted += inserted;
       }
 
-      // Episode-URL immer speichern (auch wenn keine Politiker)
       episodeLinksToInsert.push({
         episodeUrl: episode.episodeUrl,
         episodeDate: episode.date,
       });
 
-      // Politische Themenbereiche speichern
       if (politicalAreaIds && politicalAreaIds.length > 0) {
         await insertEpisodePoliticalAreas(
           "Maischberger",
@@ -358,7 +314,6 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
     }
   }
 
-  // Episode-URLs batch-speichern
   if (episodeLinksToInsert.length > 0) {
     totalEpisodeLinksInserted = await insertMultipleShowLinks(
       "Maischberger",
@@ -374,13 +329,9 @@ export async function crawlNewMaischbergerEpisodes(): Promise<void> {
   console.log(`Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
 }
 
-// ─────────────────────────────────────────────
-// VOLLSTÄNDIGER historischer Crawl (alle Seiten, alle Episoden)
-// ─────────────────────────────────────────────
 export async function crawlMaischbergerFull(): Promise<void> {
   console.log("🚀 Starte vollständigen Maischberger Crawl (ARD API)...");
 
-  // Leeres Set = kein Filter → alle Episoden holen
   const allEpisodes = await fetchNewEpisodes(new Set());
 
   if (allEpisodes.length === 0) {
@@ -388,7 +339,6 @@ export async function crawlMaischbergerFull(): Promise<void> {
     return;
   }
 
-  // Älteste zuerst für historischen Crawl
   const sortedEpisodes = [...allEpisodes].sort((a, b) =>
     a.date.localeCompare(b.date),
   );
@@ -400,10 +350,9 @@ export async function crawlMaischbergerFull(): Promise<void> {
   let episodesProcessed = 0;
   let episodesWithErrors = 0;
 
-  // Episode-URLs alle auf einmal speichern
-  const episodeLinksToInsert = sortedEpisodes.map((ep) => ({
-    episodeUrl: ep.episodeUrl,
-    episodeDate: ep.date,
+  const episodeLinksToInsert = sortedEpisodes.map((episode) => ({
+    episodeUrl: episode.episodeUrl,
+    episodeDate: episode.date,
   }));
 
   if (episodeLinksToInsert.length > 0) {
@@ -424,7 +373,7 @@ export async function crawlMaischbergerFull(): Promise<void> {
       const politicalAreaIds = await getPoliticalArea(episode.description);
       const politicians = await processPoliticians(episode);
 
-      const guestNames = episode.guests.map((g) => g.name);
+      const guestNames = episode.guests.map((guest) => guest.name);
       console.log(
         `📅 ${episode.date} | 👥 ${guestNames.join(", ")}${
           politicians.length > 0
@@ -472,13 +421,10 @@ export async function crawlMaischbergerFull(): Promise<void> {
   console.log(`Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
 }
 
-// ─────────────────────────────────────────────
-// Funktion zum Löschen aller Maischberger-Daten
-// ─────────────────────────────────────────────
 export async function clearMaischbergerData(): Promise<number> {
   console.log("🗑️  Lösche alle Maischberger-Daten aus tv_show_politicians...");
 
-  const { supabase } = await import("@/lib/supabase");
+  const { supabaseServer: supabase } = await import("@/lib/supabase-server");
 
   const { error, count } = await supabase
     .from("tv_show_politicians")

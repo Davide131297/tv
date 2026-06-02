@@ -1,4 +1,4 @@
-import CrawlPinarAtalay from "@/crawler/pinar-atalay";
+import CrawlPinarAtalay from "@/crawler/atalay";
 import { NextResponse } from "next/server";
 
 export async function POST() {

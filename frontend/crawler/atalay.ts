@@ -91,8 +91,8 @@ export default async function CrawlPinarAtalay() {
     // Filtere nur neue Episoden
     let filteredEpisodes = episodes;
     if (latestDbDate) {
-      filteredEpisodes = episodes.filter((ep) => {
-        if (!ep.episodeNumber) return true;
+      filteredEpisodes = episodes.filter((ep: any) => {
+        if (!ep.episodeNumber) return true; // Wenn keine Episode-Nummer, behalte sie
         const episodeDate = getEpisodeDateFromNumber(ep.episodeNumber);
         return episodeDate > latestDbDate;
       });
@@ -126,9 +126,6 @@ export default async function CrawlPinarAtalay() {
         const guestNames = await extractGuestsWithAI(episode.description);
 
         if (guestNames.length === 0) continue;
-
-        // Analysiere politische Themen
-        const politicalAreaIds = await getPoliticalArea(episode.description);
 
         // Prüfe jeden Gast auf Politiker-Status
         const politicians = [];
@@ -180,13 +177,19 @@ export default async function CrawlPinarAtalay() {
         }
 
         // Speichere politische Themenbereiche
-        if (politicalAreaIds && politicalAreaIds.length > 0) {
-          const insertedAreas = await insertEpisodePoliticalAreas(
-            "Pinar Atalay",
-            episodeDate,
-            politicalAreaIds,
-          );
-          totalPoliticalAreasInserted += insertedAreas;
+        let politicalAreaIds: number[] = [];
+        if (politicians.length > 0 && episode.description) {
+          const areas = await getPoliticalArea(episode.description);
+          politicalAreaIds = areas || [];
+
+          if (politicalAreaIds.length > 0) {
+            const insertedAreas = await insertEpisodePoliticalAreas(
+              "Pinar Atalay",
+              episodeDate,
+              politicalAreaIds,
+            );
+            totalPoliticalAreasInserted += insertedAreas;
+          }
         }
       } catch (error) {
         console.error(

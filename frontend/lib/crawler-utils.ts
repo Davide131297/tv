@@ -273,5 +273,6 @@ export interface EpisodeResult {
   date: string | null;
   guests: string[];
   guestsDetailed: GuestDetails[];
+  description?: string;
   politicalAreaIds?: number[];
 }

@@ -1,7 +1,7 @@
-import CrawlPhoenixPersönlich from "@/crawler/phoenix-persönlich";
+import CrawlPhoenixPersoenlich from "@/crawler/phoenix-persoenlich";
 import { NextResponse } from "next/server";
 
 export async function POST() {
-  const res = await CrawlPhoenixPersönlich();
+  const res = await CrawlPhoenixPersoenlich();
   return NextResponse.json(res);
 }

@@ -191,7 +191,6 @@ const ZDF_URL = "https://teletext.zdf.de/teletext/zdf/seiten/448.html";
 const ZDF_TRACKED_SHOWS = ["markus lanz", "maybrit illner"];
 
 function parseZDFDate(html: string): string | null {
-  // Format im Header-Div: " Abend        23.02.2026      Mio.  MA % "
   const dateMatch = html.match(/(\d{2})\.(\d{2})\.(\d{4})/);
   if (!dateMatch) return null;
 
@@ -212,24 +211,20 @@ function parseZDFTable(html: string): TvRating[] {
 
   console.log(`📅 ZDF Datum: ${episodeDate}`);
 
-  // ZDF Teletext Format: " HH:MM Sendungsname               X,XXX YY,Y "
-  // Jede Zeile ist in einem <div class="table">
   const divRegex = /<div class="table"[^>]*>\s*(.*?)\s*<\/div>/g;
 
   let match;
   while ((match = divRegex.exec(html)) !== null) {
     const line = match[1].replace(/<br\s*\/?>/g, "").trim();
 
-    // Format: "HH:MM Sendungsname               X,XXX YY,Y"
-    // Parsen: Zeit, dann Name, dann Zuschauer (Mio), dann Marktanteil (%)
     const lineMatch = line.match(
       /^(\d{2}:\d{2})\s+(.+?)\s{2,}(\d+,\d+)\s+(\d+,?\d*)\s*$/,
     );
     if (!lineMatch) continue;
 
     const showName = lineMatch[2].trim();
-    const viewersStr = lineMatch[3]; // z.B. "3,351"
-    const marketShareStr = lineMatch[4]; // z.B. "17,5"
+    const viewersStr = lineMatch[3];
+    const marketShareStr = lineMatch[4];
 
     const isTracked = ZDF_TRACKED_SHOWS.some((tracked) =>
       showName.toLowerCase().includes(tracked),

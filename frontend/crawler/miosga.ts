@@ -1,10 +1,10 @@
 import type { GuestWithRole } from "@/types";
 import {
-  insertMultipleTvShowPoliticians,
-  getExistingEpisodeDates,
-  insertMultipleShowLinks,
-  insertEpisodePoliticalAreas,
   checkPolitician,
+  getExistingEpisodeDates,
+  insertEpisodePoliticalAreas,
+  insertMultipleShowLinks,
+  insertMultipleTvShowPoliticians,
 } from "@/lib/supabase-server-utils";
 import { extractGuestsWithAI, getPoliticalArea } from "@/lib/ai-utils";
 
@@ -81,7 +81,7 @@ function getEpisodeDate(publishDate: string): string {
 
 async function fetchEpisodeBatch(
   offset: number,
-  count: number
+  count: number,
 ): Promise<{ nodes: ArdEpisodeNode[]; hasNextPage: boolean }> {
   const url = new URL(ARD_GRAPHQL_URL);
   url.searchParams.set("query", PROGRAM_SET_EPISODES_QUERY);
@@ -91,7 +91,7 @@ async function fetchEpisodeBatch(
       id: MIOSGA_PROGRAM_SET_ID,
       offset,
       count,
-    })
+    }),
   );
 
   const response = await fetch(url.toString(), {
@@ -122,10 +122,7 @@ async function fetchEpisodeBatch(
   };
 }
 
-async function extractGuests(
-  description: string,
-  title: string
-): Promise<GuestWithRole[]> {
+async function extractGuests(description: string, title: string): Promise<GuestWithRole[]> {
   const sourceText = description || title;
   if (!sourceText) return [];
 
@@ -137,7 +134,7 @@ async function extractGuests(
 }
 
 async function fetchMiosgaEpisodes(
-  latestDbDate: string | null
+  latestDbDate: string | null,
 ): Promise<MiosgaEpisode[]> {
   const episodes: MiosgaEpisode[] = [];
   let offset = 0;
@@ -146,7 +143,7 @@ async function fetchMiosgaEpisodes(
   while (hasNextPage) {
     const { nodes, hasNextPage: nextPage } = await fetchEpisodeBatch(
       offset,
-      PAGE_SIZE
+      PAGE_SIZE,
     );
 
     if (nodes.length === 0) break;
@@ -178,7 +175,7 @@ async function fetchMiosgaEpisodes(
 }
 
 async function processPoliticians(
-  episode: Pick<MiosgaEpisode, "guests">
+  episode: Pick<MiosgaEpisode, "guests">,
 ): Promise<
   Array<{
     politicianId: number;
@@ -229,7 +226,7 @@ async function processEpisodes(episodes: MiosgaEpisode[]): Promise<void> {
       }
 
       const politicalAreaIds = await getPoliticalArea(
-        episode.description || episode.title
+        episode.description || episode.title,
       );
       const politicians = await processPoliticians(episode);
       const guestNames = episode.guests.map((guest) => guest.name);
@@ -241,7 +238,7 @@ async function processEpisodes(episodes: MiosgaEpisode[]): Promise<void> {
                 .map((p) => `${p.politicianName} (${p.partyName || "?"})`)
                 .join(", ")}`
             : ""
-        }`
+        }`,
       );
 
       if (politicians.length > 0) {
@@ -249,7 +246,7 @@ async function processEpisodes(episodes: MiosgaEpisode[]): Promise<void> {
           "Das Erste",
           "Caren Miosga",
           episode.date,
-          politicians
+          politicians,
         );
         totalPoliticiansInserted += inserted;
       }
@@ -258,7 +255,7 @@ async function processEpisodes(episodes: MiosgaEpisode[]): Promise<void> {
         await insertEpisodePoliticalAreas(
           "Caren Miosga",
           episode.date,
-          politicalAreaIds
+          politicalAreaIds,
         );
       }
 
@@ -266,7 +263,7 @@ async function processEpisodes(episodes: MiosgaEpisode[]): Promise<void> {
     } catch (error) {
       console.error(
         `❌ Fehler beim Verarbeiten von Episode ${episode.date}:`,
-        error
+        error,
       );
     }
   }
@@ -292,7 +289,7 @@ export async function crawlIncrementalCarenMiosgaEpisodes(): Promise<void> {
   }
 
   const sortedEpisodes = [...newEpisodes].sort((a, b) =>
-    a.date.localeCompare(b.date)
+    a.date.localeCompare(b.date),
   );
 
   console.log(`\n🔄 ${sortedEpisodes.length} neue Episoden zu verarbeiten...\n`);
@@ -312,7 +309,7 @@ export async function crawlAllCarenMiosgaEpisodes(): Promise<void> {
   }
 
   const sortedEpisodes = [...allEpisodes].sort((a, b) =>
-    a.date.localeCompare(b.date)
+    a.date.localeCompare(b.date),
   );
 
   console.log(`\n🔄 ${sortedEpisodes.length} Episoden zu verarbeiten...\n`);

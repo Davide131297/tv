@@ -4,7 +4,7 @@ import { crawlNewMaybritIllnerEpisodes } from "@/crawler/illner";
 import { crawlNewMaischbergerEpisodes } from "@/crawler/maischberger";
 import { crawlIncrementalCarenMiosgaEpisodes } from "@/crawler/miosga";
 import crawlHartAberFair from "@/crawler/haf";
-import CrawlPinarAtalay from "@/crawler/pinar-atalay";
+import CrawlPinarAtalay from "@/crawler/atalay";
 import CrawlPhoenixRunde from "@/crawler/phoenix-runde";
 import CrawlBlomePfeffer from "@/crawler/blome-pfeffer";
 
