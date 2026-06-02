@@ -15,7 +15,7 @@ import {
   GuestWithRole,
   GuestDetails,
   EpisodeResult,
-} from "../lib/crawler-utils.js";
+} from "../lib/crawler-utils";
 import { Page } from "puppeteer";
 import { getPoliticalArea } from "@/lib/ai-utils";
 

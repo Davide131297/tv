@@ -15,7 +15,7 @@ import {
   seemsLikePersonName,
   isModeratorOrHost,
   GuestWithRole,
-} from "../lib/crawler-utils.js";
+} from "../lib/crawler-utils";
 
 const currentYear = new Date().getFullYear();
 const LIST_URL = `https://www.zdf.de/talk/maybrit-illner-128?staffel=${currentYear}`;
