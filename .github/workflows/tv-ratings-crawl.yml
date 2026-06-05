@@ -25,8 +25,32 @@ jobs:
             --header "Content-Type: application/json" \
             "${{ secrets.DEPLOYMENT_URL }}/api/crawl/tv-ratings")
 
-          echo "Antwort:"
-          cat "$RESPONSE_BODY"
+          echo "::group::API-Antwort"
+          if command -v jq >/dev/null 2>&1; then
+            jq . "$RESPONSE_BODY" || cat "$RESPONSE_BODY"
+          else
+            cat "$RESPONSE_BODY"
+          fi
+          echo "::endgroup::"
+
+          echo "::group::Gespeicherte TV-Ratings"
+          if command -v jq >/dev/null 2>&1 && jq -e '.results' "$RESPONSE_BODY" >/dev/null 2>&1; then
+            jq -r '
+              .results
+              | to_entries[]
+              | .key as $sender
+              | .value as $result
+              | if ($result.savedCount // 0) == 0 then
+                  "\($sender): nichts gespeichert (gefunden: \($result.found // 0), mit Politikern: \($result.eligible // 0))"
+                else
+                  "\($sender): \($result.savedCount) gespeichert",
+                  ($result.saved[] | "  - \(.show_name) | \(.episode_date) | \(.market_share)% | \(.viewers_millions) Mio.")
+                end
+            ' "$RESPONSE_BODY"
+          else
+            cat "$RESPONSE_BODY"
+          fi
+          echo "::endgroup::"
 
           if [ "$http_code" -ne 200 ]; then
             echo "::error::TV-Ratings-Crawler fehlgeschlagen (HTTP $http_code)"

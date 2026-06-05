@@ -233,11 +233,27 @@ app.post("/api/crawl/blome-pfeffer", async (req, res) => {
 // POST /api/crawl/tv-ratings
 app.post("/api/crawl/tv-ratings", async (req, res) => {
   console.log("📺 TV Ratings Crawler gestartet...");
-  const results: Record<string, { success: boolean; error?: string }> = {};
+  const results: Record<
+    string,
+    {
+      success: boolean;
+      found?: number;
+      eligible?: number;
+      savedCount?: number;
+      saved?: unknown[];
+      error?: string;
+    }
+  > = {};
 
   try {
-    await crawlARDRatings();
-    results["ARD"] = { success: true };
+    const result = await crawlARDRatings();
+    results["ARD"] = {
+      success: true,
+      found: result.found,
+      eligible: result.eligible,
+      savedCount: result.saved.length,
+      saved: result.saved,
+    };
   } catch (error) {
     console.error("Fehler beim ARD Crawlen:", error);
     results["ARD"] = {
@@ -247,8 +263,14 @@ app.post("/api/crawl/tv-ratings", async (req, res) => {
   }
 
   try {
-    await crawlZDFRatings();
-    results["ZDF"] = { success: true };
+    const result = await crawlZDFRatings();
+    results["ZDF"] = {
+      success: true,
+      found: result.found,
+      eligible: result.eligible,
+      savedCount: result.saved.length,
+      saved: result.saved,
+    };
   } catch (error) {
     console.error("Fehler beim ZDF Crawlen:", error);
     results["ZDF"] = {

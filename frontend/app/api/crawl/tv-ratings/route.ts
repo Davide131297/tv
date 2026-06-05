@@ -2,12 +2,28 @@ import { NextResponse } from "next/server";
 import { crawlARDRatings, crawlZDFRatings } from "@/crawler/tv-ratings";
 
 export async function POST() {
-  const results: Record<string, { success: boolean; error?: string }> = {};
+  const results: Record<
+    string,
+    {
+      success: boolean;
+      found?: number;
+      eligible?: number;
+      savedCount?: number;
+      saved?: unknown[];
+      error?: string;
+    }
+  > = {};
 
   // ARD
   try {
-    await crawlARDRatings();
-    results["ARD"] = { success: true };
+    const result = await crawlARDRatings();
+    results["ARD"] = {
+      success: true,
+      found: result.found,
+      eligible: result.eligible,
+      savedCount: result.saved.length,
+      saved: result.saved,
+    };
   } catch (error) {
     console.error("Fehler beim ARD Crawlen:", error);
     results["ARD"] = {
@@ -18,8 +34,14 @@ export async function POST() {
 
   // ZDF
   try {
-    await crawlZDFRatings();
-    results["ZDF"] = { success: true };
+    const result = await crawlZDFRatings();
+    results["ZDF"] = {
+      success: true,
+      found: result.found,
+      eligible: result.eligible,
+      savedCount: result.saved.length,
+      saved: result.saved,
+    };
   } catch (error) {
     console.error("Fehler beim ZDF Crawlen:", error);
     results["ZDF"] = {

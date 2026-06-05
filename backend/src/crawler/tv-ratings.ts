@@ -11,6 +11,12 @@ interface TvRating {
   viewers_millions: number;
 }
 
+interface SaveRatingsResult {
+  found: number;
+  eligible: number;
+  saved: TvRating[];
+}
+
 // Deutsche Monatsnamen → Monatsnummer
 const MONTH_MAP: Record<string, string> = {
   januar: "01",
@@ -27,10 +33,13 @@ const MONTH_MAP: Record<string, string> = {
   dezember: "12",
 };
 
-async function saveRatings(ratings: TvRating[], label: string) {
+async function saveRatings(
+  ratings: TvRating[],
+  label: string,
+): Promise<SaveRatingsResult> {
   if (ratings.length === 0) {
     console.log(`Keine relevanten Sendungen gefunden (${label}).`);
-    return;
+    return { found: 0, eligible: 0, saved: [] };
   }
 
   console.log(
@@ -74,7 +83,7 @@ async function saveRatings(ratings: TvRating[], label: string) {
     console.log(
       `Keine Sendungen mit eingetragenen Politikern gefunden (${label}).`,
     );
-    return;
+    return { found: ratings.length, eligible: 0, saved: [] };
   }
 
   console.log(
@@ -94,6 +103,12 @@ async function saveRatings(ratings: TvRating[], label: string) {
   console.log(
     `✅ ${data?.length ?? 0} Einträge gespeichert/aktualisiert (${label}).`,
   );
+
+  return {
+    found: ratings.length,
+    eligible: ratingsWithPoliticians.length,
+    saved: data ?? [],
+  };
 }
 
 // ============================================
@@ -178,9 +193,10 @@ export async function crawlARDRatings() {
   }
   const html = await response.text();
   const ratings = parseARDTable(html);
-  await saveRatings(ratings, "ARD");
+  const result = await saveRatings(ratings, "ARD");
 
   console.log("=== ARD Ratings Crawler abgeschlossen ===");
+  return result;
 }
 
 // ============================================
@@ -257,7 +273,8 @@ export async function crawlZDFRatings() {
   }
   const html = await response.text();
   const ratings = parseZDFTable(html);
-  await saveRatings(ratings, "ZDF");
+  const result = await saveRatings(ratings, "ZDF");
 
   console.log("=== ZDF Ratings Crawler abgeschlossen ===");
+  return result;
 }
