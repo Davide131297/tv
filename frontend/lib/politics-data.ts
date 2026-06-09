@@ -473,6 +473,13 @@ export async function getTvRatingsDashboardData(): Promise<{
   politicianStats: PoliticianTvRatingsStat[];
   partyStats: PartyTvRatingsStat[];
 }> {
+  const normalizeShowName = (value: string | null | undefined) =>
+    value?.trim().toLocaleLowerCase("de-DE") ?? "";
+  const makeEpisodeKey = (
+    showName: string | null | undefined,
+    episodeDate: string | null | undefined,
+  ) => `${normalizeShowName(showName)}|${episodeDate ?? ""}`;
+
   const { data: ratingsData, error: ratingsError } = await supabase
     .from("tv_ratings")
     .select("show_name, episode_date, market_share, viewers_millions")
@@ -498,6 +505,7 @@ export async function getTvRatingsDashboardData(): Promise<{
   }
 
   const showNames = Array.from(new Set(ratings.map((row) => row.show_name)));
+  const normalizedShowNames = new Set(showNames.map((name) => normalizeShowName(name)));
   const episodeDates = ratings.map((row) => row.episode_date);
   const minDate = episodeDates.reduce((min, date) => (date < min ? date : min));
   const maxDate = episodeDates.reduce((max, date) => (date > max ? date : max));
@@ -507,13 +515,11 @@ export async function getTvRatingsDashboardData(): Promise<{
       supabase
         .from("show_links")
         .select("show_name, episode_date, episode_url")
-        .in("show_name", showNames)
         .gte("episode_date", minDate)
         .lte("episode_date", maxDate),
       supabase
         .from("tv_show_politicians")
         .select("show_name, episode_date, politician_name, party_name")
-        .in("show_name", showNames)
         .gte("episode_date", minDate)
         .lte("episode_date", maxDate),
     ]);
@@ -523,12 +529,16 @@ export async function getTvRatingsDashboardData(): Promise<{
 
   const episodeUrlMap = new Map<string, string>();
   (showLinksData || []).forEach((row) => {
-    episodeUrlMap.set(`${row.show_name}|${row.episode_date}`, row.episode_url);
+    if (!normalizedShowNames.has(normalizeShowName(row.show_name))) return;
+
+    episodeUrlMap.set(makeEpisodeKey(row.show_name, row.episode_date), row.episode_url);
   });
 
   const politiciansByEpisode = new Map<string, PoliticianInEpisode[]>();
   (politiciansData || []).forEach((row) => {
-    const key = `${row.show_name}|${row.episode_date}`;
+    if (!normalizedShowNames.has(normalizeShowName(row.show_name))) return;
+
+    const key = makeEpisodeKey(row.show_name, row.episode_date);
     const list = politiciansByEpisode.get(key) || [];
     list.push({
       name: row.politician_name,
@@ -538,7 +548,7 @@ export async function getTvRatingsDashboardData(): Promise<{
   });
 
   const ratingRows: TvRatingOverview[] = ratings.map((row) => {
-    const key = `${row.show_name}|${row.episode_date}`;
+    const key = makeEpisodeKey(row.show_name, row.episode_date);
     return {
       ...row,
       episode_url: episodeUrlMap.get(key) || null,
