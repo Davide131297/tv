@@ -8,11 +8,13 @@ export const metadata: Metadata = {
 export default function DatenschutzPage() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <h1 className="text-3xl font-bold mb-8">Datenschutzerklärung</h1>
+      <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-white">
+        Datenschutzerklärung
+      </h1>
 
-      <div className="prose prose-gray max-w-none">
+      <div className="prose prose-gray max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-li:text-gray-700 prose-strong:text-gray-900 prose-a:text-blue-600 dark:prose-invert dark:prose-headings:!text-white dark:prose-p:!text-white dark:prose-li:!text-white dark:prose-strong:!text-white dark:prose-a:!text-blue-300 dark:!text-white">
         <section className="mb-8">
-          <h2 className="text-2xl font-semibold mb-4">
+          <h2 className="text-2xl font-semibold mb-4 dark:!text-white">
             1. Datenschutz auf einen Blick
           </h2>
 
@@ -25,22 +27,21 @@ export default function DatenschutzPage() {
             Website ist:
           </p>
 
-          <div className="bg-gray-50 p-4 rounded-lg mb-4">
-            <p className="font-medium">Davide Chiffi</p>
-            <p>Kalk-Mülheimer Straße 177</p>
-            <p>51103 Köln</p>
-            <p>Deutschland</p>
-            <br />
-            <p>
+          <address className="not-prose mb-6 mt-2 space-y-1 text-gray-700 not-italic dark:text-white">
+            <p>Davide Chiffi</p>
+            <p>c/o Autorenglück #77263</p>
+            <p>Albert-Einstein-Straße 47</p>
+            <p>02977 Hoyerswerda</p>
+            <p className="pt-3">
               Email:{" "}
               <a
                 href="mailto:kontakt@polittalk-watcher.de"
-                className="text-blue-600 hover:text-blue-800 underline"
+                className="text-blue-600 underline hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
               >
                 kontakt@polittalk-watcher.de
               </a>
             </p>
-          </div>
+          </address>
 
           <p className="mb-4">
             Die folgenden Hinweise geben einen einfachen Überblick darüber, was
@@ -86,14 +87,14 @@ export default function DatenschutzPage() {
             Dienstanbieter: Vercel Inc., 340 S Lemon Ave #4133, Walnut, CA
             91789, USA; Website:{" "}
             <Link
-              className="text-blue-500 underline hover:text-blue-700"
+              className="text-blue-600 underline hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
               href="https://vercel.com"
             >
               https://vercel.com
             </Link>
             . Datenschutzerklärung:{" "}
             <Link
-              className="text-blue-500 underline hover:text-blue-700"
+              className="text-blue-600 underline hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
               href="https://vercel.com/legal/privacy-policy"
             >
               https://vercel.com/legal/privacy-policy
@@ -123,7 +124,7 @@ export default function DatenschutzPage() {
             Weitere Informationen zur Datenverarbeitung durch Google finden Sie
             unter:{" "}
             <Link
-              className="text-blue-500 underline hover:text-blue-700"
+              className="text-blue-600 underline hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
               href="https://policies.google.com/privacy"
             >
               https://policies.google.com/privacy
@@ -192,8 +193,8 @@ export default function DatenschutzPage() {
           </p>
         </section>
 
-        <div className="mt-8 pt-8 border-t border-gray-200">
-          <p className="text-sm text-gray-600">
+        <div className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-800">
+          <p className="text-sm text-gray-600 dark:!text-white">
             Stand: {new Date().toLocaleDateString("de-DE")}
           </p>
         </div>

@@ -15,9 +15,11 @@ export default function Page() {
           <p>
             Davide Chiffi
             <br />
-            Kalk-Mülheimer Str. 177
+            c/o Autorenglück #77263
             <br />
-            51103 Köln
+            Albert-Einstein-Straße 47
+            <br />
+            02977 Hoyerswerda
           </p>
         </section>
 

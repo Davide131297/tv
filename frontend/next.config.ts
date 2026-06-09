@@ -62,16 +62,6 @@ const nextConfig: NextConfig = {
   //       destination: "/",
   //       permanent: true,
   //     },
-         {
-           source: "/datenschutz",
-           destination: "/",
-           permanent: true,
-         },
-         {
-           source: "/impressum",
-           destination: "/",
-           permanent: true,
-         },
       ];
      },
 };
