@@ -16,11 +16,19 @@ import {
   isModeratorOrHost,
   GuestWithRole,
 } from "../lib/crawler-utils.js";
+import {
+  fetchZdfSeasonEpisodes,
+  fetchZdfEpisodeHtml,
+  parseZdfEpisodeHtml,
+  ZdfEpisode,
+  ZdfSeasonResult
+} from "../lib/zdf-api.js";
 
 const currentYear = new Date().getFullYear();
 const LIST_URL = `https://www.zdf.de/talk/maybrit-illner-128?staffel=${currentYear}`;
 
-// Extrahiere Episodenbeschreibung und bestimme politische Themenbereiche
+// ---------------- Puppeteer Fallback Functions (Original Code) ----------------
+
 async function extractEpisodeDescription(page: Page): Promise<string | null> {
   try {
     const description = await page.evaluate(() => {
@@ -53,7 +61,6 @@ async function extractEpisodeDescription(page: Page): Promise<string | null> {
   }
 }
 
-// Extrahiere die neuesten Episode-Links (nur die ersten paar)
 async function getLatestEpisodeLinks(
   page: Page,
   limit = 10,
@@ -75,7 +82,6 @@ async function getLatestEpisodeLinks(
   return urls;
 }
 
-// Extrahiere ALLE verfügbaren Episode-Links durch Scrollen und Paginierung
 async function getAllEpisodeLinks(page: Page): Promise<string[]> {
   await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 60000 });
 
@@ -116,13 +122,12 @@ async function getAllEpisodeLinks(page: Page): Promise<string[]> {
         await new Promise((resolve) => setTimeout(resolve, 3000));
       }
     } catch {
-      // Kein Load-More Button gefunden, das ist ok
+      // No load more button, that's fine
     }
   }
 
   const finalUrls = Array.from(allUrls);
 
-  // Sortiere nach Datum (neuste zuerst)
   const urlsWithDates = finalUrls
     .map((url) => ({
       url,
@@ -134,7 +139,6 @@ async function getAllEpisodeLinks(page: Page): Promise<string[]> {
   return urlsWithDates.map((ep) => ep.url);
 }
 
-// Filtere nur neue Episoden (neuere als das letzte Datum in der DB)
 function filterNewEpisodes(
   episodeUrls: string[],
   latestDbDate: string | null,
@@ -152,11 +156,10 @@ function filterNewEpisodes(
 
   const newEpisodes = episodesWithDates.filter((ep) => ep.date > latestDbDate);
 
-  return newEpisodes.sort((a, b) => b.date.localeCompare(a.date)); // Neueste zuerst
+  return newEpisodes.sort((a, b) => b.date.localeCompare(a.date));
 }
 
-// Extrahiere Gäste aus einer Maybrit Illner Episode
-async function extractGuestsFromEpisode(
+async function extractGuestsFromEpisodePuppeteer(
   page: Page,
   episodeUrl: string,
 ): Promise<{ guests: GuestWithRole[]; description?: string }> {
@@ -191,7 +194,6 @@ async function extractGuestsFromEpisode(
     )
     .catch(() => []);
 
-  // Fallback 1: Suche nach allen <li> Elementen im main Bereich
   if (!guestsWithRoles.length) {
     guestsWithRoles = await page
       .$$eval(
@@ -222,7 +224,6 @@ async function extractGuestsFromEpisode(
       .catch(() => []);
   }
 
-  // Fallback: Alt-Text vom Bild
   if (!guestsWithRoles.length) {
     const alt = await page
       .$eval(
@@ -241,7 +242,6 @@ async function extractGuestsFromEpisode(
     }
   }
 
-  // Fallback 2: Suche nach "Zu Gast" Text und extrahiere einfache Namen
   if (!guestsWithRoles.length) {
     const guestText = await page.evaluate(() => {
       const elements = document.querySelectorAll("*");
@@ -283,7 +283,6 @@ async function extractGuestsFromEpisode(
     }
   }
 
-  // Letzter Fallback: Alt-Text vom Bild
   if (!guestsWithRoles.length) {
     const alt = await page
       .$eval(
@@ -330,10 +329,8 @@ async function extractGuestsFromEpisode(
   };
 }
 
-// Hauptfunktion: Crawle nur neue Episoden
-export async function crawlNewMaybritIllnerEpisodes(): Promise<void> {
-  const latestDbDate = await getLatestEpisodeDate("Maybrit Illner");
-
+async function crawlNewMaybritIllnerEpisodesPuppeteer(latestDbDate: string | null): Promise<void> {
+  console.log("CrawlNewMaybritIllnerEpisodes: Falling back to Puppeteer...");
   const browser = await createBrowser();
 
   try {
@@ -352,7 +349,7 @@ export async function crawlNewMaybritIllnerEpisodes(): Promise<void> {
       return;
     }
 
-    console.log(`🆕 ${newEpisodes.length} neue Episoden zu crawlen`);
+    console.log(`🆕 ${newEpisodes.length} neue Episoden zu crawlen (Puppeteer)`);
 
     let totalPoliticiansInserted = 0;
     let totalEpisodeLinksInserted = 0;
@@ -363,7 +360,7 @@ export async function crawlNewMaybritIllnerEpisodes(): Promise<void> {
 
     for (const episode of newEpisodes) {
       try {
-        const result = await extractGuestsFromEpisode(page, episode.url);
+        const result = await extractGuestsFromEpisodePuppeteer(page, episode.url);
         const guests = result.guests;
         const description = result.description;
 
@@ -396,7 +393,6 @@ export async function crawlNewMaybritIllnerEpisodes(): Promise<void> {
           });
         }
 
-        // Log: Datum + Gäste + Politiker
         const guestNames = guests.map((g) => g.name);
         console.log(
           `📅 ${episode.date} | 👥 ${guestNames.join(", ")}${
@@ -449,7 +445,7 @@ export async function crawlNewMaybritIllnerEpisodes(): Promise<void> {
       );
     }
 
-    console.log(`\n=== Maybrit Illner Zusammenfassung ===`);
+    console.log(`\n=== Maybrit Illner Zusammenfassung (Puppeteer) ===`);
     console.log(`Episoden verarbeitet: ${episodesProcessed}`);
     console.log(`Politiker eingefügt: ${totalPoliticiansInserted}`);
     console.log(`Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
@@ -458,8 +454,8 @@ export async function crawlNewMaybritIllnerEpisodes(): Promise<void> {
   }
 }
 
-// Hauptfunktion: VOLLSTÄNDIGER historischer Crawl ALLER Episoden
-export async function crawlAllMaybritIllnerEpisodes(): Promise<void> {
+async function crawlAllMaybritIllnerEpisodesPuppeteer(): Promise<void> {
+  console.log("CrawlAllMaybritIllnerEpisodes: Falling back to Puppeteer...");
   const browser = await createBrowser();
 
   try {
@@ -481,16 +477,9 @@ export async function crawlAllMaybritIllnerEpisodes(): Promise<void> {
       .sort((a, b) => a.date!.localeCompare(b.date!)) as Array<{
       url: string;
       date: string;
-    }>; // Älteste zuerst für historischen Crawl
+    }>;
 
-    console.log(`📺 Gefunden: ${allEpisodes.length} Episoden zum Crawlen`);
-    if (allEpisodes.length > 0) {
-      console.log(
-        `📅 Zeitraum: ${allEpisodes[0]?.date} bis ${
-          allEpisodes[allEpisodes.length - 1]?.date
-        }`,
-      );
-    }
+    console.log(`📺 Gefunden: ${allEpisodes.length} Episoden zum Crawlen (Puppeteer)`);
 
     let totalPoliticiansInserted = 0;
     let totalEpisodeLinksInserted = 0;
@@ -510,7 +499,7 @@ export async function crawlAllMaybritIllnerEpisodes(): Promise<void> {
           }`,
         );
 
-        const result = await extractGuestsFromEpisode(page, episode.url);
+        const result = await extractGuestsFromEpisodePuppeteer(page, episode.url);
         const guests = result.guests;
         const description = result.description;
 
@@ -536,7 +525,6 @@ export async function crawlAllMaybritIllnerEpisodes(): Promise<void> {
           await new Promise((resolve) => setTimeout(resolve, 300));
         }
 
-        // Log: Datum + Gäste + Politiker
         const guestNames = guests.map((g) => g.name);
         console.log(
           `📅 ${episode.date} | 👥 ${guestNames.join(", ")}${
@@ -594,25 +582,285 @@ export async function crawlAllMaybritIllnerEpisodes(): Promise<void> {
         "Maybrit Illner",
         episodeLinksToInsert,
       );
-      console.log(
-        `📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}/${episodeLinksToInsert.length}`,
-      );
     }
 
-    console.log(`\n🎉 VOLLSTÄNDIGER Maybrit Illner Crawl abgeschlossen!`);
+    console.log(`\n🎉 VOLLSTÄNDIGER Maybrit Illner Crawl abgeschlossen (Puppeteer)!`);
     console.log(
       `📊 Episoden verarbeitet: ${episodesProcessed}/${allEpisodes.length}`,
     );
-    console.log(`👥 Politiker eingefügt: ${totalPoliticiansInserted}`);
-    console.log(`📎 Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
-    console.log(`❌ Episoden mit Fehlern: ${episodesWithErrors}`);
-
-    if (episodesWithErrors > 0) {
-      console.log(
-        `⚠️  ${episodesWithErrors} Episoden hatten Fehler und wurden übersprungen`,
-      );
-    }
   } finally {
     await browser.close().catch(() => {});
+  }
+}
+
+// ---------------- Primary GraphQL / API Crawlers ----------------
+
+async function storeIllnerEpisodesInDb(episodesToStore: Array<{ url: string; date: string; guests: { name: string; role?: string }[]; description?: string }>) {
+  let totalPoliticiansInserted = 0;
+  let totalEpisodeLinksInserted = 0;
+  let episodesProcessed = 0;
+
+  const episodeLinksToInsert: { episodeUrl: string; episodeDate: string }[] = [];
+
+  for (const episode of episodesToStore) {
+    try {
+      const politicians = [];
+      for (const guest of episode.guests) {
+        const details = await checkPolitician(guest.name, guest.role);
+
+        if (
+          details.isPolitician &&
+          details.politicianId &&
+          details.politicianName
+        ) {
+          politicians.push({
+            politicianId: details.politicianId,
+            politicianName: details.politicianName,
+            partyId: details.party,
+            partyName: details.partyName,
+          });
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+
+      if (politicians.length > 0) {
+        episodeLinksToInsert.push({
+          episodeUrl: episode.url,
+          episodeDate: episode.date,
+        });
+      }
+
+      const guestNames = episode.guests.map((g) => g.name);
+      console.log(
+        `📅 ${episode.date} | 👥 ${guestNames.join(", ")}${
+          politicians.length > 0
+            ? ` | ✅ Politiker: ${politicians
+                .map((p) => `${p.politicianName} (${p.partyName || "?"})`)
+                .join(", ")}`
+            : ""
+        }`,
+      );
+
+      if (politicians.length > 0) {
+        let politicalAreaIds: number[] = [];
+        if (episode.description) {
+          const areas = await getPoliticalArea(episode.description);
+          politicalAreaIds = areas || [];
+        }
+
+        const inserted = await insertMultipleTvShowPoliticians(
+          "ZDF",
+          "Maybrit Illner",
+          episode.date,
+          politicians,
+        );
+
+        totalPoliticiansInserted += inserted;
+
+        if (politicalAreaIds && politicalAreaIds.length > 0) {
+          await insertEpisodePoliticalAreas(
+            "Maybrit Illner",
+            episode.date,
+            politicalAreaIds,
+          );
+        }
+      }
+
+      episodesProcessed++;
+    } catch (error: any) {
+      console.error(`❌ Fehler beim Verarbeiten von Episode ${episode.date}:`, error.message);
+    }
+  }
+
+  if (episodeLinksToInsert.length > 0) {
+    totalEpisodeLinksInserted = await insertMultipleShowLinks(
+      "Maybrit Illner",
+      episodeLinksToInsert,
+    );
+  }
+
+  console.log(`\n=== Maybrit Illner Datenbank-Speicherung Zusammenfassung ===`);
+  console.log(`Episoden verarbeitet: ${episodesProcessed}`);
+  console.log(`Politiker eingefügt: ${totalPoliticiansInserted}`);
+  console.log(`Episode-URLs eingefügt: ${totalEpisodeLinksInserted}`);
+}
+
+async function crawlNewMaybritIllnerEpisodesAPI(latestDbDate: string | null): Promise<void> {
+  console.log("CrawlNewMaybritIllnerEpisodes: Starting API-mode...");
+
+  // 1) Fetch season episodes from GraphQL
+  const allApiEpisodes: ZdfEpisode[] = [];
+  let hasNext = true;
+  let cursor: string | null = null;
+  let pageCount = 0;
+
+  while (hasNext && pageCount < 5) {
+    const pageResult: ZdfSeasonResult = await fetchZdfSeasonEpisodes("maybrit-illner-128", 0, cursor || undefined);
+    allApiEpisodes.push(...pageResult.episodes);
+    
+    // Stop paging if we are beyond latest DB date
+    if (latestDbDate && pageResult.episodes.length > 0) {
+      const oldestEpisode = pageResult.episodes[pageResult.episodes.length - 1];
+      const oldestDate = oldestEpisode.editorialDate ? oldestEpisode.editorialDate.substring(0, 10) : null;
+      if (oldestDate && oldestDate <= latestDbDate) {
+        break;
+      }
+    }
+    
+    hasNext = pageResult.hasNextPage;
+    cursor = pageResult.endCursor;
+    pageCount++;
+  }
+
+  // 2) Filter new episodes
+  const newEpisodes = allApiEpisodes
+    .map((ep) => ({
+      url: ep.sharingUrl,
+      date: ep.editorialDate ? ep.editorialDate.substring(0, 10) : null,
+      apiDescription: ep.description
+    }))
+    .filter((ep) => ep.date !== null && (!latestDbDate || ep.date > latestDbDate)) as Array<{ url: string; date: string; apiDescription?: string }>;
+
+  if (newEpisodes.length === 0) {
+    console.log("✅ Keine neuen Episoden gefunden - alles aktuell!");
+    return;
+  }
+
+  console.log(`🆕 ${newEpisodes.length} neue Episoden zu crawlen (API)`);
+
+  const episodesToStore = [];
+  const batchSize = 5;
+
+  for (let i = 0; i < newEpisodes.length; i += batchSize) {
+    const batch = newEpisodes.slice(i, i + batchSize);
+    
+    const batchResults = await Promise.all(
+      batch.map(async (episode) => {
+        try {
+          const html = await fetchZdfEpisodeHtml(episode.url);
+          const parsed = parseZdfEpisodeHtml("illner", html);
+          
+          return {
+            url: episode.url,
+            date: episode.date,
+            guests: parsed.guests,
+            description: parsed.description || episode.apiDescription
+          };
+        } catch (e: any) {
+          console.warn(`Fehler bei Episode ${episode.url}:`, e.message);
+          return null;
+        }
+      })
+    );
+
+    for (const r of batchResults) {
+      if (r && r.guests.length > 0) {
+        episodesToStore.push(r);
+      }
+    }
+
+    if (i + batchSize < newEpisodes.length) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+  }
+
+  if (episodesToStore.length > 0) {
+    await storeIllnerEpisodesInDb(episodesToStore);
+  }
+}
+
+async function crawlAllMaybritIllnerEpisodesAPI(): Promise<void> {
+  console.log("CrawlAllMaybritIllnerEpisodes: Starting API-mode...");
+
+  // 1) Fetch all season episodes from GraphQL
+  const allApiEpisodes: ZdfEpisode[] = [];
+  let hasNext = true;
+  let cursor: string | null = null;
+  let pageCount = 0;
+
+  while (hasNext && pageCount < 20) {
+    const pageResult: ZdfSeasonResult = await fetchZdfSeasonEpisodes("maybrit-illner-128", 0, cursor || undefined);
+    allApiEpisodes.push(...pageResult.episodes);
+    hasNext = pageResult.hasNextPage;
+    cursor = pageResult.endCursor;
+    pageCount++;
+  }
+
+  // Map and filter (oldest first for historical crawl)
+  const allEpisodes = allApiEpisodes
+    .map((ep) => ({
+      url: ep.sharingUrl,
+      date: ep.editorialDate ? ep.editorialDate.substring(0, 10) : null,
+      apiDescription: ep.description
+    }))
+    .filter((ep) => ep.date !== null)
+    .sort((a, b) => a.date!.localeCompare(b.date!)) as Array<{ url: string; date: string; apiDescription?: string }>;
+
+  console.log(`📺 Gefunden: ${allEpisodes.length} Episoden zum Crawlen (API)`);
+
+  const episodesToStore = [];
+  const batchSize = 5;
+
+  for (let i = 0; i < allEpisodes.length; i += batchSize) {
+    const batch = allEpisodes.slice(i, i + batchSize);
+    console.log(`Processing batch [${i + 1}-${Math.min(i + batchSize, allEpisodes.length)} / ${allEpisodes.length}]`);
+
+    const batchResults = await Promise.all(
+      batch.map(async (episode) => {
+        try {
+          const html = await fetchZdfEpisodeHtml(episode.url);
+          const parsed = parseZdfEpisodeHtml("illner", html);
+          
+          return {
+            url: episode.url,
+            date: episode.date,
+            guests: parsed.guests,
+            description: parsed.description || episode.apiDescription
+          };
+        } catch (e: any) {
+          console.warn(`Fehler bei Episode ${episode.url}:`, e.message);
+          return null;
+        }
+      })
+    );
+
+    for (const r of batchResults) {
+      if (r && r.guests.length > 0) {
+        episodesToStore.push(r);
+      }
+    }
+
+    if (i + batchSize < allEpisodes.length) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+  }
+
+  if (episodesToStore.length > 0) {
+    await storeIllnerEpisodesInDb(episodesToStore);
+  }
+}
+
+// ---------------- Entry Points ----------------
+
+// Hauptfunktion: Crawle nur neue Episoden
+export async function crawlNewMaybritIllnerEpisodes(): Promise<void> {
+  const latestDbDate = await getLatestEpisodeDate("Maybrit Illner");
+
+  try {
+    await crawlNewMaybritIllnerEpisodesAPI(latestDbDate);
+  } catch (error: any) {
+    console.error("crawlNewMaybritIllnerEpisodes API failed, falling back to Puppeteer:", error.message);
+    await crawlNewMaybritIllnerEpisodesPuppeteer(latestDbDate);
+  }
+}
+
+// Hauptfunktion: VOLLSTÄNDIGER historischer Crawl ALLER Episoden
+export async function crawlAllMaybritIllnerEpisodes(): Promise<void> {
+  try {
+    await crawlAllMaybritIllnerEpisodesAPI();
+  } catch (error: any) {
+    console.error("crawlAllMaybritIllnerEpisodes API failed, falling back to Puppeteer:", error.message);
+    await crawlAllMaybritIllnerEpisodesPuppeteer();
   }
 }

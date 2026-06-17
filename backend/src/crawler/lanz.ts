@@ -18,10 +18,17 @@ import {
 } from "../lib/crawler-utils.js";
 import { Page } from "puppeteer";
 import { getPoliticalArea } from "../lib/utils.js";
+import {
+  fetchZdfSeasonEpisodes,
+  fetchZdfEpisodeHtml,
+  parseZdfEpisodeHtml,
+  ZdfEpisode,
+  ZdfSeasonResult
+} from "../lib/zdf-api.js";
 
 const LIST_URL = `https://www.zdf.de/talk/markus-lanz-114?staffel=$%7BcurrentYear%7D`;
 
-// ---------------- Lade mehr / Episoden-Links ----------------
+// ---------------- Puppeteer Fallback Functions (Original Code) ----------------
 
 async function clickLoadMoreUntilDone(
   page: Page,
@@ -147,8 +154,6 @@ async function collectEpisodeLinks(page: Page) {
   return urls;
 }
 
-// ---------------- Gäste aus Episode ----------------
-
 async function extractGuestsFromEpisode(
   page: Page,
   episodeUrl: string,
@@ -238,8 +243,6 @@ async function extractGuestsFromEpisode(
   return uniqueGuests;
 }
 
-// ---------------- Episode Text Extraktion ----------------
-
 async function extractEpisodeDescription(page: Page): Promise<string | null> {
   try {
     const selectors = [
@@ -278,9 +281,8 @@ async function extractEpisodeDescription(page: Page): Promise<string | null> {
   }
 }
 
-export default async function CrawlLanz() {
-  const latestEpisodeDate = await getLatestEpisodeDate("Markus Lanz");
-
+async function CrawlLanzPuppeteer(latestEpisodeDate: string | null) {
+  console.log("Starting Lanz Crawling with Puppeteer fallback...");
   const browser = await createBrowser();
 
   try {
@@ -346,7 +348,6 @@ export default async function CrawlLanz() {
 
             const guestNames = guests.map((g) => g.name);
 
-            // Log: Datum + Gäste + gefundene Politiker
             if (date) {
               const foundPoliticians = guestsDetailed.filter(
                 (g) => g.isPolitician && g.politicianId,
@@ -404,96 +405,269 @@ export default async function CrawlLanz() {
     const finalResults =
       byDate.size > 0 ? Array.from(byDate.values()) : results;
 
-    finalResults.sort((a: EpisodeResult, b: EpisodeResult) => {
-      if (!a.date && !b.date) return 0;
-      if (!a.date) return 1;
-      if (!b.date) return -1;
-      return b.date.localeCompare(a.date);
-    });
+    return finalResults;
+  } finally {
+    await browser.close().catch(() => {});
+  }
+}
 
-    let totalPoliticiansInserted = 0;
-    let totalPoliticalAreasInserted = 0;
-    let totalEpisodeLinksInserted = 0;
-    let episodesWithPoliticians = 0;
+// ---------------- Database Storage Function (Shared) ----------------
 
-    const episodeLinksToInsert = finalResults
-      .filter((episode) => {
-        if (!episode.date) return false;
-        const hasPoliticians = episode.guestsDetailed.some(
-          (guest) => guest.isPolitician && guest.politicianId,
-        );
-        return hasPoliticians;
-      })
-      .map((episode) => ({
-        episodeUrl: episode.episodeUrl,
-        episodeDate: episode.date!,
+async function storeEpisodesInDb(finalResults: EpisodeResult[]) {
+  finalResults.sort((a: EpisodeResult, b: EpisodeResult) => {
+    if (!a.date && !b.date) return 0;
+    if (!a.date) return 1;
+    if (!b.date) return -1;
+    return b.date.localeCompare(a.date);
+  });
+
+  let totalPoliticiansInserted = 0;
+  let totalPoliticalAreasInserted = 0;
+  let totalEpisodeLinksInserted = 0;
+  let episodesWithPoliticians = 0;
+
+  const episodeLinksToInsert = finalResults
+    .filter((episode) => {
+      if (!episode.date) return false;
+      const hasPoliticians = episode.guestsDetailed.some(
+        (guest) => guest.isPolitician && guest.politicianId,
+      );
+      return hasPoliticians;
+    })
+    .map((episode) => ({
+      episodeUrl: episode.episodeUrl,
+      episodeDate: episode.date!,
+    }));
+
+  if (episodeLinksToInsert.length > 0) {
+    totalEpisodeLinksInserted = await insertMultipleShowLinks(
+      "Markus Lanz",
+      episodeLinksToInsert,
+    );
+  }
+
+  for (const episode of finalResults) {
+    if (!episode.date) continue;
+
+    const politicians = episode.guestsDetailed
+      .filter((guest) => guest.isPolitician && guest.politicianId)
+      .map((guest) => ({
+        politicianId: guest.politicianId!,
+        politicianName: guest.politicianName || guest.name,
+        partyId: guest.party,
+        partyName: guest.partyName,
       }));
 
-    if (episodeLinksToInsert.length > 0) {
-      totalEpisodeLinksInserted = await insertMultipleShowLinks(
+    if (politicians.length > 0) {
+      let politicalAreaIds: number[] = [];
+      if (episode.description) {
+        const areas = await getPoliticalArea(episode.description);
+        politicalAreaIds = areas || [];
+      }
+
+      const inserted = await insertMultipleTvShowPoliticians(
+        "ZDF",
         "Markus Lanz",
-        episodeLinksToInsert,
+        episode.date,
+        politicians,
       );
-    }
 
-    for (const episode of finalResults) {
-      if (!episode.date) continue;
+      totalPoliticiansInserted += inserted;
+      episodesWithPoliticians++;
 
-      const politicians = episode.guestsDetailed
-        .filter((guest) => guest.isPolitician && guest.politicianId)
-        .map((guest) => ({
-          politicianId: guest.politicianId!,
-          politicianName: guest.politicianName || guest.name,
-          partyId: guest.party,
-          partyName: guest.partyName,
-        }));
-
-      if (politicians.length > 0) {
-        let politicalAreaIds: number[] = [];
-        // Hole Themenbereich nur, wenn Politiker anwesend und eine Beschreibung existiert
-        if (episode.description) {
-          const areas = await getPoliticalArea(episode.description);
-          politicalAreaIds = areas || [];
-        }
-
-        const inserted = await insertMultipleTvShowPoliticians(
-          "ZDF",
+      if (politicalAreaIds && politicalAreaIds.length > 0) {
+        const insertedAreas = await insertEpisodePoliticalAreas(
           "Markus Lanz",
           episode.date,
-          politicians,
+          politicalAreaIds,
         );
 
-        totalPoliticiansInserted += inserted;
-        episodesWithPoliticians++;
-
-        if (politicalAreaIds && politicalAreaIds.length > 0) {
-          const insertedAreas = await insertEpisodePoliticalAreas(
-            "Markus Lanz",
-            episode.date,
-            politicalAreaIds,
-          );
-
-          totalPoliticalAreasInserted += insertedAreas;
-        }
+        totalPoliticalAreasInserted += insertedAreas;
       }
     }
+  }
 
-    console.log(`\n=== Datenbank-Speicherung Zusammenfassung ===`);
-    console.log(`Episoden mit Politikern: ${episodesWithPoliticians}`);
-    console.log(`Politiker gesamt eingefügt: ${totalPoliticiansInserted}`);
+  console.log(`\n=== Datenbank-Speicherung Zusammenfassung ===`);
+  console.log(`Episoden mit Politikern: ${episodesWithPoliticians}`);
+  console.log(`Politiker gesamt eingefügt: ${totalPoliticiansInserted}`);
+  console.log(
+    `Politische Themenbereiche gesamt eingefügt: ${totalPoliticalAreasInserted}`,
+  );
+  console.log(`Episode-URLs gesamt eingefügt: ${totalEpisodeLinksInserted}`);
+}
+
+// ---------------- Primary GraphQL / API Crawler ----------------
+
+async function CrawlLanzAPI(latestEpisodeDate: string | null): Promise<EpisodeResult[]> {
+  console.log("Starting Lanz Crawling with API-mode...");
+  
+  // 1) Fetch season episodes from GraphQL API
+  // We can fetch up to 3 pages if the oldest episode is still newer than the latest DB date
+  const allApiEpisodes: ZdfEpisode[] = [];
+  let hasNext = true;
+  let cursor: string | null = null;
+  let pageCount = 0;
+
+  while (hasNext && pageCount < 5) {
+    const pageResult: ZdfSeasonResult = await fetchZdfSeasonEpisodes("markus-lanz-114", 0, cursor || undefined);
+    allApiEpisodes.push(...pageResult.episodes);
+    
+    // Check if we need to load more
+    if (latestEpisodeDate && pageResult.episodes.length > 0) {
+      const oldestEpisode = pageResult.episodes[pageResult.episodes.length - 1];
+      const oldestDate = oldestEpisode.editorialDate ? oldestEpisode.editorialDate.substring(0, 10) : null;
+      if (oldestDate && oldestDate <= latestEpisodeDate) {
+        console.log(`Oldest episode in current page (${oldestDate}) is older than or equal to latest DB date (${latestEpisodeDate}). Stopping pagination.`);
+        break;
+      }
+    }
+    
+    hasNext = pageResult.hasNextPage;
+    cursor = pageResult.endCursor;
+    pageCount++;
+  }
+
+  console.log(`Fetched ${allApiEpisodes.length} episodes from API across ${pageCount} page(s).`);
+
+  // 2) Filter new episodes
+  let filteredEpisodes = allApiEpisodes;
+  if (latestEpisodeDate) {
+    filteredEpisodes = allApiEpisodes.filter((ep) => {
+      const date = ep.editorialDate ? ep.editorialDate.substring(0, 10) : null;
+      return date && date > latestEpisodeDate;
+    });
     console.log(
-      `Politische Themenbereiche gesamt eingefügt: ${totalPoliticalAreasInserted}`,
+      `Nach Datum-Filter: ${filteredEpisodes.length}/${allApiEpisodes.length} Episoden (nur neuer als ${latestEpisodeDate})`,
     );
-    console.log(`Episode-URLs gesamt eingefügt: ${totalEpisodeLinksInserted}`);
+  }
+
+  if (!filteredEpisodes.length) {
+    console.log("Keine neuen Episoden zu crawlen gefunden.");
+    return [];
+  }
+
+  const byDate = new Map<string, EpisodeResult>();
+  const results: EpisodeResult[] = [];
+
+  // 3) Process new episodes in batches using direct HTTP fetches & Cheerio
+  const batchSize = 5; // We can use larger batches since this is just HTTP + Cheerio (not Puppeteer)
+  for (let i = 0; i < filteredEpisodes.length; i += batchSize) {
+    const batch = filteredEpisodes.slice(i, i + batchSize);
+    
+    const batchResults = await Promise.all(
+      batch.map(async (episode) => {
+        try {
+          const date = episode.editorialDate ? episode.editorialDate.substring(0, 10) : null;
+          console.log(`Processing episode: ${episode.sharingUrl} (${date})`);
+
+          // Fetch individual episode HTML
+          const html = await fetchZdfEpisodeHtml(episode.sharingUrl);
+          
+          // Parse guests & description
+          const parsed = parseZdfEpisodeHtml("lanz", html);
+          
+          const guestsDetailed: GuestDetails[] = [];
+          for (const guest of parsed.guests) {
+            const details = await checkPolitician(guest.name, guest.role);
+            guestsDetailed.push(details);
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+
+          const guestNames = parsed.guests.map((g) => g.name);
+
+          if (date) {
+            const foundPoliticians = guestsDetailed.filter(
+              (g) => g.isPolitician && g.politicianId,
+            );
+            console.log(
+              `📅 ${date} | 👥 ${guestNames.join(", ")}${
+                foundPoliticians.length > 0
+                  ? ` | ✅ Politiker: ${foundPoliticians
+                      .map(
+                        (p) => `${p.politicianName} (${p.partyName || "?"})`,
+                      )
+                      .join(", ")}`
+                  : ""
+              }`,
+            );
+          }
+
+          const res: EpisodeResult = {
+            episodeUrl: episode.sharingUrl,
+            date,
+            guests: guestNames,
+            guestsDetailed,
+            description: parsed.description || episode.description || undefined,
+          };
+
+          if (date) {
+            const prev = byDate.get(date);
+            if (!prev || guestNames.length > prev.guests.length) {
+              byDate.set(date, res);
+            }
+          }
+
+          return res;
+        } catch (e: any) {
+          console.warn(`Fehler bei Episode ${episode.sharingUrl}:`, e.message);
+          return {
+            episodeUrl: episode.sharingUrl,
+            date: episode.editorialDate ? episode.editorialDate.substring(0, 10) : null,
+            guests: [],
+            guestsDetailed: [],
+          };
+        }
+      })
+    );
+
+    results.push(...batchResults);
+    if (i + batchSize < filteredEpisodes.length) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+  }
+
+  return byDate.size > 0 ? Array.from(byDate.values()) : results;
+}
+
+// ---------------- Entry Point ----------------
+
+export default async function CrawlLanz() {
+  const latestEpisodeDate = await getLatestEpisodeDate("Markus Lanz");
+
+  try {
+    // Attempt API-only crawl first
+    const apiResults = await CrawlLanzAPI(latestEpisodeDate);
+    
+    if (apiResults.length > 0) {
+      await storeEpisodesInDb(apiResults);
+    } else {
+      console.log("API crawler successfully finished with no new episodes.");
+    }
 
     return {
-      message: "Lanz Crawling erfolgreich",
+      message: "Lanz Crawling (API-mode) erfolgreich",
       status: 200,
     };
-  } catch {
-    return {
-      message: "Fehler beim Lanz Crawling",
-      status: 500,
-    };
+  } catch (error: any) {
+    console.error("API-based CrawlLanz failed. Falling back to Puppeteer...", error.message);
+    
+    try {
+      const puppeteerResults = await CrawlLanzPuppeteer(latestEpisodeDate);
+      
+      if (Array.isArray(puppeteerResults) && puppeteerResults.length > 0) {
+        await storeEpisodesInDb(puppeteerResults);
+      }
+      
+      return {
+        message: "Lanz Crawling (Puppeteer-fallback) erfolgreich",
+        status: 200,
+      };
+    } catch (fallbackError: any) {
+      console.error("Puppeteer fallback also failed:", fallbackError.message);
+      return {
+        message: "Fehler beim Lanz Crawling (inklusive Fallback)",
+        status: 500,
+      };
+    }
   }
 }
