@@ -1,4 +1,4 @@
-import { VertexAI } from "@google-cloud/vertexai";
+import { GoogleGenAI } from "@google/genai";
 import { supabase } from "../supabase.js";
 import dotenv from "dotenv";
 import { AbgeordnetenwatchPolitician } from "../types/abgeordnetenwatch.js";
@@ -6,22 +6,16 @@ import axios from "axios";
 
 dotenv.config();
 
-// Google GenAI setup mit Vertex AI (Lazy Initialization)
-let vertexAI: VertexAI | null = null;
-const googleModel = process.env.GOOGLE_AI_MODEL || "gemini-2.0-flash";
+// Google GenAI setup (Lazy Initialization)
+let googleAI: GoogleGenAI | null = null;
+const googleModel = process.env.GOOGLE_AI_MODEL || "gemini-2.5-flash";
 
-function getVertexAI(): VertexAI {
-  if (!vertexAI) {
-    const projectId = "polittalk-watcher";
-
-    vertexAI = new VertexAI({
-      project: projectId,
-      location: "europe-west1",
-    });
-
-    console.log(`✅ Vertex AI initialisiert (Project: ${projectId})`);
+function getGoogleAI(): GoogleGenAI {
+  if (!googleAI) {
+    googleAI = new GoogleGenAI({});
+    console.log("✅ Google Gen AI initialisiert");
   }
-  return vertexAI;
+  return googleAI;
 }
 
 // Rate-Limiting für AI-Requests
@@ -209,25 +203,16 @@ export async function getPoliticalArea(
       );
       content = response.data.choices[0].message.content.trim();
     } else {
-      const generativeModel = getVertexAI().getGenerativeModel({
+      const response = await getGoogleAI().models.generateContent({
         model: googleModel,
-        systemInstruction: {
-          role: "system",
-          parts: [
-            {
-              text: "Du antwortest nur mit einem gültigen JSON Array von numbers (z.B. [1,2,...]). Keine zusätzlichen Zeichen.",
-            },
-          ],
+        contents: prompt,
+        config: {
+          systemInstruction:
+            "Du antwortest nur mit einem gültigen JSON Array von numbers (z.B. [1,2,...]). Keine zusätzlichen Zeichen.",
         },
       });
 
-      const result = await generativeModel.generateContent({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-      });
-
-      content =
-        result.response.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ??
-        "";
+      content = response.text?.trim() ?? "";
     }
 
     try {
@@ -794,24 +779,16 @@ Gib mir die Namen der Gäste im Text ausschließlich als JSON Array mit Strings 
       );
       content = response.data.choices[0].message.content;
     } else {
-      const generativeModel = getVertexAI().getGenerativeModel({
+      const response = await getGoogleAI().models.generateContent({
         model: googleModel,
-        systemInstruction: {
-          role: "system",
-          parts: [
-            {
-              text: 'Du extrahierst ausschließlich Personennamen und antwortest nur mit einem gültigen JSON Array von Strings (z.B. ["Name1","Name2",...]). Keine zusätzlichen Zeichen.',
-            },
-          ],
+        contents: prompt,
+        config: {
+          systemInstruction:
+            'Du extrahierst ausschließlich Personennamen und antwortest nur mit einem gültigen JSON Array von Strings (z.B. ["Name1","Name2",...]). Keine zusätzlichen Zeichen.',
         },
       });
 
-      const result = await generativeModel.generateContent({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-      });
-
-      content =
-        result.response.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+      content = response.text ?? "";
     }
 
     const arrayMatch = content.match(/\[[\s\S]*\]/);
