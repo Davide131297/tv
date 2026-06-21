@@ -29,6 +29,24 @@ const app = express();
 app.use(express.json());
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 8080;
+const API_BEARER_TOKEN = process.env.CRAWL_API_KEY;
+
+const requireBearerToken: express.RequestHandler = (req, res, next) => {
+  if (!API_BEARER_TOKEN) {
+    res.status(500).json({ error: "API bearer token is not configured" });
+    return;
+  }
+
+  const authHeader = req.headers.authorization;
+  const [scheme, token] = authHeader?.split(" ") ?? [];
+
+  if (scheme !== "Bearer" || token !== API_BEARER_TOKEN) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  next();
+};
 
 // ============================================
 // Health Check
@@ -39,6 +57,8 @@ app.get("/", (req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+app.use("/api", requireBearerToken);
 
 // ============================================
 // Crawler API Routes
