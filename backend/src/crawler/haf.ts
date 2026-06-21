@@ -5,10 +5,10 @@ import {
   insertEpisodePoliticalAreas,
   checkPolitician,
   extractGuestsWithAI,
+  getPoliticalArea,
 } from "../lib/utils.js";
-import { Page } from "puppeteer";
-import { createBrowser, setupSimplePage } from "../lib/browser-configs.js";
-import { getPoliticalArea } from "../lib/utils.js";
+import axios from "axios";
+import * as cheerio from "cheerio";
 
 interface EpisodeLink {
   wdrUrl: string;
@@ -33,121 +33,119 @@ interface EpisodeDetails {
 const LIST_URL = "https://www1.wdr.de/daserste/hartaberfair/index.html";
 const BASE_URL = "https://www1.wdr.de";
 
-async function extractLatestEpisodeFromHomepage(
-  page: Page,
-): Promise<EpisodeDetails | null> {
-  return await page.evaluate(() => {
-    // 1. Extract Date
-    const heading = document.querySelector("h2.conHeadline");
-    if (!heading?.textContent?.includes("Sendung vom")) return null;
-
-    const dateMatch = heading.textContent.match(/vom (\d{2}\.\d{2}\.\d{4})/);
-    if (!dateMatch) return null;
-
-    const [day, month, year] = dateMatch[1].split(".");
-    const date = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-
-    // 2. Extract Title & Description (Main Stage)
-    const stage = document.querySelector(".modA.modStage .teaser");
-    if (!stage) return null;
-
-    const titleElement = stage.querySelector("h4.headline");
-    // Often "Video: Title" or similar, clean it
-    let title = titleElement?.textContent?.trim() || "";
-    title = title.replace(/^Video:\s*/, "").trim();
-
-    const descriptionElement = stage.querySelector(".teasertext");
-    const description = descriptionElement?.textContent?.trim() || "";
-
-    // Extract URL
-    const linkEl = stage.querySelector("a");
-    const url = linkEl?.getAttribute("href") || "";
-
-    // 3. Extract Guests
-    const politicians: Array<{
-      name: string;
-      party?: string;
-      role?: string;
-    }> = [];
-
-    // Find the "Gäste" section
-    const sectionHeadlines = Array.from(
-      document.querySelectorAll("h2.conHeadline"),
-    );
-    const guestHeadline = sectionHeadlines.find((h) =>
-      h.textContent?.trim().includes("Gäste"),
-    );
-
-    if (guestHeadline) {
-      const guestSection = guestHeadline.closest(".section");
-      if (guestSection) {
-        const guestTeasers = guestSection.querySelectorAll(".box .teaser");
-        guestTeasers.forEach((teaser) => {
-          const headline = teaser.querySelector("h4.headline");
-          const preHeadline = headline?.getAttribute("data-pre-headline");
-          const subHeadline = teaser.querySelector(".teasertext"); // Sometimes role is here
-
-          if (headline) {
-            let fullName = headline.textContent?.trim() || "";
-            let party = "";
-            let role = preHeadline || "";
-
-            // Handle "Name, Party" format
-            if (fullName.includes(",")) {
-              const parts = fullName.split(",");
-              fullName = parts[0].trim();
-              party = parts[1].trim();
-            }
-
-            // Fallback for role if not in data-attribute
-            if (!role && subHeadline) {
-              const text = subHeadline.textContent?.trim() || "";
-              // Remove "mehr" link text
-              role = text.replace(/\|\s*mehr$/, "").trim();
-            }
-
-            if (fullName && fullName.length > 2) {
-              const exists = politicians.some((p) => p.name === fullName);
-              if (!exists) {
-                politicians.push({ name: fullName, party, role });
-              }
-            }
-          }
-        });
-      }
+function extractLatestEpisodeFromHomepage(
+  $: cheerio.CheerioAPI,
+): EpisodeDetails | null {
+  // 1. Extract Date
+  let date = "";
+  let headingText = "";
+  $('h2.conHeadline').each((_, el) => {
+    const text = $(el).text();
+    if (text.includes("Sendung vom")) {
+      headingText = text;
+      return false; // break
     }
-
-    return {
-      title,
-      date,
-      description,
-      politicians,
-      url: url,
-    };
   });
+
+  if (!headingText) return null;
+
+  const dateMatch = headingText.match(/vom (\d{2}\.\d{2}\.\d{4})/);
+  if (!dateMatch) return null;
+
+  const [day, month, year] = dateMatch[1].split(".");
+  date = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+
+  // 2. Extract Title & Description (Main Stage)
+  const stage = $(".modA.modStage .teaser").first();
+  if (stage.length === 0) return null;
+
+  const titleElement = stage.find("h4.headline");
+  let title = titleElement.text().trim();
+  title = title.replace(/^Video:\s*/, "").trim();
+
+  const descriptionElement = stage.find(".teasertext");
+  const description = descriptionElement.text().trim();
+
+  // Extract URL
+  const linkEl = stage.find("a").first();
+  const url = linkEl.attr("href") || "";
+
+  // 3. Extract Guests
+  const politicians: Array<{
+    name: string;
+    party?: string;
+    role?: string;
+  }> = [];
+
+  // Find the "Gäste" section
+  let guestSection: any = null;
+  $('h2.conHeadline').each((_: number, el: any) => {
+    if ($(el).text().trim().includes("Gäste")) {
+      guestSection = $(el).closest(".section");
+      return false; // break
+    }
+  });
+
+  if (guestSection && guestSection.length > 0) {
+    const guestTeasers = guestSection.find(".box .teaser");
+    guestTeasers.each((_: number, teaser: any) => {
+      const headline = $(teaser).find("h4.headline");
+      const preHeadline = headline.attr("data-pre-headline");
+      const subHeadline = $(teaser).find(".teasertext");
+
+      if (headline.length > 0) {
+        let fullName = headline.text().trim();
+        let party = "";
+        let role = preHeadline || "";
+
+        // Handle "Name, Party" format
+        if (fullName.includes(",")) {
+          const parts = fullName.split(",");
+          fullName = parts[0].trim();
+          party = parts[1].trim();
+        }
+
+        // Fallback for role if not in data-attribute
+        if (!role && subHeadline.length > 0) {
+          const text = subHeadline.text().trim();
+          role = text.replace(/\|\s*mehr$/, "").trim();
+        }
+
+        if (fullName && fullName.length > 2) {
+          const exists = politicians.some((p) => p.name === fullName);
+          if (!exists) {
+            politicians.push({ name: fullName, party, role });
+          }
+        }
+      }
+    });
+  }
+
+  return {
+    title,
+    date,
+    description,
+    politicians,
+    url: url,
+  };
 }
 
-async function extractArchiveLinks(page: Page): Promise<EpisodeLink[]> {
-  return await page.evaluate(() => {
-    const episodes: EpisodeLink[] = [];
+function extractArchiveLinks($: cheerio.CheerioAPI): EpisodeLink[] {
+  const episodes: EpisodeLink[] = [];
 
-    // Look for "Die letzten HART ABER FAIR-Sendungen" or similar slider sections
-    // or "Weitere Folgen"
-    const headlines = Array.from(document.querySelectorAll("h2.conHeadline"));
-    const archiveHeadlines = headlines.filter(
-      (h) =>
-        h.textContent?.includes("Die letzten HART ABER FAIR-Sendungen") ||
-        h.textContent?.includes("Weitere Folgen"),
-    );
-
-    archiveHeadlines.forEach((archiveHeadline) => {
-      const parentSection = archiveHeadline.closest(".section");
-      if (parentSection) {
-        const links = parentSection.querySelectorAll(".box .teaser a");
-        links.forEach((link) => {
-          const href = link.getAttribute("href");
-          const titleEl = link.querySelector("h4.headline");
-          let title = titleEl?.textContent?.trim() || "";
+  $('h2.conHeadline').each((_: number, el: any) => {
+    const headingText = $(el).text();
+    if (
+      headingText.includes("Die letzten HART ABER FAIR-Sendungen") ||
+      headingText.includes("Weitere Folgen")
+    ) {
+      const parentSection = $(el).closest(".section");
+      if (parentSection.length > 0) {
+        const links = parentSection.find(".box .teaser a");
+        links.each((_: number, link: any) => {
+          const href = $(link).attr("href");
+          const titleEl = $(link).find("h4.headline");
+          let title = titleEl.text().trim();
           title = title.replace(/^Video:\s*/, "").trim();
 
           const dateMatch = title.match(/\((\d{2}\.\d{2}\.\d{4})\)/);
@@ -167,120 +165,120 @@ async function extractArchiveLinks(page: Page): Promise<EpisodeLink[]> {
           }
         });
       }
-    });
+    }
+  });
 
-    // Sort desc
-    return episodes.sort((a, b) => {
-      if (!a.date || !b.date) return 0;
-      return b.date.localeCompare(a.date);
-    });
+  return episodes.sort((a, b) => {
+    if (!a.date || !b.date) return 0;
+    return b.date.localeCompare(a.date);
   });
 }
 
-async function extractEpisodeDetails(
-  page: Page,
+function extractEpisodeDetails(
+  html: string,
   episodeLink: EpisodeLink,
-): Promise<EpisodeDetails | null> {
+): EpisodeDetails | null {
   try {
-    const fullUrl = episodeLink.wdrUrl.startsWith("http")
-      ? episodeLink.wdrUrl
-      : `${BASE_URL}${episodeLink.wdrUrl}`;
+    const $ = cheerio.load(html);
 
-    await page.goto(fullUrl, { waitUntil: "networkidle2", timeout: 30000 });
+    let title = $("h1").first().text().trim() || "";
+    if (!title) {
+      title = $("h2.conHeadline").first().text().trim() || "";
+    }
+    title = title.replace(/^Video:\s*/, "").trim();
 
-    return await page.evaluate((initialDate) => {
-      let title = document.querySelector("h1")?.textContent?.trim() || "";
-      if (!title)
-        title =
-          document.querySelector("h2.conHeadline")?.textContent?.trim() || "";
-      title = title.replace(/^Video:\s*/, "").trim();
-
-      let date = initialDate;
-      if (!date) {
-        const dateEl = document.querySelector(".mediaDate");
-        if (dateEl?.textContent) {
-          const match = dateEl.textContent.match(/(\d{2}\.\d{2}\.\d{4})/);
-          if (match) {
-            const [day, month, year] = match[1].split(".");
-            date = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-          }
-        }
-      }
-
-      // Fallback for date matching from title within page
-      if (!date) {
-        const match = title.match(/\((\d{2}\.\d{2}\.\d{4})\)/);
+    let date = episodeLink.date;
+    if (!date) {
+      const dateEl = $(".mediaDate");
+      if (dateEl.length > 0) {
+        const match = dateEl.text().match(/(\d{2}\.\d{2}\.\d{4})/);
         if (match) {
           const [day, month, year] = match[1].split(".");
           date = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
         }
       }
+    }
 
-      let description = "";
-      const descSelectors = [
-        ".teasertext",
-        ".textWrapper p",
-        ".mod .text p",
-        "p.programInfo + p",
-      ];
-
-      for (const selector of descSelectors) {
-        const descElement = document.querySelector(selector);
-        if (descElement?.textContent?.trim()) {
-          description = descElement.textContent.trim();
-          break;
-        }
+    // Fallback for date matching from title within page
+    if (!date) {
+      const match = title.match(/\((\d{2}\.\d{2}\.\d{4})\)/);
+      if (match) {
+        const [day, month, year] = match[1].split(".");
+        date = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
       }
+    }
 
-      const politicians: Array<{
-        name: string;
-        party?: string;
-        role?: string;
-      }> = [];
-      const gaesteSectionHeadline = Array.from(
-        document.querySelectorAll("h2"),
-      ).find((h) => h.textContent?.includes("Gäste"));
-      if (gaesteSectionHeadline) {
-        const container =
-          gaesteSectionHeadline.closest(".section") ||
-          gaesteSectionHeadline.parentElement;
-        if (container) {
-          const teasers = container.querySelectorAll(".teaser");
-          teasers.forEach((t) => {
-            const h4 = t.querySelector("h4");
-            if (h4) {
-              let fullName = h4.textContent?.trim() || "";
-              let party = "";
-              // Try different attributes for role
-              let role = h4.getAttribute("data-pre-headline") || "";
+    let description = "";
+    const descSelectors = [
+      ".teasertext",
+      ".textWrapper p",
+      ".mod .text p",
+      "p.programInfo + p",
+    ];
 
-              if (fullName.includes(",")) {
-                const parts = fullName.split(",");
-                fullName = parts[0].trim();
-                party = parts[1].trim();
-              }
+    for (const selector of descSelectors) {
+      const descElement = $(selector).first();
+      if (descElement.length > 0 && descElement.text().trim()) {
+        description = descElement.text().trim();
+        break;
+      }
+    }
 
-              // If role is empty, check teaser text but be careful
-              if (!role) {
-                const tt = t.querySelector(".teasertext");
-                if (tt) {
-                  role = tt.textContent?.replace(/\|\s*mehr$/, "").trim() || "";
-                }
-              }
+    const politicians: Array<{
+      name: string;
+      party?: string;
+      role?: string;
+    }> = [];
+    
+    let gaesteSectionHeadline: any = null;
+    $("h2").each((_: number, el: any) => {
+      if ($(el).text().includes("Gäste")) {
+        gaesteSectionHeadline = $(el);
+        return false; // break
+      }
+    });
 
-              if (fullName.length > 2) {
-                const exists = politicians.some((p) => p.name === fullName);
-                if (!exists) {
-                  politicians.push({ name: fullName, party, role });
-                }
+    if (gaesteSectionHeadline && gaesteSectionHeadline.length > 0) {
+      const container =
+        gaesteSectionHeadline.closest(".section").length > 0
+          ? gaesteSectionHeadline.closest(".section")
+          : gaesteSectionHeadline.parent();
+          
+      if (container && container.length > 0) {
+        const teasers = container.find(".teaser");
+        teasers.each((_: number, t: any) => {
+          const h4 = $(t).find("h4");
+          if (h4.length > 0) {
+            let fullName = h4.text().trim();
+            let party = "";
+            let role = h4.attr("data-pre-headline") || "";
+
+            if (fullName.includes(",")) {
+              const parts = fullName.split(",");
+              fullName = parts[0].trim();
+              party = parts[1].trim();
+            }
+
+            // If role is empty, check teaser text
+            if (!role) {
+              const tt = $(t).find(".teasertext");
+              if (tt.length > 0) {
+                role = tt.text().replace(/\|\s*mehr$/, "").trim();
               }
             }
-          });
-        }
-      }
 
-      return { title, date, description, politicians };
-    }, episodeLink.date);
+            if (fullName.length > 2) {
+              const exists = politicians.some((p) => p.name === fullName);
+              if (!exists) {
+                politicians.push({ name: fullName, party, role });
+              }
+            }
+          }
+        });
+      }
+    }
+
+    return { title, date, description, politicians };
   } catch (error) {
     console.error(`Fehler beim Extrahieren der Episode-Details:`, error);
     return null;
@@ -415,18 +413,22 @@ async function processPoliticians(guestNames: string[]) {
   return politicians;
 }
 
-// Hilfsfunktion: Hole alle bekannten Episode-Links von der Sendungsseite (via Browser)
-async function fetchEpisodeList(): Promise<
-  Array<EpisodeLink>
-> {
-  const browser = await createBrowser();
+// Hilfsfunktion: Hole alle bekannten Episode-Links von der Sendungsseite
+async function fetchEpisodeList(): Promise<Array<EpisodeLink>> {
   try {
-    const page = await setupSimplePage(browser);
-    await page.goto(LIST_URL, { waitUntil: "networkidle2", timeout: 30000 });
+    const res = await axios.get(LIST_URL, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      },
+      timeout: 30000,
+    });
+    const html = res.data;
+    const $ = cheerio.load(html);
 
     const episodesToProcess: EpisodeLink[] = [];
 
-    const latestEpisode = await extractLatestEpisodeFromHomepage(page);
+    const latestEpisode = extractLatestEpisodeFromHomepage($);
     if (latestEpisode && latestEpisode.date) {
       episodesToProcess.push({
         wdrUrl: LIST_URL,
@@ -437,7 +439,7 @@ async function fetchEpisodeList(): Promise<
       });
     }
 
-    const archiveLinks = await extractArchiveLinks(page);
+    const archiveLinks = extractArchiveLinks($);
     for (const link of archiveLinks) {
       if (link.date && !episodesToProcess.find((e) => e.date === link.date)) {
         episodesToProcess.push({
@@ -451,8 +453,9 @@ async function fetchEpisodeList(): Promise<
     }
 
     return episodesToProcess.sort((a, b) => b.date.localeCompare(a.date));
-  } finally {
-    await browser.close().catch(() => {});
+  } catch (error) {
+    console.error("Fehler beim Abrufen der Episodenliste:", error);
+    return [];
   }
 }
 
@@ -486,100 +489,102 @@ export default async function crawlHartAberFair(): Promise<void> {
   let totalEpisodeLinksInserted = 0;
   let episodesProcessed = 0;
   const episodeLinksToInsert: { episodeUrl: string; episodeDate: string }[] = [];
-  const browser = await createBrowser();
 
-  try {
-    const detailPage = await setupSimplePage(browser);
-
-    // Älteste zuerst verarbeiten
-    const sortedEpisodes = [...newEpisodes].sort((a, b) =>
-      a.date.localeCompare(b.date),
-    );
-
-    for (const ep of sortedEpisodes) {
-      try {
-        console.log(`\n🎬 Verarbeite: ${ep.title} (${ep.date})`);
-
-        const structuredDetails =
-          (ep.guestNames?.length ?? 0) > 0
-            ? null
-            : await extractEpisodeDetails(detailPage, ep);
-
-        // Beschreibung + ARD-URL von der Episodenseite holen
-        const fetchedDetails = await fetchEpisodeDetails(ep.wdrUrl);
-        const ardUrl = ep.ardUrl || fetchedDetails.ardUrl;
-        const description =
-          fetchedDetails.description || structuredDetails?.description || "";
-
-        const scrapedGuestNames = [
-          ...(ep.guestNames || []),
-          ...((structuredDetails?.politicians || []).map((guest) => guest.name)),
-        ].filter((name, index, arr) => Boolean(name) && arr.indexOf(name) === index);
-
-        const guestNames =
-          scrapedGuestNames.length > 0
-            ? scrapedGuestNames
-            : await extractGuestsWithAI(description || ep.title);
-
-        console.log(`   👥 Gäste: ${guestNames.join(", ") || "–"}`);
-        console.log(`   🔗 ARD URL: ${ardUrl || "–"}`);
-
-        if (guestNames.length === 0) {
-          console.log(`   ⚠️  Keine Gäste gefunden – überspringe`);
-          continue;
-        }
-
-        // Politische Themenbereiche
-        const politicalAreaIds = await getPoliticalArea(description);
-
-        // Politiker prüfen
-        const politicians = await processPoliticians(guestNames);
-
-        if (politicians.length > 0) {
-          console.log(
-            `   ✅ Politiker: ${politicians.map((p) => `${p.politicianName} (${p.partyName || "?"})`).join(", ")}`,
-          );
-
-          const inserted = await insertMultipleTvShowPoliticians(
-            "Das Erste",
-            "Hart aber fair",
-            ep.date,
-            politicians,
-          );
-          totalPoliticiansInserted += inserted;
-        }
-
-        // Episode-URL speichern (ARD Mediathek URL bevorzugt, fallback auf WDR-URL)
-        episodeLinksToInsert.push({
-          episodeUrl: ardUrl || ep.wdrUrl,
-          episodeDate: ep.date,
-        });
-
-        // Politische Themenbereiche speichern
-        if (politicalAreaIds?.length) {
-          await insertEpisodePoliticalAreas(
-            "Hart aber fair",
-            ep.date,
-            politicalAreaIds,
-          );
-        }
-
-        episodesProcessed++;
-
-        // Kurze Pause zwischen Seiten-Requests
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      } catch (error) {
-        console.error(`❌ Fehler beim Verarbeiten von ${ep.date}:`, error);
-      }
-    }
-  } finally {
-    await browser.close().catch(() => {});
-  }
-
-  // Episode-URLs batch-speichern
+  // Älteste zuerst verarbeiten
   const sortedEpisodes = [...newEpisodes].sort((a, b) =>
     a.date.localeCompare(b.date),
   );
+
+  for (const ep of sortedEpisodes) {
+    try {
+      console.log(`\n🎬 Verarbeite: ${ep.title} (${ep.date})`);
+
+      let structuredDetails: EpisodeDetails | null = null;
+      if (!ep.guestNames || ep.guestNames.length === 0) {
+        const fullUrl = ep.wdrUrl.startsWith("http")
+          ? ep.wdrUrl
+          : `${BASE_URL}${ep.wdrUrl}`;
+
+        console.log(`   📥 Lade WDR Episodenseite: ${fullUrl}`);
+        const res = await axios.get(fullUrl, {
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          },
+          timeout: 30000,
+        });
+        structuredDetails = extractEpisodeDetails(res.data, ep);
+      }
+
+      // Beschreibung + ARD-URL von der Episodenseite holen
+      const fetchedDetails = await fetchEpisodeDetails(ep.wdrUrl);
+      const ardUrl = ep.ardUrl || fetchedDetails.ardUrl;
+      const description =
+        fetchedDetails.description || structuredDetails?.description || "";
+
+      const scrapedGuestNames = [
+        ...(ep.guestNames || []),
+        ...((structuredDetails?.politicians || []).map((guest) => guest.name)),
+      ].filter((name, index, arr) => Boolean(name) && arr.indexOf(name) === index);
+
+      const guestNames =
+        scrapedGuestNames.length > 0
+          ? scrapedGuestNames
+          : await extractGuestsWithAI(description || ep.title);
+
+      console.log(`   👥 Gäste: ${guestNames.join(", ") || "–"}`);
+      console.log(`   🔗 ARD URL: ${ardUrl || "–"}`);
+
+      if (guestNames.length === 0) {
+        console.log(`   ⚠️  Keine Gäste gefunden – überspringe`);
+        continue;
+      }
+
+      // Politische Themenbereiche
+      const politicalAreaIds = await getPoliticalArea(description);
+
+      // Politiker prüfen
+      const politicians = await processPoliticians(guestNames);
+
+      if (politicians.length > 0) {
+        console.log(
+          `   ✅ Politiker: ${politicians.map((p) => `${p.politicianName} (${p.partyName || "?"})`).join(", ")}`,
+        );
+
+        const inserted = await insertMultipleTvShowPoliticians(
+          "Das Erste",
+          "Hart aber fair",
+          ep.date,
+          politicians,
+        );
+        totalPoliticiansInserted += inserted;
+      }
+
+      // Episode-URL speichern (ARD Mediathek URL bevorzugt, fallback auf WDR-URL)
+      episodeLinksToInsert.push({
+        episodeUrl: ardUrl || ep.wdrUrl,
+        episodeDate: ep.date,
+      });
+
+      // Politische Themenbereiche speichern
+      if (politicalAreaIds?.length) {
+        await insertEpisodePoliticalAreas(
+          "Hart aber fair",
+          ep.date,
+          politicalAreaIds,
+        );
+      }
+
+      episodesProcessed++;
+
+      // Kurze Pause zwischen Seiten-Requests
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    } catch (error) {
+      console.error(`❌ Fehler beim Verarbeiten von ${ep.date}:`, error);
+    }
+  }
+
+  // Episode-URLs batch-speichern
   if (episodeLinksToInsert.length > 0) {
     totalEpisodeLinksInserted = await insertMultipleShowLinks(
       "Hart aber fair",
