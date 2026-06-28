@@ -25,7 +25,7 @@ jobs:
           http_code=$(curl --write-out "%{http_code}" \
             --silent --show-error \
             --output "$RESPONSE_BODY" \
-            -X POST \
+            -X GET \
             --header "Authorization: Bearer ${{ secrets.CRAWL_API_KEY }}" \
             "$CRAWL_URL")
 

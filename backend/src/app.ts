@@ -64,7 +64,7 @@ app.use("/api", requireBearerToken);
 // Crawler API Routes
 // ============================================
 
-// POST /api/crawl/all - Run all crawlers sequentially
+// GET /api/crawl/all - Run all crawlers sequentially
 app.get("/api/crawl/all", async (req, res) => {
   console.log("🚀 Starte alle Crawler...");
   const startTime = Date.now();
