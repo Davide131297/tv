@@ -1,31 +1,19 @@
 name: Weekly Crawl Script
 
 on:
-  # schedule:
-  #   # Run every Monday at 2 AM UTC (0 2 * * 1)
-  #   - cron: "0 2 * * 1"
+  schedule:
+    # Run every Monday at 2 AM UTC (0 2 * * 1)
+    - cron: "0 2 * * 1"
   workflow_dispatch: # Allow manual triggering from GitHub UI
 
 jobs:
   run-crawl:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "18"
-
-      - name: Install dependencies
-        run: |
-          cd frontend
-          npm install
-
       - name: Run crawl script
         run: |
           # Make API call with Bearer token
@@ -35,7 +23,8 @@ jobs:
           RESPONSE_BODY=$(mktemp)
 
           http_code=$(curl --write-out "%{http_code}" \
-            --silent --output "$RESPONSE_BODY" \
+            --silent --show-error \
+            --output "$RESPONSE_BODY" \
             -X POST \
             --header "Authorization: Bearer ${{ secrets.CRAWL_API_KEY }}" \
             "$CRAWL_URL")
@@ -50,3 +39,4 @@ jobs:
             echo "Successfully triggered crawl script."
             rm "$RESPONSE_BODY"
           fi
+
