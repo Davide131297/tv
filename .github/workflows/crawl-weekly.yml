@@ -17,7 +17,7 @@ jobs:
       - name: Run crawl script
         run: |
           # Make API call with Bearer token
-          CRAWL_URL="${{ secrets.DEPLOYMENT_URL }}/api/crawl/all"
+          CRAWL_URL="${{ secrets.BACKEND_URL }}/api/crawl/all"
           
           # Use a temporary file to store the response body
           RESPONSE_BODY=$(mktemp)
