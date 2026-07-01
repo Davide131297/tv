@@ -58,7 +58,7 @@ app.get("/", (req, res) => {
   });
 });
 
-app.use("/api", requireBearerToken);
+//app.use("/api", requireBearerToken);
 
 // ============================================
 // Crawler API Routes
