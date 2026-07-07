@@ -56,3 +56,7 @@ crawl_all.sh
 *.tfstate
 *.tfstate.*
 crash.log
+
+# Agents
+.agents/
+.claude/
