@@ -28,3 +28,7 @@ export function availableYears(): string[] {
   for (let y = current; y >= 2023; y--) years.push(String(y));
   return years;
 }
+
+export function currentYear(): string {
+  return String(new Date().getFullYear());
+}

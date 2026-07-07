@@ -17,22 +17,21 @@ der Web-App ist bewusst nicht enthalten.
 
 ## Datenquelle
 
-Die App konsumiert die bestehende Polittalk-Watcher-API. Konfiguration in
-`app.json` unter `expo.extra`:
+Die App konsumiert die bestehende Polittalk-Watcher-API. Konfiguration über
+Umgebungsvariablen — `.env.example` nach `.env` kopieren und ausfüllen:
 
-```json
-"extra": {
-  "apiBaseUrl": "https://polittalk-watcher.de",
-  "politicsApiKey": ""
-}
+```
+EXPO_PUBLIC_API_BASE_URL=https://polittalk-watcher.de
+EXPO_PUBLIC_POLITICS_API_KEY=
 ```
 
 - Die meisten Daten kommen über die öffentlichen Endpunkte
   `/api/v1/politics`, `/api/political-areas`, `/api/party-timeline` und
   `/api/tv-ratings` — **ohne API-Key**.
 - Für die (optionalen) Politiker-Rankings nutzt die App `/api/politics`.
-  Dieser Endpunkt ist per Key geschützt. Trage dafür in `politicsApiKey`
-  denselben Wert wie `NEXT_PUBLIC_POLITICS_API_KEY` der Web-App ein.
+  Dieser Endpunkt ist per Key geschützt. Trage dafür in
+  `EXPO_PUBLIC_POLITICS_API_KEY` denselben Wert wie `NEXT_PUBLIC_POLITICS_API_KEY`
+  der Web-App ein (`frontend/.env`).
 
 > Der neue Endpunkt `/api/tv-ratings` wurde im `frontend/`-Projekt ergänzt,
 > damit die Einschaltquoten auch mobil verfügbar sind.

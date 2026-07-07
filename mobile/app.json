@@ -7,13 +7,9 @@
     "icon": "./assets/images/icon.png",
     "scheme": "polittalk",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/images/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0B1220"
-    },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "de.polittalkwatcher.app",
@@ -26,8 +22,7 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#0B1220"
-      },
-      "edgeToEdgeEnabled": true
+      }
     },
     "web": {
       "bundler": "metro",
@@ -47,16 +42,15 @@
             "backgroundColor": "#0B1220"
           }
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
-      "apiBaseUrl": "https://polittalk-watcher.de",
-      "politicsApiKey": "",
       "eas": {
-        "projectId": "00000000-0000-0000-0000-000000000000"
+        "projectId": "5a26c855-e989-434c-8915-b73d5ca5e67a"
       }
     }
   }

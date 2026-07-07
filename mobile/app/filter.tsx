@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { Pressable, ScrollView, Switch, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -14,7 +14,7 @@ export default function FilterModal() {
   const t = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { show, year, setShow, setYear, reset } = useFilter();
+  const { show, year, union, setShow, setYear, setUnion, reset } = useFilter();
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bgElevated }}>
@@ -164,6 +164,45 @@ export default function FilterModal() {
               </Pressable>
             );
           })}
+        </View>
+
+        <Text
+          variant="subhead"
+          tone="muted"
+          weight="semibold"
+          style={{
+            marginBottom: spacing.sm,
+            marginTop: spacing.xl,
+            textTransform: "uppercase",
+          }}
+        >
+          Parteien
+        </Text>
+        <View
+          style={{
+            backgroundColor: t.card,
+            borderRadius: radius.lg,
+            borderWidth: 1,
+            borderColor: t.border,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingHorizontal: spacing.lg,
+            paddingVertical: spacing.md,
+            gap: spacing.md,
+          }}
+        >
+          <Text variant="body" style={{ flex: 1 }}>
+            CDU/CSU als Union zusammenfassen
+          </Text>
+          <Switch
+            value={union}
+            onValueChange={(v) => {
+              tapLight();
+              setUnion(v);
+            }}
+            trackColor={{ false: t.border, true: t.accent }}
+          />
         </View>
       </ScrollView>
     </View>

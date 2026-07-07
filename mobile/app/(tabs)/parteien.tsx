@@ -1,10 +1,9 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { View } from "react-native";
 import { Screen } from "@/components/ui/Screen";
 import { Card } from "@/components/ui/Card";
 import { Text } from "@/components/ui/Text";
 import { SectionHeader } from "@/components/ui/SectionHeader";
-import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { QueryBoundary } from "@/components/ui/QueryBoundary";
@@ -33,8 +32,8 @@ function applyUnion(list: PartyStats[], union: boolean): PartyStats[] {
 
 export default function PartiesScreen() {
   const filter = useFilter();
+  const { union } = filter;
   const { refreshing, onRefresh } = useRefresh();
-  const [union, setUnion] = useState(false);
 
   const stats = usePartyStats(filter);
   const timeline = usePartyTimeline(filter);
@@ -83,17 +82,6 @@ export default function PartiesScreen() {
 
   return (
     <Screen refreshing={refreshing} onRefresh={onRefresh}>
-      <View style={{ marginTop: spacing.md }}>
-        <SegmentedControl
-          value={union ? "union" : "single"}
-          onChange={(v) => setUnion(v === "union")}
-          options={[
-            { value: "single", label: "Einzeln" },
-            { value: "union", label: "CDU/CSU als Union" },
-          ]}
-        />
-      </View>
-
       <SectionHeader
         title="Auftritte nach Partei"
         subtitle="Gesamtzahl je Partei"

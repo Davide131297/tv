@@ -3,10 +3,9 @@
 // Data comes from the existing Next.js API. Most endpoints are served publicly
 // via /api/v1/politics and /api/political-areas /api/party-timeline. A few
 // aggregate types (rankings, topic matrices) only exist on the key-protected
-// /api/politics endpoint — for those we attach the optional politicsApiKey from
-// app config (same value as the web NEXT_PUBLIC_POLITICS_API_KEY).
+// /api/politics endpoint — for those we attach the optional EXPO_PUBLIC_POLITICS_API_KEY
+// env var (same value as the web NEXT_PUBLIC_POLITICS_API_KEY).
 
-import Constants from "expo-constants";
 import type {
   EpisodeData,
   MonthlyPoint,
@@ -21,16 +20,10 @@ import type {
   TvRatingsDashboard,
 } from "./types";
 
-const extra = (Constants.expoConfig?.extra ?? {}) as {
-  apiBaseUrl?: string;
-  politicsApiKey?: string;
-};
-
-export const API_BASE = (extra.apiBaseUrl ?? "https://polittalk-watcher.de").replace(
-  /\/$/,
-  "",
-);
-const API_KEY = extra.politicsApiKey ?? "";
+export const API_BASE = (
+  process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://polittalk-watcher.de"
+).replace(/\/$/, "");
+const API_KEY = process.env.EXPO_PUBLIC_POLITICS_API_KEY ?? "";
 
 // Types that the public /api/v1/politics endpoint understands (no key needed).
 const V1_TYPES = new Set([
