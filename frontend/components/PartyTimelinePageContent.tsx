@@ -31,7 +31,7 @@ export default function PartyTimelinePageContent({
   const years = useYearList(2024);
 
   const unionMode = searchParams.get("union") === "true";
-  const selectedParties = searchParams.get("parteien")?.split(",") || [];
+  const selectedParties = searchParams.getAll("parteien");
 
   const handleShowChange = (show: string) => {
     updateUrl({ show });
