@@ -35,8 +35,26 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-    async redirects() {
-     return [
+  async headers() {
+    return [
+      {
+        source: "/api/:path*",
+        headers: [
+          {
+            key: "Access-Control-Allow-Origin",
+            value: "https://polittalk-watcher-mobile.vercel.app",
+          },
+          { key: "Access-Control-Allow-Methods", value: "GET, OPTIONS" },
+          {
+            key: "Access-Control-Allow-Headers",
+            value: "Content-Type, Authorization",
+          },
+        ],
+      },
+    ];
+  },
+  async redirects() {
+    return [
   //     {
   //       source: "/datenbank",
   //       destination: "/",
@@ -62,8 +80,8 @@ const nextConfig: NextConfig = {
   //       destination: "/",
   //       permanent: true,
   //     },
-      ];
-     },
+    ];
+  },
 };
 
 export default nextConfig;
