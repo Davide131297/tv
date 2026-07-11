@@ -1,4 +1,5 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import { Platform } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
@@ -7,6 +8,41 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { FilterProvider } from "@/hooks/useFilter";
 import { useTheme } from "@/lib/theme";
+
+// canvaskit-wasm version must match the one pinned in package-lock.json —
+// check that pin when bumping dependencies.
+const CANVASKIT_VERSION = "0.41.0";
+
+function useSkiaWebReady() {
+  const [ready, setReady] = useState(Platform.OS !== "web");
+
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+
+    let cancelled = false;
+
+    import("@shopify/react-native-skia/lib/module/web/LoadSkiaWeb")
+      .then(({ LoadSkiaWeb }) =>
+        LoadSkiaWeb({
+          locateFile: (file: string) =>
+            `https://unpkg.com/canvaskit-wasm@${CANVASKIT_VERSION}/bin/full/${file}`,
+        })
+      )
+      .then(() => {
+        if (!cancelled) setReady(true);
+      })
+      .catch((error) => {
+        console.error("Failed to load Skia for web", error);
+        if (!cancelled) setReady(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return ready;
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,7 +62,6 @@ function RootStack() {
 
   useEffect(() => {
     SystemUI.setBackgroundColorAsync(t.bg).catch(() => {});
-    SplashScreen.hideAsync().catch(() => {});
   }, [t.bg]);
 
   return (
@@ -68,6 +103,18 @@ function RootStack() {
 }
 
 export default function RootLayout() {
+  const skiaReady = useSkiaWebReady();
+
+  useEffect(() => {
+    if (skiaReady) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [skiaReady]);
+
+  if (!skiaReady) {
+    return null;
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
