@@ -216,7 +216,7 @@ export const SHOW_OPTIONS_WITHOUT_ALL: ShowOption[] = SHOW_OPTIONS.filter(
 // =============================================================================
 
 export const PARTY_COLORS: Record<string, string> = {
-  CDU: "#000000",
+  CDU: "var(--color-foreground)",
   CSU: "#1e40af",
   Union: "#1e293b", // Union: dunkles Blau-Grau
   SPD: "#dc2626",

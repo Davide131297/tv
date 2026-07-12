@@ -224,10 +224,14 @@ export default function PartyTimelineChart({
               style={{
                 backgroundColor: isPartySelected(party)
                   ? party === "Union"
-                    ? "#000000"
+                    ? "var(--color-foreground)"
                     : PARTY_COLORS[party] || "#6b7280"
                   : "#e5e7eb",
-                color: isPartySelected(party) ? "white" : "#6b7280",
+                color: isPartySelected(party)
+                  ? party === "Union" || party === "CDU"
+                    ? "var(--color-background)"
+                    : "white"
+                  : "#6b7280",
               }}
             >
               {party}
