@@ -1,7 +1,7 @@
 import React from "react";
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { StyleSheet } from "react-native";
+import { Platform, StyleSheet } from "react-native";
 import { FilterButton } from "@/components/FilterButton";
 import { spacing, useTheme } from "@/lib/theme";
 
@@ -23,8 +23,14 @@ export default function TabsLayout() {
           backgroundColor: t.tabBar,
           borderTopColor: t.tabBarBorder,
           borderTopWidth: StyleSheet.hairlineWidth,
+          // The default 49px iOS tab bar height is tuned for native font
+          // metrics; browsers render the label with slightly taller
+          // line-height, which clips its bottom edge. Give web a bit more
+          // room.
+          ...(Platform.OS === "web" ? { height: 58 } : null),
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: "500" },
+        tabBarItemStyle: Platform.OS === "web" ? { paddingBottom: 6 } : undefined,
+        tabBarLabelStyle: { fontSize: 11, fontWeight: "500", lineHeight: 14 },
       }}
     >
       <Tabs.Screen

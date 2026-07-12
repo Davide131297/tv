@@ -13,6 +13,7 @@ export function RankRow({
   rank,
   name,
   party,
+  meta,
   count,
   countLabel,
   fraction,
@@ -21,6 +22,7 @@ export function RankRow({
   rank: number;
   name: string;
   party?: string;
+  meta?: string;
   count: string;
   countLabel?: string;
   fraction: number;
@@ -51,6 +53,11 @@ export function RankRow({
         <Text variant="body" weight="semibold" numberOfLines={1}>
           {name}
         </Text>
+        {meta ? (
+          <Text variant="subhead" tone="muted" numberOfLines={1} style={{ marginTop: 1 }}>
+            {meta}
+          </Text>
+        ) : null}
         <View style={{ marginTop: 5 }}>
           <ProgressBar fraction={fraction} color={color} />
         </View>

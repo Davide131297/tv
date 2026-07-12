@@ -82,6 +82,15 @@ export interface TvRatingsSummary {
   average_viewers_millions: number;
 }
 
+export interface TvRatingOverview {
+  show_name: string;
+  episode_date: string;
+  market_share: number;
+  viewers_millions: number;
+  episode_url: string | null;
+  politicians: PoliticianInEpisode[];
+}
+
 export interface PoliticianTvRatingsStat {
   politician_name: string;
   party_name: string;
@@ -105,6 +114,7 @@ export interface PartyTvRatingsStat {
 
 export interface TvRatingsDashboard {
   summary: TvRatingsSummary;
+  ratings: TvRatingOverview[];
   politicianStats: PoliticianTvRatingsStat[];
   partyStats: PartyTvRatingsStat[];
 }
