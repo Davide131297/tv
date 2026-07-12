@@ -38,6 +38,18 @@ function handleAPIProtection(request: NextRequest) {
     "unknown";
 
   try {
+    // Handle CORS preflight requests before any method validation
+    if (request.method === "OPTIONS") {
+      return new NextResponse(null, {
+        status: 204,
+        headers: {
+          "Access-Control-Allow-Origin": "https://polittalk-watcher-mobile.vercel.app",
+          "Access-Control-Allow-Methods": "GET, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        },
+      });
+    }
+
     // Method validation - different rules for different APIs
     let allowedMethods: string[];
     if (pathname.startsWith("/api/crawl/")) {
