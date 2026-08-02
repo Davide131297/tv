@@ -12,6 +12,7 @@ import {
   seemsLikePersonName,
   acceptCookieBanner,
   gentleScroll,
+  isExcludedEpisode,
   GuestWithRole,
   GuestDetails,
   EpisodeResult,
@@ -313,6 +314,18 @@ async function CrawlLanzPuppeteer(latestEpisodeDate: string | null) {
       );
     }
 
+    // Manuell ausgeschlossene Episoden überspringen
+    filteredUrls = filteredUrls.filter((url) => {
+      const urlDate = parseISODateFromUrl(url);
+      if (isExcludedEpisode("Markus Lanz", urlDate)) {
+        console.log(
+          `⏭️  Episode ${urlDate} ist ausgeschlossen - wird übersprungen`,
+        );
+        return false;
+      }
+      return true;
+    });
+
     if (!filteredUrls.length) {
       console.log("Keine neuen Episoden zu crawlen gefunden");
       return {
@@ -338,6 +351,18 @@ async function CrawlLanzPuppeteer(latestEpisodeDate: string | null) {
               extractDateISO(p, url),
               extractEpisodeDescription(p),
             ]);
+
+            if (isExcludedEpisode("Markus Lanz", date)) {
+              console.log(
+                `⏭️  Episode ${date} ist ausgeschlossen - wird übersprungen`,
+              );
+              return {
+                episodeUrl: url,
+                date: null,
+                guests: [],
+                guestsDetailed: [],
+              };
+            }
 
             const guestsDetailed: GuestDetails[] = [];
             for (const guest of guests) {
@@ -413,7 +438,12 @@ async function CrawlLanzPuppeteer(latestEpisodeDate: string | null) {
 
 // ---------------- Database Storage Function (Shared) ----------------
 
-async function storeEpisodesInDb(finalResults: EpisodeResult[]) {
+async function storeEpisodesInDb(allResults: EpisodeResult[]) {
+  // Letzte Absicherung: manuell ausgeschlossene Episoden nie speichern
+  const finalResults = allResults.filter(
+    (episode) => !isExcludedEpisode("Markus Lanz", episode.date),
+  );
+
   finalResults.sort((a: EpisodeResult, b: EpisodeResult) => {
     if (!a.date && !b.date) return 0;
     if (!a.date) return 1;
@@ -540,6 +570,16 @@ async function CrawlLanzAPI(latestEpisodeDate: string | null): Promise<EpisodeRe
       `Nach Datum-Filter: ${filteredEpisodes.length}/${allApiEpisodes.length} Episoden (nur neuer als ${latestEpisodeDate})`,
     );
   }
+
+  // Manuell ausgeschlossene Episoden überspringen (vor jeglicher AI-Extraktion)
+  filteredEpisodes = filteredEpisodes.filter((ep) => {
+    const date = ep.editorialDate ? ep.editorialDate.substring(0, 10) : null;
+    if (isExcludedEpisode("Markus Lanz", date)) {
+      console.log(`⏭️  Episode ${date} ist ausgeschlossen - wird übersprungen`);
+      return false;
+    }
+    return true;
+  });
 
   if (!filteredEpisodes.length) {
     console.log("Keine neuen Episoden zu crawlen gefunden.");
