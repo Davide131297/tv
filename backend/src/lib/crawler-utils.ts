@@ -263,6 +263,39 @@ export function filterNewEpisodes<T extends { date: string }>(
 }
 
 // ============================================
+// Episode Exclusion (Blacklist)
+// ============================================
+
+/**
+ * Manually excluded episodes (show name + ISO date).
+ * These episodes are never processed or stored, e.g. because the
+ * Mediathek data contains guests that do not belong to the episode.
+ */
+export const EXCLUDED_EPISODES: { show: string; date: string }[] = [
+  { show: "Markus Lanz", date: "2026-07-16" },
+];
+
+/**
+ * Check whether a given show/date combination is excluded from crawling.
+ * Should be called as early as possible (before AI extraction / DB inserts).
+ */
+export function isExcludedEpisode(
+  showName: string,
+  date: string | null | undefined,
+): boolean {
+  if (!date) return false;
+
+  const normalizedShow = showName.trim().toLowerCase();
+  const normalizedDate = date.substring(0, 10);
+
+  return EXCLUDED_EPISODES.some(
+    (excluded) =>
+      excluded.show.trim().toLowerCase() === normalizedShow &&
+      excluded.date === normalizedDate,
+  );
+}
+
+// ============================================
 // Common Type Definitions
 // ============================================
 
