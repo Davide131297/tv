@@ -176,41 +176,56 @@ async function buildWeeklyPost() {
     }
   });
 
+  // Ohne neue Sendungen wird nichts gepostet.
+  if (episodes.size === 0) {
+    return {
+      label: "weekly",
+      text: "",
+      skip: true,
+      skipReason: `Keine Sendungen im Zeitraum ${range.startDate} bis ${range.endDate}.`,
+      meta: {
+        dateRange: {
+          start: range.startDate,
+          end: range.endDate,
+        },
+        data: [] as ShowData[],
+      },
+    };
+  }
+
   let fullText = `Polit-Talks für die Woche vom ${range.deStartDate} bis ${range.deEndDate}\n\n`;
 
-  if (episodes.size === 0) {
-    fullText += "Keine Sendungen.";
-  } else {
-    const sortedEpisodes = Array.from(episodes.values()).sort((a, b) =>
-      a.episode_date.localeCompare(b.episode_date),
-    );
+  const sortedEpisodes = Array.from(episodes.values()).sort((a, b) =>
+    a.episode_date.localeCompare(b.episode_date),
+  );
 
-    sortedEpisodes.forEach((episode) => {
-      const date = new Date(episode.episode_date).toLocaleDateString("de-DE", {
-        weekday: "short",
-      });
-      const shortDate = date.replace(".", "");
-
-      fullText += `${shortDate}: ${episode.show_name}\n`;
-
-      if (episode.guests.length > 0) {
-        const shortGuests = episode.guests.map((guest) =>
-          guest.party ? `${guest.name} (${guest.party})` : guest.name,
-        );
-        fullText += `G: ${shortGuests.slice(0, 5).join(", ")}${
-          shortGuests.length > 5 ? "..." : ""
-        }\n`;
-      }
-
-      fullText += "\n";
+  sortedEpisodes.forEach((episode) => {
+    const date = new Date(episode.episode_date).toLocaleDateString("de-DE", {
+      weekday: "short",
     });
-  }
+    const shortDate = date.replace(".", "");
+
+    fullText += `${shortDate}: ${episode.show_name}\n`;
+
+    if (episode.guests.length > 0) {
+      const shortGuests = episode.guests.map((guest) =>
+        guest.party ? `${guest.name} (${guest.party})` : guest.name,
+      );
+      fullText += `G: ${shortGuests.slice(0, 5).join(", ")}${
+        shortGuests.length > 5 ? "..." : ""
+      }\n`;
+    }
+
+    fullText += "\n";
+  });
 
   fullText += "\nMehr zu sehen auf www.polittalk-watcher.de\n\n#Polittalk";
 
   return {
     label: "weekly",
     text: fullText,
+    skip: false,
+    skipReason: null,
     meta: {
       dateRange: {
         start: range.startDate,
@@ -251,22 +266,38 @@ async function buildMonthlyPost() {
 
   const sortedParties = Object.entries(partyCounts).sort((a, b) => b[1] - a[1]);
 
+  // Ohne Gästedaten wird nichts gepostet.
+  if (sortedParties.length === 0) {
+    return {
+      label: "monthly",
+      text: "",
+      skip: true,
+      skipReason: `Keine Gästedaten für ${range.monthName} verfügbar.`,
+      meta: {
+        month: range.monthName,
+        dateRange: {
+          start: range.startDate,
+          end: range.endDate,
+        },
+        data: sortedParties,
+      },
+    };
+  }
+
   let fullText = `Talkshow-Präsenz der Parteien im ${range.monthName} 📊\n\n`;
 
-  if (sortedParties.length === 0) {
-    fullText += "Keine Gästedaten für diesen Monat verfügbar.";
-  } else {
-    sortedParties.forEach(([party, count]) => {
-      fullText += `${party}: ${count}\n`;
-    });
-    fullText += `\nGesamtanzahl Gäste: ${totalGuests}`;
-  }
+  sortedParties.forEach(([party, count]) => {
+    fullText += `${party}: ${count}\n`;
+  });
+  fullText += `\nGesamtanzahl Gäste: ${totalGuests}`;
 
   fullText += "\n\n#Polittalk";
 
   return {
     label: "monthly",
     text: fullText,
+    skip: false,
+    skipReason: null,
     meta: {
       month: range.monthName,
       dateRange: {
@@ -303,12 +334,29 @@ export async function GET(
     const dryRun = searchParams.get("dryRun") === "true";
 
     const post = await buildPost(period);
+
+    // Keine neuen Daten → kein Post (auch keine Bluesky-Anmeldung).
+    if (post.skip) {
+      console.log(`Bluesky-Post übersprungen (${post.label}): ${post.skipReason}`);
+      return NextResponse.json({
+        success: true,
+        posted: false,
+        skipped: true,
+        reason: post.skipReason,
+        period: post.label,
+        ...(dryRun ? { dryRun: true } : {}),
+        ...post.meta,
+      });
+    }
+
     const chunks = splitTextForBluesky(post.text);
 
     if (dryRun) {
       return NextResponse.json({
         success: true,
         dryRun: true,
+        posted: false,
+        skipped: false,
         period: post.label,
         originalLength: richTextLength(post.text),
         chunksCount: chunks.length,
@@ -367,6 +415,8 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
+      posted: true,
+      skipped: false,
       period: post.label,
       publishedPosts,
       chunksCount: chunks.length,

@@ -41,6 +41,11 @@ jobs:
             echo "❌ Request failed with HTTP $HTTP_STATUS"
             exit 1
           fi
+
+          if grep -q '"skipped":true' /tmp/bluesky_response.json; then
+            echo "ℹ️ Keine neuen Sendungen – es wurde nichts gepostet."
+            exit 0
+          fi
           echo "✅ Bluesky Bot erfolgreich ausgeführt."
 
   post-monthly:
@@ -66,6 +71,11 @@ jobs:
           if [ "$HTTP_STATUS" != "200" ]; then
             echo "❌ Request failed with HTTP $HTTP_STATUS"
             exit 1
+          fi
+
+          if grep -q '"skipped":true' /tmp/bluesky_response.json; then
+            echo "ℹ️ Keine Gästedaten – es wurde nichts gepostet."
+            exit 0
           fi
           echo "✅ Bluesky Bot erfolgreich ausgeführt."
 
