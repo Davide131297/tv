@@ -6,6 +6,9 @@ import {
   checkPolitician,
   extractGuestsWithAI,
   getPoliticalArea,
+  fetchArdSynopsis,
+  buildArdItemApiUrl,
+  extractArdAssetId,
 } from "../lib/utils.js";
 import axios from "axios";
 import * as cheerio from "cheerio";
@@ -342,34 +345,13 @@ async function fetchEpisodeDetails(
   }
 }
 
-// Beschreibung via OG Meta-Tag von der ARD Mediathek holen
+// Beschreibung über die ARD Page-Gateway Item-API holen
+// (www.ardmediathek.de ist eine SPA und liefert keine OG-Meta-Tags mehr)
 async function fetchArdDescription(ardUrl: string): Promise<string> {
-  try {
-    const res = await fetch(ardUrl, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      },
-    });
+  const assetId = extractArdAssetId(ardUrl);
+  if (!assetId) return "";
 
-    if (!res.ok) return "";
-
-    const html = await res.text();
-
-    const match = html.match(
-      /<meta[^>]+property="og:description"[^>]+content="([^"]+)"/i,
-    );
-    if (match) return decodeHtmlEntities(match[1]);
-
-    const fallback = html.match(
-      /<meta[^>]+name="description"[^>]+content="([^"]+)"/i,
-    );
-    return fallback ? decodeHtmlEntities(fallback[1]) : "";
-  } catch {
-    return "";
-  }
+  return fetchArdSynopsis(buildArdItemApiUrl(assetId));
 }
 
 // HTML-Entities dekodieren (z. B. &amp; → &)
