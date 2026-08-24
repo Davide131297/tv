@@ -118,6 +118,10 @@ async function saveRatings(
 const ARD_URL =
   "https://www1.wdr.de/unternehmen/der-wdr/profil/quoten-tv-ard-100.html";
 const ARD_TRACKED_SHOWS = ["hart aber fair", "maischberger", "miosga"];
+// Kanonische Namen, wie sie in der Datenbank (tv_show_politicians) hinterlegt sind.
+const ARD_CANONICAL_SHOW_NAMES: Record<string, string> = {
+  miosga: "Caren Miosga",
+};
 
 function parseARDDate(html: string): string | null {
   const h1Match = html.match(
@@ -158,11 +162,11 @@ function parseARDTable(html: string): TvRating[] {
     const marketShareStr = match[3].trim();
     const viewersStr = match[4].trim();
 
-    const isTracked = ARD_TRACKED_SHOWS.some((tracked) =>
+    const trackedShow = ARD_TRACKED_SHOWS.find((tracked) =>
       showName.toLowerCase().includes(tracked),
     );
 
-    if (isTracked) {
+    if (trackedShow) {
       const marketShare = parseFloat(
         marketShareStr.replace("%", "").replace(",", "."),
       );
@@ -172,7 +176,7 @@ function parseARDTable(html: string): TvRating[] {
 
       if (!isNaN(marketShare) && !isNaN(viewersMillions)) {
         ratings.push({
-          show_name: showName,
+          show_name: ARD_CANONICAL_SHOW_NAMES[trackedShow] ?? showName,
           episode_date: episodeDate,
           market_share: marketShare,
           viewers_millions: viewersMillions,
