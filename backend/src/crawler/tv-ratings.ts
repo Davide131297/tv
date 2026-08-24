@@ -117,7 +117,7 @@ async function saveRatings(
 
 const ARD_URL =
   "https://www1.wdr.de/unternehmen/der-wdr/profil/quoten-tv-ard-100.html";
-const ARD_TRACKED_SHOWS = ["hart aber fair", "maischberger", "miosga"];
+const ARD_TRACKED_SHOWS = ["hart aber fair", "Maischberger", "Caren Miosga"];
 
 function parseARDDate(html: string): string | null {
   const h1Match = html.match(
