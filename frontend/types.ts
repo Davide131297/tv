@@ -120,7 +120,8 @@ export interface EpisodeData {
   episode_date: string;
   politician_count: number;
   politicians: PoliticianInEpisode[];
-  episode_url?: string; // Optional URL from show_links table
+  episode_url?: string | null; // Optional URL from show_links table
+  show_name?: string;
 }
 
 export interface TvRatingOverview {
@@ -178,38 +179,66 @@ export const SHOW_OPTIONS: ShowOption[] = [
   {
     value: "all",
     label: "Alle Shows",
-    btnColor: "bg-black text-white hover:bg-gray-800 hover:text-white",
+    btnColor: "bg-black text-white hover:bg-gray-800 hover:text-white dark:bg-white dark:text-black dark:hover:bg-gray-200 dark:hover:text-black",
   },
   {
     value: "Markus Lanz",
     label: "Markus Lanz",
-    btnColor: "bg-orange-100 text-orange-800 hover:bg-orange-200",
+    btnColor: "bg-orange-100 text-orange-800 hover:bg-orange-200 dark:bg-orange-950 dark:text-orange-200 dark:hover:bg-black/50 dark:hover:text-white",
   },
   {
     value: "Maybrit Illner",
     label: "Maybrit Illner",
-    btnColor: "bg-purple-100 text-purple-800 hover:bg-purple-200",
+    btnColor: "bg-purple-100 text-purple-800 hover:bg-purple-200 dark:bg-purple-950 dark:text-purple-200 dark:hover:bg-black/50 dark:hover:text-white",
   },
   {
     value: "Caren Miosga",
     label: "Caren Miosga",
-    btnColor: "bg-green-100 text-green-800 hover:bg-green-200",
+    btnColor: "bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-950 dark:text-green-200 dark:hover:bg-black/50 dark:hover:text-white",
   },
   {
     value: "Maischberger",
     label: "Maischberger",
-    btnColor: "bg-teal-100 text-teal-800 hover:bg-teal-200",
+    btnColor: "bg-teal-100 text-teal-800 hover:bg-teal-200 dark:bg-teal-950 dark:text-teal-200 dark:hover:bg-black/50 dark:hover:text-white",
   },
   {
     value: "Hart aber fair",
     label: "Hart aber fair",
-    btnColor: "bg-blue-100 text-blue-800 hover:bg-blue-200",
+    btnColor: "bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-950 dark:text-blue-200 dark:hover:bg-black/50 dark:hover:text-white",
   },
 ];
 
 export const SHOW_OPTIONS_WITHOUT_ALL: ShowOption[] = SHOW_OPTIONS.filter(
   (o) => o.value !== "all",
 );
+
+export const OTHER_SHOW_OPTIONS: ShowOption[] = [
+  {
+    value: "Sarah Tacke",
+    label: "Sarah Tacke",
+    btnColor: "bg-indigo-100 text-indigo-800 hover:bg-indigo-200 dark:bg-indigo-950 dark:text-indigo-200 dark:hover:bg-black/50 dark:hover:text-white",
+  },
+  // {
+  //   value: "Phoenix Runde",
+  //   label: "Phoenix Runde",
+  //   btnColor: "bg-cyan-100 text-cyan-800 hover:bg-cyan-200 dark:bg-cyan-950 dark:text-cyan-200 dark:hover:bg-black/50 dark:hover:text-white",
+  // },
+  // {
+  //   value: "Phoenix Persönlich",
+  //   label: "Phoenix Persönlich",
+  //   btnColor: "bg-sky-100 text-sky-800 hover:bg-sky-200 dark:bg-sky-950 dark:text-sky-200 dark:hover:bg-black/50 dark:hover:text-white",
+  // },
+  // {
+  //   value: "Pinar Atalay",
+  //   label: "Pinar Atalay",
+  //   btnColor: "bg-rose-100 text-rose-800 hover:bg-rose-200 dark:bg-rose-950 dark:text-rose-200 dark:hover:bg-black/50 dark:hover:text-white",
+  // },
+  // {
+  //   value: "Blome & Pfeffer",
+  //   label: "Blome & Pfeffer",
+  //   btnColor: "bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-950 dark:text-amber-200 dark:hover:bg-black/50 dark:hover:text-white",
+  // },
+];
 
 // =============================================================================
 // PARTY COLOR MAPPINGS
@@ -256,7 +285,11 @@ export type ShowValue =
   | "Caren Miosga"
   | "Maischberger"
   | "Hart aber fair"
-  | "Phoenix Runde";
+  | "Phoenix Runde"
+  | "Phoenix Persönlich"
+  | "Pinar Atalay"
+  | "Blome & Pfeffer"
+  | "Sarah Tacke";
 
 // =============================================================================
 // Abgeordnetenwatch TYPES

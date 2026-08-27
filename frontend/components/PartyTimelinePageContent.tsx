@@ -67,6 +67,7 @@ export default function PartyTimelinePageContent({
             onShowChange={handleShowChange}
             selectedShow={initialShow}
             selectedChannel={initialChannel}
+            withOtherShows={true}
           />
         </div>
       </div>

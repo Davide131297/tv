@@ -73,6 +73,7 @@ export default function PartiesPageContent({
           onShowChange={handleShowChange}
           selectedShow={initialShow}
           selectedChannel={initialChannel}
+          withOtherShows={true}
         />
       </div>
 

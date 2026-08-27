@@ -56,6 +56,7 @@ export function getShowBadgeClasses(showName: string): string {
     "Phoenix Persönlich": "bg-cyan-100 text-cyan-800",
     "Pinar Atalay": "bg-rose-100 text-pink-800",
     "Blome & Pfeffer": "bg-rose-100 text-pink-800",
+    "Sarah Tacke": "bg-indigo-100 text-indigo-800",
   };
   return map[showName] || "bg-gray-100 text-gray-800";
 }

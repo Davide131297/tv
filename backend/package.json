@@ -10,7 +10,8 @@
     "start": "node dist/app.js",
     "dev:ts-node": "node --loader ts-node/esm src/app.ts",
     "watch": "tsc --watch",
-    "test": "jest"
+    "test": "jest",
+    "test:tacke": "tsx src/crawler/test-sarah-tacke.ts"
   },
   "dependencies": {
     "@google/genai": "^2.9.0",

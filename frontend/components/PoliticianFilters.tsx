@@ -81,6 +81,7 @@ export default function PoliticianFilters({
           <ShowOptionsButtons
             onShowChange={handleShowChange}
             selectedShow={initialShow}
+            withOtherShows={true}
           />
 
           <div className="relative w-full md:w-96">

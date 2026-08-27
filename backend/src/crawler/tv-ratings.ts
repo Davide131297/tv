@@ -204,7 +204,7 @@ export async function crawlARDRatings() {
 // ============================================
 
 const ZDF_URL = "https://teletext.zdf.de/teletext/zdf/seiten/448.html";
-const ZDF_TRACKED_SHOWS = ["markus lanz", "maybrit illner"];
+const ZDF_TRACKED_SHOWS = ["markus lanz", "maybrit illner", "sarah tacke", "tacke"];
 
 function parseZDFDate(html: string): string | null {
   const dateMatch = html.match(/(\d{2})\.(\d{2})\.(\d{4})/);
@@ -227,14 +227,18 @@ function parseZDFTable(html: string): TvRating[] {
 
   console.log(`📅 ZDF Datum: ${episodeDate}`);
 
-  const divRegex = /<div class="table"[^>]*>\s*(.*?)\s*<\/div>/g;
+  const divRegex = /(?:<div class="table"[^>]*>|<h2 class="headline_normal"[^>]*>)\s*(.*?)\s*(?:<\/div>|<\/h2>)/g;
 
   let match;
   while ((match = divRegex.exec(html)) !== null) {
-    const line = match[1].replace(/<br\s*\/?>/g, "").trim();
+    const line = match[1]
+      .replace(/&nbsp;/g, " ")
+      .replace(/\u00a0/g, " ")
+      .replace(/<br\s*\/?>/g, "")
+      .trim();
 
     const lineMatch = line.match(
-      /^(\d{2}:\d{2})\s+(.+?)\s{2,}(\d+,\d+)\s+(\d+,?\d*)\s*$/,
+      /^(\d{2}:\d{2})\s+(.+?)\s+(\d+(?:[.,]\d+)?)\s+(\d+(?:[.,]\d*)?)\s*$/,
     );
     if (!lineMatch) continue;
 
@@ -242,17 +246,27 @@ function parseZDFTable(html: string): TvRating[] {
     const viewersStr = lineMatch[3];
     const marketShareStr = lineMatch[4];
 
+    const lower = showName.toLowerCase();
     const isTracked = ZDF_TRACKED_SHOWS.some((tracked) =>
-      showName.toLowerCase().includes(tracked),
+      lower.includes(tracked),
     );
 
     if (isTracked) {
       const viewersMillions = parseFloat(viewersStr.replace(",", "."));
       const marketShare = parseFloat(marketShareStr.replace(",", "."));
 
+      let normalizedShowName = showName;
+      if (lower.includes("markus lanz") || lower.includes("lanz")) {
+        normalizedShowName = "Markus Lanz";
+      } else if (lower.includes("maybrit illner") || lower.includes("illner")) {
+        normalizedShowName = "Maybrit Illner";
+      } else if (lower.includes("sarah tacke") || lower.includes("tacke")) {
+        normalizedShowName = "Sarah Tacke";
+      }
+
       if (!isNaN(marketShare) && !isNaN(viewersMillions)) {
         ratings.push({
-          show_name: showName,
+          show_name: normalizedShowName,
           episode_date: episodeDate,
           market_share: marketShare,
           viewers_millions: viewersMillions,

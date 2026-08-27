@@ -170,6 +170,7 @@ export function isModeratorOrHost(name: string, showName?: string): boolean {
     "Frank Plasberg",
     "Pinar Atalay",
     "Ingo Zamperoni",
+    "Sarah Tacke",
   ];
 
   // Check against common moderators

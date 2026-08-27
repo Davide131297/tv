@@ -1,12 +1,13 @@
 import { SHOW_OPTIONS, SHOW_OPTIONS_WITHOUT_ALL } from "@/types";
 import { cn } from "@/lib/utils";
+import OtherShowsSelect from "./OtherShowsSelect";
 
 export function getChannelButtonColor(channelValue: string) {
   switch (channelValue) {
     case "Das Erste":
-      return "bg-blue-100 text-blue-800 hover:bg-blue-200";
+      return "bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-950 dark:text-blue-200 dark:hover:bg-black/50 dark:hover:text-white";
     case "ZDF":
-      return "bg-yellow-100 text-yellow-800 hover:bg-yellow-200";
+      return "bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-950 dark:text-yellow-200 dark:hover:bg-black/50 dark:hover:text-white";
     // case "Phoenix":
     //   return "bg-cyan-100 text-cyan-800 hover:bg-cyan-200";
     // case "RTL":
@@ -15,7 +16,7 @@ export function getChannelButtonColor(channelValue: string) {
     // case "Pro 7":
     //   return "bg-purple-100 text-purple-800 hover:bg-purple-200";
     default:
-      return "bg-gray-100 text-gray-700 hover:bg-gray-200";
+      return "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-900 dark:hover:text-white";
   }
 }
 
@@ -24,17 +25,18 @@ function getShowChannel(showName: string) {
   switch (showName) {
     case "Markus Lanz":
     case "Maybrit Illner":
+    case "Sarah Tacke":
       return "ZDF";
     case "Maischberger":
     case "Hart aber fair":
     case "Caren Miosga":
       return "Das Erste";
-    // case "Phoenix Runde":
-    // case "Phoenix Persönlich":
-    //   return "Phoenix";
-    // case "Pinar Atalay":
-    // case "Blome & Pfeffer":
-    //   return "NTV";
+    case "Phoenix Runde":
+    case "Phoenix Persönlich":
+      return "Phoenix";
+    case "Pinar Atalay":
+    case "Blome & Pfeffer":
+      return "NTV";
     default:
       return "";
   }
@@ -45,11 +47,13 @@ export default function ShowOptionsButtons({
   selectedShow,
   selectedChannel,
   withAll = true,
+  withOtherShows = false,
 }: {
   onShowChange: (show: string) => void;
   selectedShow: string;
   selectedChannel?: string;
   withAll?: boolean;
+  withOtherShows?: boolean;
 }) {
   const shows = withAll ? SHOW_OPTIONS : SHOW_OPTIONS_WITHOUT_ALL;
 
@@ -65,7 +69,7 @@ export default function ShowOptionsButtons({
                 selectedShow === "all" &&
                 showChannel === selectedChannel
               ? getChannelButtonColor(selectedChannel)
-              : "bg-gray-100 text-gray-700 hover:bg-gray-200";
+              : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-900 dark:hover:text-white";
 
         return (
           <button
@@ -82,6 +86,13 @@ export default function ShowOptionsButtons({
           </button>
         );
       })}
+
+      {withOtherShows && (
+        <OtherShowsSelect
+          selectedShow={selectedShow}
+          onShowChange={onShowChange}
+        />
+      )}
     </div>
   );
 }

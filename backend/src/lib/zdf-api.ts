@@ -134,11 +134,15 @@ export interface ZdfParsedEpisodeDetails {
   description: string | null;
 }
 
+export function cleanAcademicTitles(name: string): string {
+  return name.replace(/^(?:(?:Prof\.|Dr\.|Dr\. med\.|Dipl\.-[a-zA-Z]+)\s*)+/gi, "").trim();
+}
+
 /**
  * Parse ZDF episode HTML using Cheerio to extract description and guest list.
  */
 export function parseZdfEpisodeHtml(
-  show: "lanz" | "illner",
+  show: "lanz" | "illner" | "tacke",
   html: string
 ): ZdfParsedEpisodeDetails {
   const $ = cheerio.load(html);
@@ -162,7 +166,7 @@ export function parseZdfEpisodeHtml(
       });
       if (description) break;
     }
-  } else {
+  } else if (show === "illner") {
     // Maybrit Illner description from guest section paragraphs/divs (excluding title and guest lists)
     const guestSection = $('section[tabindex="0"], section.tdeoflm');
     if (guestSection.length) {
@@ -178,6 +182,36 @@ export function parseZdfEpisodeHtml(
         return text.length > 30;
       });
       
+      if (cleanParagraphs.length > 0) {
+        description = cleanParagraphs.join(" ");
+      }
+    }
+  } else if (show === "tacke") {
+    // Sarah Tacke description from guest section paragraphs/divs (excluding title, guest lists and broadcast schedule)
+    const guestSection = $('section[tabindex="0"], section.tdeoflm');
+    if (guestSection.length) {
+      const paragraphs: string[] = [];
+      guestSection.find(".p4fzw5k").each((_, el) => {
+        const clone = $(el).clone();
+        clone.find("ul, ol, h3, script, style").remove();
+        const text = clone.text().trim();
+        if (text) {
+          paragraphs.push(text);
+        }
+      });
+
+      const cleanParagraphs = paragraphs.filter(text => {
+        if (
+          text.includes("Zu Gast") ||
+          text.includes("am Donnerstag") ||
+          text.includes("Podcast zum Nachhören") ||
+          text.includes("SARAH TACKE“ mit dem Thema")
+        ) {
+          return false;
+        }
+        return text.length > 30;
+      });
+
       if (cleanParagraphs.length > 0) {
         description = cleanParagraphs.join(" ");
       }
@@ -217,13 +251,15 @@ export function parseZdfEpisodeHtml(
         name = name.replace(/\(([^)]+)\)/, "").trim();
       }
 
+      name = cleanAcademicTitles(name);
+
       if (seemsLikePersonName(name) && !isModeratorOrHost(name, "Markus Lanz")) {
         if (!guests.some(g => g.name === name)) {
           guests.push({ name, role });
         }
       }
     });
-  } else {
+  } else if (show === "illner") {
     // Maybrit Illner guests from lists inside the guest section
     const listItems = $('section[tabindex="0"] li, section.tdeoflm li');
     listItems.each((_, el) => {
@@ -251,6 +287,8 @@ export function parseZdfEpisodeHtml(
         // Clean up role parentheses and commas
         role = role.replace(/^\(([^)]+)\)/, "$1").replace(/^,\s*/, "").replace(/^[,\(\s]+|[,\)\s]+$/g, "").trim();
       }
+
+      name = cleanAcademicTitles(name);
       
       if (seemsLikePersonName(name) && !isModeratorOrHost(name, "Maybrit Illner")) {
         if (!guests.some(g => g.name === name)) {
@@ -265,11 +303,80 @@ export function parseZdfEpisodeHtml(
       if (alt && alt.includes(":")) {
         const list = alt.split(":")[1].split(",").map(s => s.trim()).filter(Boolean);
         list.forEach(guestName => {
-          if (seemsLikePersonName(guestName) && !isModeratorOrHost(guestName, "Maybrit Illner")) {
-            guests.push({ name: guestName });
+          const cleanedName = cleanAcademicTitles(guestName);
+          if (seemsLikePersonName(cleanedName) && !isModeratorOrHost(cleanedName, "Maybrit Illner")) {
+            guests.push({ name: cleanedName });
           }
         });
       }
+    }
+  } else if (show === "tacke") {
+    // Sarah Tacke guests from lists inside the guest section
+    const listItems = $('section[tabindex="0"] li, section.tdeoflm li');
+    listItems.each((_, el) => {
+      const fullText = $(el).text().replace(/\s+/g, " ").trim();
+      if (!fullText) return;
+
+      let name = fullText;
+      let role: string | undefined = undefined;
+
+      const commaIndex = fullText.indexOf(",");
+      const parenIndex = fullText.indexOf("(");
+
+      let splitIndex = -1;
+      if (commaIndex !== -1 && parenIndex !== -1) {
+        splitIndex = Math.min(commaIndex, parenIndex);
+      } else if (commaIndex !== -1) {
+        splitIndex = commaIndex;
+      } else if (parenIndex !== -1) {
+        splitIndex = parenIndex;
+      }
+
+      if (splitIndex !== -1) {
+        name = fullText.substring(0, splitIndex).trim();
+        role = fullText.substring(splitIndex).trim();
+        role = role
+          .replace(/^\(([^)]+)\)/, "$1")
+          .replace(/^,\s*/, "")
+          .replace(/^[,\(\s]+|[,\)\s]+$/g, "")
+          .trim();
+      }
+
+      name = cleanAcademicTitles(name);
+
+      if (seemsLikePersonName(name) && !isModeratorOrHost(name, "Sarah Tacke")) {
+        if (!guests.some((g) => g.name === name)) {
+          guests.push({ name, role });
+        }
+      }
+    });
+
+    // Fallback: image alt tags if list was empty
+    if (!guests.length) {
+      $("main img, img").each((_, el) => {
+        const alt = $(el).attr("alt") || "";
+        if (/tacke/i.test(alt) && (alt.includes(":") || alt.includes("gemeinsam mit") || alt.includes("mit ihren Gästen"))) {
+          // e.g. "Zu Gast bei „SARAH TACKE“: NRW-Innenminister Herbert Reul (CDU), ..."
+          const prefixMatch = alt.match(/(?:Zu Gast bei[^:]*:\s*|gemeinsam mit\s+)(.+)/i);
+          const candidates = (prefixMatch ? prefixMatch[1] : alt).split(/,| und /).map(s => s.trim()).filter(Boolean);
+          candidates.forEach(raw => {
+            const parenMatch = raw.match(/\(([^)]+)\)/);
+            let role: string | undefined = parenMatch ? parenMatch[1] : undefined;
+            let name = raw.replace(/\(([^)]+)\)/, "").trim();
+            const commaIdx = name.indexOf(",");
+            if (commaIdx !== -1) {
+              role = role ? `${role}, ${name.substring(commaIdx + 1).trim()}` : name.substring(commaIdx + 1).trim();
+              name = name.substring(0, commaIdx).trim();
+            }
+            name = cleanAcademicTitles(name);
+            if (seemsLikePersonName(name) && !isModeratorOrHost(name, "Sarah Tacke")) {
+              if (!guests.some((g) => g.name === name)) {
+                guests.push({ name, role });
+              }
+            }
+          });
+        }
+      });
     }
   }
 

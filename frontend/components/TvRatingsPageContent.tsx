@@ -580,7 +580,11 @@ export default function TvRatingsPageContent({
 
       <div className="mt-8 border-t border-gray-200 pt-4 text-sm text-gray-500 dark:border-gray-800 dark:text-gray-400">
         Einschaltquoten-Daten sind in diesem Dashboard erst ab dem 23.02.2026
-        vorhanden. Quellen:{" "}
+        vorhanden. Bitte beachten Sie, dass die Erfassung der Quoten ausschließlich für
+        die Talkshows <strong>Markus Lanz</strong>, <strong>Maischberger</strong>,{" "}
+        <strong>Caren Miosga</strong>, <strong>Hart aber fair</strong> und{" "}
+        <strong>Maybrit Illner</strong> (sowie ausgewählte Sommerausgaben von{" "}
+        <strong>Sarah Tacke</strong>) erfolgt. Quellen:{" "}
         {TV_RATINGS_SOURCES.map((source, index) => (
           <span key={source.href}>
             <Link

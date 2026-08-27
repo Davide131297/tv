@@ -102,6 +102,10 @@ describe("isModeratorOrHost", () => {
     expect(isModeratorOrHost("Caren Miosga")).toBe(true);
   });
 
+  it("returns true for Sarah Tacke", () => {
+    expect(isModeratorOrHost("Sarah Tacke")).toBe(true);
+  });
+
   it("returns false for a politician", () => {
     expect(isModeratorOrHost("Robert Habeck")).toBe(false);
   });

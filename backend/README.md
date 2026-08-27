@@ -10,14 +10,15 @@ Das System crawlt automatisch folgende Talkshows und Datenquellen:
 
 1. **Markus Lanz** (ZDF)
 2. **Maybrit Illner** (ZDF)
-3. **Caren Miosga** (ARD)
-4. **Maischberger** (ARD)
-5. **Hart aber fair** (ARD)
-6. **Pinar Atalay** (RTL+)
-7. **Phoenix Runde** (Phoenix)
-8. **Phoenix Persönlich** (Phoenix)
-9. **Blome & Pfeffer** (RTL+ Podcast)
-10. **Einschaltquoten / TV-Ratings** (WDR Quoten-Service für ARD & ZDF Teletext für ZDF)
+3. **Sarah Tacke** (ZDF)
+4. **Caren Miosga** (ARD)
+5. **Maischberger** (ARD)
+6. **Hart aber fair** (ARD)
+7. **Pinar Atalay** (RTL+)
+8. **Phoenix Runde** (Phoenix)
+9. **Phoenix Persönlich** (Phoenix)
+10. **Blome & Pfeffer** (RTL+ Podcast)
+11. **Einschaltquoten / TV-Ratings** (WDR Quoten-Service für ARD & ZDF Teletext für ZDF)
 
 ---
 
@@ -31,6 +32,7 @@ backend/
 │   ├── crawler/                # Die Crawler-Skripte für die Shows
 │   │   ├── lanz.ts             # Markus Lanz (ZDF API + Puppeteer-Fallback)
 │   │   ├── illner.ts           # Maybrit Illner (ZDF API + Puppeteer-Fallback)
+│   │   ├── tacke.ts            # Sarah Tacke (ZDF API + Puppeteer-Fallback)
 │   │   ├── miosga.ts           # Caren Miosga (ARD-Audiothek GraphQL-API)
 │   │   ├── maischberger.ts     # Maischberger (ARD-Mediathek JSON-API)
 │   │   ├── haf.ts              # Hart aber fair (Axios + Cheerio HTML-Parsing)
@@ -108,7 +110,7 @@ Alle `/api/*`-Endpunkte (außer dem Health Check) sind mit einem Bearer-Token ge
 
 ### 1. Alle Talkshow-Crawler triggern
 * **Pfad:** `GET /api/crawl/all`
-* **Zweck:** Führt nacheinander die inkrementellen Crawler für *Lanz, Illner, Hart aber Fair, Maischberger und Miosga* aus.
+* **Zweck:** Führt nacheinander die inkrementellen Crawler für *Lanz, Illner, Sarah Tacke, Hart aber Fair, Maischberger und Miosga* aus.
 * **Erwartete Antwort:** JSON-Zusammenfassung mit Anzahl erfolgreicher und fehlgeschlagener Crawler.
 
 ### 2. Einzelne Crawler manuell triggern
@@ -116,6 +118,7 @@ Alle `/api/*`-Endpunkte (außer dem Health Check) sind mit einem Bearer-Token ge
 * **Unterstützte Parameter für `:show`:**
   * `lanz` — Markus Lanz (POST)
   * `illner` — Maybrit Illner (POST). Unterstützt im Body `{"runType": "full"}` für einen historischen Crawl.
+  * `tacke` / `sarah-tacke` — Sarah Tacke (POST). Unterstützt im Body `{"runType": "full"}` für einen historischen Crawl.
   * `haf` — Hart aber Fair (POST)
   * `maischberger` — Maischberger (POST). Unterstützt im Body `{"runType": "full"}`.
   * `miosga` — Caren Miosga (POST). Unterstützt im Body `{"runType": "full"}`.
@@ -144,6 +147,7 @@ Die Crawler wurden optimiert, um so ressourcenschonend wie möglich zu arbeiten 
 | :--- | :--- | :--- |
 | **Markus Lanz** | Primär: Direkte Abfrage der **ZDF GraphQL-API** (schnell, stabil). <br> Fallback: **Puppeteer**-Scraping der Mediathek-Webseite. | HTML-Strukturanalyse der ZDF-Mediathek + Abgeordnetenwatch-Validierung. |
 | **Maybrit Illner** | Primär: Direkte Abfrage der **ZDF GraphQL-API**. <br> Fallback: **Puppeteer**-Scraping der Mediathek-Webseite. | HTML-Strukturanalyse der ZDF-Mediathek + Abgeordnetenwatch-Validierung. |
+| **Sarah Tacke** | Primär: Direkte Abfrage der **ZDF GraphQL-API**. <br> Fallback: **Puppeteer**-Scraping der Mediathek-Webseite. | Primär: HTML-Struktur (Listen/Bilder). <br> Fallback: **Gemini AI** (`extractGuestsWithAI`) für Teasertexte ohne Listenelemente + Abgeordnetenwatch-Validierung. |
 | **Caren Miosga** | Direkte Abfrage der **ARD-Audiothek GraphQL-API**. Kein Browser erforderlich. | **Gemini AI** (`extractGuestsWithAI`) extrahiert Gäste-Namen aus dem Beschreibungstext. |
 | **Maischberger** | Direkte Abfrage des **ARD Mediathek Page-Gateway** (JSON-Schnittstelle) und anschließendes HTML-Regex-Parsing der Meta-Beschreibungen. | **Gemini AI** (`extractGuestsWithAI`) extrahiert Gäste-Namen aus dem Beschreibungstext. |
 | **Hart aber fair** | Direktes HTML-Parsing mittels **Axios & Cheerio** (WDR Homepage & Archiv). | Primär: HTML-Strukturanalyse der Gästeliste. <br> Fallback: **Gemini AI** extrahiert Namen aus Beschreibungstexten. |

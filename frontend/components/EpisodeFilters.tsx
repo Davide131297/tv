@@ -35,6 +35,7 @@ export default function EpisodeFilters({
           selectedShow={initialShow}
           onShowChange={handleShowChange}
           withAll={false}
+          withOtherShows={true}
         />
 
         <div className="flex gap-2 items-center">
@@ -57,7 +58,7 @@ export default function EpisodeFilters({
 
       <div className="mt-4">
         <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-400">
-          📊 Aktuelle Ansicht: {initialShow}
+          📊 Aktuelle Ansicht: {initialShow.split(",").join(", ")}
         </h2>
       </div>
     </div>

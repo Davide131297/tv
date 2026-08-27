@@ -7,6 +7,10 @@ import {
   crawlNewMaybritIllnerEpisodes,
   crawlAllMaybritIllnerEpisodes,
 } from "./crawler/illner.js";
+import CrawlSarahTacke, {
+  crawlNewSarahTackeEpisodes,
+  crawlAllSarahTackeEpisodes,
+} from "./crawler/tacke.js";
 import crawlHartAberFair from "./crawler/haf.js";
 import {
   crawlNewMaischbergerEpisodes,
@@ -87,6 +91,7 @@ app.get("/api/crawl/all", async (req, res) => {
 
   await runCrawler("Markus Lanz", CrawlLanz);
   await runCrawler("Maybrit Illner", crawlNewMaybritIllnerEpisodes);
+  await runCrawler("Sarah Tacke", CrawlSarahTacke);
   await runCrawler("Hart aber Fair", crawlHartAberFair);
   await runCrawler("Maischberger", crawlNewMaischbergerEpisodes);
   await runCrawler("Caren Miosga", crawlIncrementalCarenMiosgaEpisodes);
@@ -142,6 +147,42 @@ app.post("/api/crawl/illner", async (req, res) => {
   } catch (error) {
     console.error("❌ Illner Crawler Fehler:", error);
     res.status(500).json({ error: "Illner crawler failed" });
+  }
+});
+
+// POST /api/crawl/tacke
+app.post("/api/crawl/tacke", async (req, res) => {
+  try {
+    const { runType } = req.body || {};
+
+    if (runType === "full") {
+      await crawlAllSarahTackeEpisodes();
+      res.json({ message: "Sarah Tacke full crawl completed" });
+    } else {
+      const result = await CrawlSarahTacke();
+      res.json(result);
+    }
+  } catch (error) {
+    console.error("❌ Sarah Tacke Crawler Fehler:", error);
+    res.status(500).json({ error: "Sarah Tacke crawler failed" });
+  }
+});
+
+// POST /api/crawl/sarah-tacke (alias)
+app.post("/api/crawl/sarah-tacke", async (req, res) => {
+  try {
+    const { runType } = req.body || {};
+
+    if (runType === "full") {
+      await crawlAllSarahTackeEpisodes();
+      res.json({ message: "Sarah Tacke full crawl completed" });
+    } else {
+      const result = await CrawlSarahTacke();
+      res.json(result);
+    }
+  } catch (error) {
+    console.error("❌ Sarah Tacke Crawler Fehler:", error);
+    res.status(500).json({ error: "Sarah Tacke crawler failed" });
   }
 });
 

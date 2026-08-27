@@ -361,8 +361,8 @@ export default function ComparisonClient({
                       backgroundColor: "rgba(255,255,255,0.96)",
                       backdropFilter: "blur(12px)",
                     }}
-                    formatter={(value: number, name: string) => [
-                      `${value} Auftritte`,
+                    formatter={(value: any, name: any) => [
+                      `${value ?? 0} Auftritte`,
                       name === "A" ? p1 : p2,
                     ]}
                     labelFormatter={(label) => `Show: ${label}`}

@@ -42,6 +42,7 @@ export default function OverviewFilters({
         <ShowOptionsButtons
           onShowChange={handleShowChange}
           selectedShow={initialShow}
+          withOtherShows={true}
         />
         <div className="flex gap-2 items-center">
           <p className="text-sm font-medium">Jahr</p>

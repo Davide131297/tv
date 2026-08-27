@@ -1,6 +1,6 @@
 import { fetchZdfSeasonEpisodes, fetchZdfEpisodeHtml, parseZdfEpisodeHtml } from "../lib/zdf-api.js";
 
-async function dryRunShow(name: string, canonical: string, showKey: "lanz" | "illner") {
+async function dryRunShow(name: string, canonical: string, showKey: "lanz" | "illner" | "tacke") {
   console.log(`\n========================================`);
   console.log(`DRY-RUN: Fetching latest episodes for ${name}...`);
   console.log(`========================================`);
@@ -36,7 +36,7 @@ async function dryRunShow(name: string, canonical: string, showKey: "lanz" | "il
             console.log(`  ${idx + 1}. Name: "${g.name}" | Role: "${g.role || "None"}"`);
           });
         } else {
-          console.log("  No guests found.");
+          console.log("  No guests found via HTML list/image tags (crawler will use AI fallback if teaser exists).");
         }
       } catch (err: any) {
         console.error(`❌ Failed to process episode ${ep.sharingUrl}:`, err.message);
@@ -53,6 +53,7 @@ async function main() {
 
   await dryRunShow("Markus Lanz", "markus-lanz-114", "lanz");
   await dryRunShow("Maybrit Illner", "maybrit-illner-128", "illner");
+  await dryRunShow("Sarah Tacke", "sarah-tacke-166", "tacke");
 
   const duration = (Date.now() - start) / 1000;
   console.log(`\n🎉 Dry-run completed in ${duration.toFixed(2)}s.`);

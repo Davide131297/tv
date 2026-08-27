@@ -1,6 +1,6 @@
 import { EpisodeData } from "@/types";
 import { cn } from "@/lib/utils";
-import { getPartyBadgeClasses } from "@/lib/party-colors";
+import { getPartyBadgeClasses, getShowBadgeClasses } from "@/lib/party-colors";
 import Link from "next/link";
 import PoliticianModal from "./PoliticianModal";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -23,20 +23,32 @@ export default function LastShowTable({ episodes }: LastShowTableProps) {
       {/* Mobile Card Layout */}
       <div className="block sm:hidden">
         <div className="divide-y divide-gray-200 dark:divide-gray-800">
-          {episodes.map((episode) => {
+          {episodes.map((episode, index) => {
             const date = new Date(episode.episode_date);
             const formattedDate = format(date, "dd.MM.yyyy");
             const weekday = format(date, "eeee", { locale: de });
 
             return (
               <div
-                key={episode.episode_date}
+                key={`${episode.show_name || ""}-${episode.episode_date}-${index}`}
                 className="p-4 space-y-3 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors"
               >
                 <div className="flex justify-between items-start">
                   <div>
-                    <div className="font-medium text-gray-900 dark:text-gray-100 text-sm">
-                      {formattedDate}
+                    <div className="flex items-center gap-2">
+                      <div className="font-medium text-gray-900 dark:text-gray-100 text-sm">
+                        {formattedDate}
+                      </div>
+                      {episode.show_name && (
+                        <span
+                          className={cn(
+                            "text-[11px] px-1.5 py-0.5 rounded font-medium",
+                            getShowBadgeClasses(episode.show_name),
+                          )}
+                        >
+                          {episode.show_name}
+                        </span>
+                      )}
                     </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">{weekday}</div>
                   </div>
@@ -129,7 +141,7 @@ export default function LastShowTable({ episodes }: LastShowTableProps) {
 
               return (
                 <tr
-                  key={episode.episode_date}
+                  key={`${episode.show_name || ""}-${episode.episode_date}-${index}`}
                   className={`${index % 2 === 0 ? "bg-white dark:bg-transparent" : "bg-gray-50 dark:bg-gray-900/30"} ${
                     episode.episode_url
                       ? "hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors"
@@ -137,7 +149,19 @@ export default function LastShowTable({ episodes }: LastShowTableProps) {
                   }`}
                 >
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-200">
-                    {formattedDate}
+                    <div className="flex items-center gap-2">
+                      <span>{formattedDate}</span>
+                      {episode.show_name && (
+                        <span
+                          className={cn(
+                            "text-xs px-2 py-0.5 rounded font-medium",
+                            getShowBadgeClasses(episode.show_name),
+                          )}
+                        >
+                          {episode.show_name}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-200">
                     {episode.politician_count}
