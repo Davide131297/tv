@@ -113,6 +113,14 @@ export const POLITICIAN_OVERRIDES: Record<string, GuestDetails> = {
     party: 2, // CDU
     partyName: "CDU",
   },
+  "Luca Piwodda": {
+    name: "Luca Piwodda",
+    isPolitician: true,
+    politicianId: 177052,
+    politicianName: "Luca Piwodda",
+    party: 999101, // Custom ID: Partei des Fortschritts nicht in Abgeordnetenwatch
+    partyName: "Partei des Fortschritts",
+  },
 };
 
 export const FETCH_HEADERS = {
