@@ -54,6 +54,15 @@ describe("POLITICIAN_OVERRIDES – additional checks", () => {
     expect(POLITICIAN_OVERRIDES["Jan van"]?.partyName).toBe("Die Linke");
   });
 
+  it("Luca Piwodda is stored with PdF (Partei des Fortschritts)", () => {
+    const result = checkPoliticianOverride("Luca Piwodda");
+    expect(result).not.toBeNull();
+    expect(result?.politicianId).toBe(177052);
+    expect(result?.politicianName).toBe("Luca Piwodda");
+    expect(result?.party).toBe(233);
+    expect(result?.partyName).toBe("PdF");
+  });
+
   it("every override entry has a name field matching the politician name", () => {
     Object.values(POLITICIAN_OVERRIDES).forEach((entry) => {
       expect(typeof entry.name).toBe("string");
