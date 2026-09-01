@@ -118,7 +118,7 @@ export const POLITICIAN_OVERRIDES: Record<string, GuestDetails> = {
     isPolitician: true,
     politicianId: 177052,
     politicianName: "Luca Piwodda",
-    party: 999101, // Custom ID: Partei des Fortschritts nicht in Abgeordnetenwatch
+    party: 233, // PdF (Partei des Fortschritts) – Abgeordnetenwatch führt ihn noch unter Freiparlamentarische Allianz
     partyName: "Partei des Fortschritts",
   },
 };
