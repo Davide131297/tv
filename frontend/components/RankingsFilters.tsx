@@ -7,6 +7,7 @@ import {
   NativeSelect,
   NativeSelectOption,
 } from "@/components/ui/native-select";
+import OtherShowsSelect from "./OtherShowsSelect";
 
 interface RankingsFiltersProps {
   initialShow: string;
@@ -28,6 +29,24 @@ export default function RankingsFilters({
     updateUrl({ year: year });
   };
 
+  const selectedList = initialShow
+    ? initialShow.split(",").map((s) => s.trim()).filter(Boolean)
+    : ["all"];
+
+  const currentMainShow =
+    selectedList.find((s) => SHOW_OPTIONS.some((o) => o.value === s)) || "all";
+
+  const handleMainShowChange = (mainValue: string) => {
+    const otherValues = selectedList.filter(
+      (s) => !SHOW_OPTIONS.some((o) => o.value === s),
+    );
+    if (otherValues.length > 0) {
+      updateUrl({ show: [mainValue, ...otherValues].join(",") });
+    } else {
+      updateUrl({ show: mainValue === "all" ? "" : mainValue });
+    }
+  };
+
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:gap-4 items-start sm:items-center justify-between mb-4 sm:mb-6">
       <div>
@@ -36,10 +55,10 @@ export default function RankingsFilters({
         </h1>
         <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
           Top-Listen der meistgeladenen Politiker
-          {initialShow !== "all" && ` in ${initialShow}`}
+          {initialShow && initialShow !== "all" && ` in ${initialShow.split(",").join(", ")}`}
         </p>
       </div>
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4">
         <div className="flex gap-2 items-center">
           <label className="text-sm font-medium">Jahr</label>
           <NativeSelect
@@ -59,9 +78,9 @@ export default function RankingsFilters({
         <div className="flex gap-2 items-center">
           <label className="text-sm font-medium">Show</label>
           <NativeSelect
-            value={initialShow}
+            value={currentMainShow}
             onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-              handleShowChange(e.target.value)
+              handleMainShowChange(e.target.value)
             }
           >
             {SHOW_OPTIONS.map((option) => (
@@ -71,6 +90,13 @@ export default function RankingsFilters({
             ))}
           </NativeSelect>
         </div>
+
+        <OtherShowsSelect
+          selectedShow={initialShow}
+          onShowChange={handleShowChange}
+          label="Sonstige einbinden"
+          isMultiSelect={true}
+        />
       </div>
     </div>
   );

@@ -1,27 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer as supabase } from "@/lib/supabase-server";
+import { applyShowFilter } from "@/lib/politics-data";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "50");
+    const show = searchParams.get("show");
     const offset = (page - 1) * limit;
 
-    // Fetch data with pagination
-    const {
-      data: entries,
-      error,
-      count,
-    } = await supabase
+    let query = supabase
       .from("tv_show_politicians")
       .select("*", { count: "exact" })
       .range(offset, offset + limit - 1)
-      .order("episode_date", { ascending: false })
-      .neq("show_name", "Phoenix Runde")
-      .neq("show_name", "Phoenix Persönlich")
-      .neq("show_name", "Pinar Atalay")
-      .neq("show_name", "Blome & Pfeffer");
+      .order("episode_date", { ascending: false });
+
+    query = applyShowFilter(query, show);
+
+    const { data: entries, error, count } = await query;
 
     if (error) {
       console.error("Database error:", error);

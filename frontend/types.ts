@@ -218,26 +218,16 @@ export const OTHER_SHOW_OPTIONS: ShowOption[] = [
     label: "Sarah Tacke",
     btnColor: "bg-indigo-100 text-indigo-800 hover:bg-indigo-200 dark:bg-indigo-950 dark:text-indigo-200 dark:hover:bg-black/50 dark:hover:text-white",
   },
-  // {
-  //   value: "Phoenix Runde",
-  //   label: "Phoenix Runde",
-  //   btnColor: "bg-cyan-100 text-cyan-800 hover:bg-cyan-200 dark:bg-cyan-950 dark:text-cyan-200 dark:hover:bg-black/50 dark:hover:text-white",
-  // },
-  // {
-  //   value: "Phoenix Persönlich",
-  //   label: "Phoenix Persönlich",
-  //   btnColor: "bg-sky-100 text-sky-800 hover:bg-sky-200 dark:bg-sky-950 dark:text-sky-200 dark:hover:bg-black/50 dark:hover:text-white",
-  // },
-  // {
-  //   value: "Pinar Atalay",
-  //   label: "Pinar Atalay",
-  //   btnColor: "bg-rose-100 text-rose-800 hover:bg-rose-200 dark:bg-rose-950 dark:text-rose-200 dark:hover:bg-black/50 dark:hover:text-white",
-  // },
-  // {
-  //   value: "Blome & Pfeffer",
-  //   label: "Blome & Pfeffer",
-  //   btnColor: "bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-950 dark:text-amber-200 dark:hover:bg-black/50 dark:hover:text-white",
-  // },
+  {
+    value: "Phoenix Runde",
+    label: "Phoenix Runde",
+    btnColor: "bg-cyan-100 text-cyan-800 hover:bg-cyan-200 dark:bg-cyan-950 dark:text-cyan-200 dark:hover:bg-black/50 dark:hover:text-white",
+  },
+  {
+    value: "Phoenix Persönlich",
+    label: "Phoenix Persönlich",
+    btnColor: "bg-sky-100 text-sky-800 hover:bg-sky-200 dark:bg-sky-950 dark:text-sky-200 dark:hover:bg-black/50 dark:hover:text-white",
+  },
 ];
 
 // =============================================================================

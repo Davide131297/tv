@@ -23,6 +23,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import ShowOptionsButtons from "@/components/ShowOptionsButtons";
 import { useUrlUpdater } from "@/hooks/useUrlUpdater";
 
 interface TvShowEntry {
@@ -42,6 +43,7 @@ interface DatabaseEntriesProps {
   totalCount: number;
   currentPage: number;
   totalPages: number;
+  initialShow?: string;
 }
 
 const FEEDBACK_OPTIONS = [
@@ -70,9 +72,14 @@ export default function DatabaseEntries({
   totalCount,
   currentPage,
   totalPages,
+  initialShow = "all",
 }: DatabaseEntriesProps) {
   const updateUrl = useUrlUpdater();
   const [searchTerm, setSearchTerm] = useState("");
+
+  const handleShowChange = (showValue: string) => {
+    updateUrl({ show: showValue, page: "1" });
+  };
 
   const [selectedEntry, setSelectedEntry] = useState<TvShowEntry | null>(null);
   const [feedbackIssueType, setFeedbackIssueType] = useState("");
@@ -164,6 +171,11 @@ export default function DatabaseEntries({
 
   return (
     <div className="space-y-6">
+      <ShowOptionsButtons
+        selectedShow={initialShow}
+        onShowChange={handleShowChange}
+        withOtherShows={true}
+      />
       <Card className="p-4">
         <div className="flex flex-col sm:flex-row gap-4 items-center">
           <div className="flex-1">

@@ -40,7 +40,8 @@ export default async function TvRatingsPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const params = await searchParams;
-  const data = await getTvRatingsDashboardData();
+  const show = typeof params.show === "string" ? params.show : "all";
+  const data = await getTvRatingsDashboardData({ show });
   const ratingsPage = getPageParam(params.ratingsPage, data.ratings.length);
   const politicianPage = getPageParam(
     params.politicianPage,
@@ -65,6 +66,7 @@ export default async function TvRatingsPage({
 
   return (
     <TvRatingsPageContent
+      initialShow={show}
       summary={data.summary}
       ratings={paginate(data.ratings, ratingsPage)}
       ratingsTotalCount={data.ratings.length}

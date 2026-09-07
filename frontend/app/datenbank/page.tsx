@@ -21,6 +21,7 @@ export default async function DatabasePage({
 }) {
   const params = await searchParams;
   const page = typeof params.page === "string" ? parseInt(params.page) : 1;
+  const show = typeof params.show === "string" ? params.show : "all";
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -35,16 +36,22 @@ export default async function DatabasePage({
           </p>
         </div>
 
-        <Suspense key={page} fallback={<TableSkeleton />}>
-          <DatabaseDataWrapper page={page} />
+        <Suspense key={`${page}-${show}`} fallback={<TableSkeleton />}>
+          <DatabaseDataWrapper page={page} show={show} />
         </Suspense>
       </div>
     </div>
   );
 }
 
-async function DatabaseDataWrapper({ page }: { page: number }) {
-  const data = await getDatabaseEntries({ page, limit: 50 });
+async function DatabaseDataWrapper({
+  page,
+  show,
+}: {
+  page: number;
+  show: string;
+}) {
+  const data = await getDatabaseEntries({ page, limit: 50, show });
 
   return (
     <DatabaseEntries
@@ -52,6 +59,7 @@ async function DatabaseDataWrapper({ page }: { page: number }) {
       totalCount={data.totalCount}
       currentPage={data.page}
       totalPages={data.totalPages}
+      initialShow={show}
     />
   );
 }

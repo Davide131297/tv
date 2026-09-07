@@ -67,6 +67,7 @@ async function ComparisonPageContent({
   const requestedP1 = typeof params.p1 === "string" ? params.p1 : undefined;
   const requestedP2 = typeof params.p2 === "string" ? params.p2 : undefined;
   const year = typeof params.year === "string" ? params.year : "all";
+  const show = typeof params.show === "string" ? params.show : "all";
 
   const rankings = await getPoliticianRankings({ year: "all" });
   const politicianOptions = buildComparisonOptions(rankings);
@@ -83,6 +84,7 @@ async function ComparisonPageContent({
       initialP1,
       initialP2,
       year,
+      show,
     );
   }
 
@@ -91,6 +93,7 @@ async function ComparisonPageContent({
       initialP1={initialP1}
       initialP2={initialP2}
       initialYear={year}
+      initialShow={show}
       initialPoliticians={politicianOptions}
       initialData={initialData}
     />

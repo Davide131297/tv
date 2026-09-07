@@ -6,11 +6,12 @@ import ColorBox from "@/components/ui/color-box";
 import { useUrlUpdater } from "@/hooks/useUrlUpdater";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type {
-  PartyTvRatingsStat,
-  PoliticianTvRatingsStat,
-  TvRatingOverview,
-  TvRatingsSummary,
+import {
+  OTHER_SHOW_OPTIONS,
+  type PartyTvRatingsStat,
+  type PoliticianTvRatingsStat,
+  type TvRatingOverview,
+  type TvRatingsSummary,
 } from "@/types";
 import {
   ChevronLeft,
@@ -18,8 +19,10 @@ import {
   ChevronsLeft,
   ChevronsRight,
 } from "lucide-react";
+import ShowOptionsButtons from "@/components/ShowOptionsButtons";
 
 interface TvRatingsPageContentProps {
+  initialShow?: string;
   summary: TvRatingsSummary;
   ratings: TvRatingOverview[];
   ratingsTotalCount: number;
@@ -243,6 +246,7 @@ function TablePagination({
 }
 
 export default function TvRatingsPageContent({
+  initialShow = "all",
   summary,
   ratings,
   ratingsTotalCount,
@@ -260,17 +264,30 @@ export default function TvRatingsPageContent({
   partyAbsoluteStatsCurrentPage,
   pageSize,
 }: TvRatingsPageContentProps) {
+  const updateUrl = useUrlUpdater();
+
+  const handleShowChange = (showValue: string) => {
+    updateUrl({ show: showValue });
+  };
+
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
           Einschaltquoten
         </h1>
-        <p className="text-gray-600 dark:text-gray-400 max-w-3xl">
+        <p className="text-gray-600 dark:text-gray-400 max-w-3xl mb-4">
           Gespeicherte TV-Quoten mit Zuordnung zu Episoden, Politikern und
           Parteien. Die Analysen basieren auf kumulierten Zuschauerzahlen der
           erfassten Auftritte.
         </p>
+
+        <ShowOptionsButtons
+          selectedShow={initialShow}
+          onShowChange={handleShowChange}
+          withOtherShows={true}
+          otherShowOptions={OTHER_SHOW_OPTIONS.filter((o) => o.value === "Sarah Tacke")}
+        />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">

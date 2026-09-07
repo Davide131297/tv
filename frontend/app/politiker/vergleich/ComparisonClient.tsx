@@ -28,6 +28,8 @@ import {
 import { cn } from "@/lib/utils";
 import type { PoliticianComparisonPoint } from "@/lib/politics-data";
 
+import OtherShowsSelect from "@/components/OtherShowsSelect";
+
 type ComparisonOption = {
   label: string;
   value: string;
@@ -38,6 +40,7 @@ type ComparisonClientProps = {
   initialP1: string;
   initialP2: string;
   initialYear: string;
+  initialShow?: string;
   initialPoliticians: ComparisonOption[];
   initialData: PoliticianComparisonPoint[];
 };
@@ -124,6 +127,7 @@ export default function ComparisonClient({
   initialP1,
   initialP2,
   initialYear,
+  initialShow = "all",
   initialPoliticians,
   initialData,
 }: ComparisonClientProps) {
@@ -133,6 +137,7 @@ export default function ComparisonClient({
   const [p1, setP1] = useState(initialP1);
   const [p2, setP2] = useState(initialP2);
   const [year, setYear] = useState(initialYear);
+  const [show, setShow] = useState(initialShow);
   const [data, setData] = useState<PoliticianComparisonPoint[]>(initialData);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -150,8 +155,14 @@ export default function ComparisonClient({
     const currentP1 = searchParams.get("p1");
     const currentP2 = searchParams.get("p2");
     const currentYear = searchParams.get("year") ?? "all";
+    const currentShow = searchParams.get("show") ?? "all";
 
-    if (currentP1 === p1 && currentP2 === p2 && currentYear === year) {
+    if (
+      currentP1 === p1 &&
+      currentP2 === p2 &&
+      currentYear === year &&
+      currentShow === show
+    ) {
       return;
     }
 
@@ -165,10 +176,16 @@ export default function ComparisonClient({
       params.set("year", year);
     }
 
+    if (show === "all" || !show) {
+      params.delete("show");
+    } else {
+      params.set("show", show);
+    }
+
     router.replace(`/politiker/vergleich?${params.toString()}`, {
       scroll: false,
     });
-  }, [p1, p2, year, router, searchParams]);
+  }, [p1, p2, year, show, router, searchParams]);
 
   useEffect(() => {
     let active = true;
@@ -187,6 +204,9 @@ export default function ComparisonClient({
         const params = new URLSearchParams({ p1, p2 });
         if (year !== "all") {
           params.set("year", year);
+        }
+        if (show !== "all" && show) {
+          params.set("show", show);
         }
 
         const response = await fetch(
@@ -217,7 +237,10 @@ export default function ComparisonClient({
     }
 
     const matchesInitialState =
-      p1 === initialP1 && p2 === initialP2 && year === initialYear;
+      p1 === initialP1 &&
+      p2 === initialP2 &&
+      year === initialYear &&
+      show === initialShow;
 
     if (matchesInitialState && initialData.length > 0) {
       setData(initialData);
@@ -235,10 +258,12 @@ export default function ComparisonClient({
     p1,
     p2,
     year,
+    show,
     initialData,
     initialP1,
     initialP2,
     initialYear,
+    initialShow,
     reloadToken,
   ]);
 
@@ -536,27 +561,38 @@ export default function ComparisonClient({
           <CardContent className="space-y-4 p-5">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.24em] text-gray-500 dark:text-gray-400">
-                Zeitraum
+                Zeitraum & Sendungen
               </p>
               <h2 className="mt-2 text-xl font-bold text-gray-950 dark:text-white">
                 Vergleichsfenster
               </h2>
               <p className="mt-1 text-sm leading-6 text-gray-600 dark:text-gray-300">
-                Ein Jahr isolieren oder die gesamte Historie vergleichen.
+                Jahr isolieren und zusätzliche Sendungen einbinden.
               </p>
             </div>
-            <NativeSelect
-              value={year}
-              onChange={(event) => setYear(event.target.value)}
-              className="h-11 rounded-2xl border-gray-200 bg-gray-50 px-4 text-sm font-semibold text-gray-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-            >
-              <NativeSelectOption value="all">Alle Jahre</NativeSelectOption>
-              {availableYears.map((availableYear) => (
-                <NativeSelectOption key={availableYear} value={availableYear}>
-                  {availableYear}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
+            <div className="flex flex-col gap-3">
+              <NativeSelect
+                value={year}
+                onChange={(event) => setYear(event.target.value)}
+                className="h-11 rounded-2xl border-gray-200 bg-gray-50 px-4 text-sm font-semibold text-gray-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+              >
+                <NativeSelectOption value="all">Alle Jahre</NativeSelectOption>
+                {availableYears.map((availableYear) => (
+                  <NativeSelectOption key={availableYear} value={availableYear}>
+                    {availableYear}
+                  </NativeSelectOption>
+                ))}
+              </NativeSelect>
+
+              <div className="pt-1">
+                <OtherShowsSelect
+                  selectedShow={show}
+                  onShowChange={(newShow) => setShow(newShow)}
+                  label="Sonstige einbinden"
+                  isMultiSelect={true}
+                />
+              </div>
+            </div>
           </CardContent>
         </Card>
 

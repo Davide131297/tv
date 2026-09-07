@@ -11,14 +11,56 @@ import type {
  * Wendet die Standardfilter (Show, Jahr, Sender) auf eine Supabase-Query an.
  * Exkludiert dabei immer vordefinierte Shows (Phoenix, NTV).
  */
+const DEFAULT_EXCLUDED_SHOWS = [
+  "Phoenix Runde",
+  "Phoenix Persönlich",
+  "Pinar Atalay",
+  "Blome & Pfeffer",
+];
+
+const STANDARD_SHOWS = [
+  "Markus Lanz",
+  "Maybrit Illner",
+  "Caren Miosga",
+  "Maischberger",
+  "Hart aber fair",
+];
+
+/**
+ * Wendet die Standardfilter (Show, Jahr, Sender) auf eine Supabase-Query an.
+ * Exkludiert standardmäßig vordefinierte Shows (Phoenix, NTV), außer diese sind explizit ausgewählt.
+ */
 export function applyShowFilter(
   query: any,
   showName: string | null,
   year?: string | null,
   tv_channel?: string | null,
 ) {
-  if (showName && showName !== "all") {
-    query = query.eq("show_name", showName);
+  const selectedList = showName
+    ? showName.split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
+
+  const includesAll = !showName || selectedList.length === 0 || selectedList.includes("all");
+
+  if (includesAll) {
+    const explicitlyIncludedOtherShows = selectedList.filter(
+      (s) => s !== "all" && !STANDARD_SHOWS.includes(s),
+    );
+
+    if (explicitlyIncludedOtherShows.length > 0) {
+      const showsToInclude = [...STANDARD_SHOWS, ...explicitlyIncludedOtherShows];
+      query = query.in("show_name", showsToInclude);
+    } else {
+      for (const excluded of DEFAULT_EXCLUDED_SHOWS) {
+        query = query.neq("show_name", excluded);
+      }
+    }
+  } else {
+    if (selectedList.length === 1) {
+      query = query.eq("show_name", selectedList[0]);
+    } else if (selectedList.length > 1) {
+      query = query.in("show_name", selectedList);
+    }
   }
 
   if (year && year !== "all") {
@@ -31,14 +73,6 @@ export function applyShowFilter(
     query = query.eq("tv_channel", tv_channel);
   }
 
-  if (!showName || showName === "all") {
-    query = query
-      .neq("show_name", "Phoenix Runde")
-      .neq("show_name", "Phoenix Persönlich")
-      .neq("show_name", "Pinar Atalay")
-      .neq("show_name", "Blome & Pfeffer");
-  }
-    
   return query;
 }
 
@@ -118,7 +152,12 @@ export async function getDetailedAppearances(params: {
     .select("episode_date, episode_url");
   
   if (params.show && params.show !== "all") {
-    showLinksQuery = showLinksQuery.eq("show_name", params.show);
+    const showList = params.show.split(",").map((s) => s.trim()).filter(Boolean);
+    if (showList.length === 1) {
+      showLinksQuery = showLinksQuery.eq("show_name", showList[0]);
+    } else if (showList.length > 1) {
+      showLinksQuery = showLinksQuery.in("show_name", showList);
+    }
   }
   
   const { data: showLinksData } = await showLinksQuery;
@@ -246,25 +285,7 @@ export async function getPoliticalAreas(params: {
       )
     `);
 
-  if (params.show && params.show !== "all") {
-    query = query.eq("show_name", params.show);
-  } else {
-    query = query
-      .neq("show_name", "Pinar Atalay")
-      .neq("show_name", "Phoenix Runde")
-      .neq("show_name", "Phoenix Persönlich")
-      .neq("show_name", "Blome & Pfeffer");
-  }
-
-  if (params.year && params.year !== "all") {
-    query = query
-      .gte("episode_date", `${params.year}-01-01`)
-      .lte("episode_date", `${params.year}-12-31`);
-  }
-
-  if (params.tv_channel && params.tv_channel !== "all") {
-    query = query.eq("tv_channel", params.tv_channel);
-  }
+  query = applyShowFilter(query, params.show || null, params.year, params.tv_channel);
 
   const { data, error } = await query;
   if (error) throw error;
@@ -296,9 +317,23 @@ export async function getEpisodesWithPoliticians(params: {
   year?: string | null;
   limit?: number;
 }) {
-  const showList = params.show
+  const rawShowList = params.show
     ? params.show.split(",").map((s) => s.trim()).filter(Boolean)
     : [];
+
+  const includesAll = rawShowList.length === 0 || rawShowList.includes("all");
+  const extraOther = rawShowList.filter((s) => s !== "all" && !STANDARD_SHOWS.includes(s));
+
+  let showList: string[] = [];
+  if (includesAll) {
+    if (extraOther.length > 0) {
+      showList = [...STANDARD_SHOWS, ...extraOther];
+    } else {
+      showList = []; // empty means query with default show filter
+    }
+  } else {
+    showList = rawShowList;
+  }
 
   let politiciansQuery = supabase
     .from("tv_show_politicians")
@@ -309,6 +344,10 @@ export async function getEpisodesWithPoliticians(params: {
     politiciansQuery = politiciansQuery.eq("show_name", showList[0]);
   } else if (showList.length > 1) {
     politiciansQuery = politiciansQuery.in("show_name", showList);
+  } else {
+    for (const excluded of DEFAULT_EXCLUDED_SHOWS) {
+      politiciansQuery = politiciansQuery.neq("show_name", excluded);
+    }
   }
 
   if (params.limit) politiciansQuery = politiciansQuery.limit(500); // Higher limit for grouping
@@ -330,6 +369,10 @@ export async function getEpisodesWithPoliticians(params: {
     showLinksQuery = showLinksQuery.eq("show_name", showList[0]);
   } else if (showList.length > 1) {
     showLinksQuery = showLinksQuery.in("show_name", showList);
+  } else {
+    for (const excluded of DEFAULT_EXCLUDED_SHOWS) {
+      showLinksQuery = showLinksQuery.neq("show_name", excluded);
+    }
   }
 
   const { data: showLinksData } = await showLinksQuery;
@@ -342,9 +385,10 @@ export async function getEpisodesWithPoliticians(params: {
     });
   }
 
+  const isMultiShow = showList.length !== 1;
   const episodeMap = new Map<string, { show_name?: string; politicians: any[] }>();
   (politiciansData || []).forEach((result: any) => {
-    const key = showList.length > 1 ? `${result.show_name}_${result.episode_date}` : result.episode_date;
+    const key = isMultiShow ? `${result.show_name}_${result.episode_date}` : result.episode_date;
     if (!episodeMap.has(key)) {
       episodeMap.set(key, { show_name: result.show_name, politicians: [] });
     }
@@ -355,8 +399,8 @@ export async function getEpisodesWithPoliticians(params: {
   });
 
   const results = Array.from(episodeMap.entries()).map(([key, item]) => {
-    const date = showList.length > 1 ? key.substring(key.indexOf("_") + 1) : key;
-    const urlKey = showList.length > 1 ? key : date;
+    const date = isMultiShow ? key.substring(key.indexOf("_") + 1) : key;
+    const urlKey = isMultiShow ? key : date;
     return {
       episode_date: date,
       show_name: item.show_name,
@@ -375,9 +419,23 @@ export async function getEpisodeStatistics(params: {
   show: string;
   year?: string | null;
 }) {
-  const showList = params.show
+  const rawShowList = params.show
     ? params.show.split(",").map((s) => s.trim()).filter(Boolean)
     : [];
+
+  const includesAll = rawShowList.length === 0 || rawShowList.includes("all");
+  const extraOther = rawShowList.filter((s) => s !== "all" && !STANDARD_SHOWS.includes(s));
+
+  let showList: string[] = [];
+  if (includesAll) {
+    if (extraOther.length > 0) {
+      showList = [...STANDARD_SHOWS, ...extraOther];
+    } else {
+      showList = [];
+    }
+  } else {
+    showList = rawShowList;
+  }
 
   let query = supabase.from("tv_show_politicians").select("episode_date, show_name");
 
@@ -385,6 +443,10 @@ export async function getEpisodeStatistics(params: {
     query = query.eq("show_name", showList[0]);
   } else if (showList.length > 1) {
     query = query.in("show_name", showList);
+  } else {
+    for (const excluded of DEFAULT_EXCLUDED_SHOWS) {
+      query = query.neq("show_name", excluded);
+    }
   }
 
   if (params.year && params.year !== "all") {
@@ -396,14 +458,15 @@ export async function getEpisodeStatistics(params: {
   const { data, error } = await query;
   if (error) throw error;
 
+  const isMultiShow = showList.length !== 1;
   const episodeCount = new Map<string, number>();
   (data || []).forEach((row: any) => {
-    const key = showList.length > 1 ? `${row.show_name}_${row.episode_date}` : row.episode_date;
+    const key = isMultiShow ? `${row.show_name}_${row.episode_date}` : row.episode_date;
     episodeCount.set(key, (episodeCount.get(key) || 0) + 1);
   });
 
   const episodeStats = Array.from(episodeCount.entries()).map(([key, count]) => {
-    const date = showList.length > 1 ? key.substring(key.indexOf("_") + 1) : key;
+    const date = isMultiShow ? key.substring(key.indexOf("_") + 1) : key;
     return {
       episode_date: date,
       politician_count: count,
@@ -435,25 +498,7 @@ export async function getPartyTimeline(params: {
     .not("party_name", "is", null)
     .neq("party_name", "");
 
-  if (!params.show || params.show === "all") {
-    query = query
-      .neq("show_name", "Phoenix Runde")
-      .neq("show_name", "Phoenix Persönlich")
-      .neq("show_name", "Pinar Atalay")
-      .neq("show_name", "Blome & Pfeffer");
-  }
-
-  if (year !== "all") {
-    query = query.gte("episode_date", `${year}-01-01`).lte("episode_date", `${year}-12-31`);
-  }
-
-  if (params.show && params.show !== "all") {
-    query = query.eq("show_name", params.show);
-  }
-
-  if (params.tv_channel && params.tv_channel !== "all") {
-    query = query.eq("tv_channel", params.tv_channel);
-  }
+  query = applyShowFilter(query, params.show || null, params.year, params.tv_channel);
 
   const { data, error } = await query;
   if (error) throw error;
@@ -511,7 +556,10 @@ export async function getPartyTimeline(params: {
   return { data: results, parties: Array.from(allParties), year };
 }
 
-export async function getTvRatingsDashboardData(): Promise<{
+export async function getTvRatingsDashboardData(params?: {
+  show?: string | null;
+  year?: string | null;
+}): Promise<{
   summary: TvRatingsSummary;
   ratings: TvRatingOverview[];
   politicianStats: PoliticianTvRatingsStat[];
@@ -524,11 +572,15 @@ export async function getTvRatingsDashboardData(): Promise<{
     episodeDate: string | null | undefined,
   ) => `${normalizeShowName(showName)}|${episodeDate ?? ""}`;
 
-  const { data: ratingsData, error: ratingsError } = await supabase
+  let ratingsQuery = supabase
     .from("tv_ratings")
     .select("show_name, episode_date, market_share, viewers_millions")
     .order("episode_date", { ascending: false })
     .order("viewers_millions", { ascending: false });
+
+  ratingsQuery = applyShowFilter(ratingsQuery, params?.show || null, params?.year || null);
+
+  const { data: ratingsData, error: ratingsError } = await ratingsQuery;
 
   if (ratingsError) throw ratingsError;
 
@@ -737,20 +789,21 @@ export async function getTvRatingsDashboardData(): Promise<{
 export async function getDatabaseEntries(params: {
   page?: number;
   limit?: number;
+  show?: string | null;
 }) {
   const page = params.page || 1;
   const limit = params.limit || 50;
   const offset = (page - 1) * limit;
 
-  const { data, error, count } = await supabase
+  let query = supabase
     .from("tv_show_politicians")
     .select("*", { count: "exact" })
     .range(offset, offset + limit - 1)
-    .order("episode_date", { ascending: false })
-    .neq("show_name", "Phoenix Runde")
-    .neq("show_name", "Phoenix Persönlich")
-    .neq("show_name", "Pinar Atalay")
-    .neq("show_name", "Blome & Pfeffer");
+    .order("episode_date", { ascending: false });
+
+  query = applyShowFilter(query, params.show || null);
+
+  const { data, error, count } = await query;
 
   if (error) throw error;
 
@@ -772,9 +825,10 @@ export type PoliticianComparisonPoint = {
 export async function getPoliticianComparisonStats(
   p1: string,
   p2: string,
-  year?: string | null
+  year?: string | null,
+  show?: string | null,
 ): Promise<PoliticianComparisonPoint[]> {
-  const baseShows = [
+  const defaultShows = [
     "Markus Lanz",
     "Maybrit Illner",
     "Caren Miosga",
@@ -783,8 +837,24 @@ export async function getPoliticianComparisonStats(
     "Sarah Tacke",
   ];
 
+  const selectedShowsList = show
+    ? show.split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
+
+  let baseShows: string[];
+  if (selectedShowsList.length > 0 && !selectedShowsList.includes("all")) {
+    baseShows = selectedShowsList;
+  } else if (selectedShowsList.includes("all")) {
+    const extraOther = selectedShowsList.filter(
+      (s) => s !== "all" && !defaultShows.includes(s),
+    );
+    baseShows = [...defaultShows, ...extraOther];
+  } else {
+    baseShows = defaultShows;
+  }
+
   const statsMap = new Map<string, PoliticianComparisonPoint>(
-    baseShows.map((show) => [show, { show, A: 0, B: 0 }]),
+    baseShows.map((s) => [s, { show: s, A: 0, B: 0 }]),
   );
 
   const applyYearFilter = <T>(query: T): T => {
@@ -821,16 +891,16 @@ export async function getPoliticianComparisonStats(
   }
 
   dataA?.forEach((row) => {
-    const show = row.show_name;
-    if (statsMap.has(show)) {
-      statsMap.get(show)!.A++;
+    const s = row.show_name;
+    if (statsMap.has(s)) {
+      statsMap.get(s)!.A++;
     }
   });
 
   dataB?.forEach((row) => {
-    const show = row.show_name;
-    if (statsMap.has(show)) {
-      statsMap.get(show)!.B++;
+    const s = row.show_name;
+    if (statsMap.has(s)) {
+      statsMap.get(s)!.B++;
     }
   });
 

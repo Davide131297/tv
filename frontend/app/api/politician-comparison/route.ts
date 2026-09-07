@@ -6,6 +6,7 @@ export async function GET(request: NextRequest) {
   const p1 = searchParams.get("p1");
   const p2 = searchParams.get("p2");
   const year = searchParams.get("year");
+  const show = searchParams.get("show");
 
   if (!p1 || !p2) {
     return NextResponse.json(
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const data = await getPoliticianComparisonStats(p1, p2, year);
+    const data = await getPoliticianComparisonStats(p1, p2, year, show);
     return NextResponse.json(data);
   } catch (error) {
     console.error("[api/politician-comparison] Error:", error);
