@@ -11,7 +11,9 @@
     "dev:ts-node": "node --loader ts-node/esm src/app.ts",
     "watch": "tsc --watch",
     "test": "jest",
-    "test:tacke": "tsx src/crawler/test-sarah-tacke.ts"
+    "test:tacke": "tsx src/crawler/test-sarah-tacke.ts",
+    "test:phoenix-runde": "tsx src/crawler/test-phoenix-runde.ts",
+    "test:phoenix-persoenlich": "tsx src/crawler/test-phoenix-persoenlich.ts"
   },
   "dependencies": {
     "@google/genai": "^2.9.0",
