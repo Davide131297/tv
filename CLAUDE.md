@@ -26,6 +26,10 @@ cd frontend && npm run test
 
 # Production build
 cd frontend && npm run build
+
+# Mobile app (Expo)
+cd mobile && npm install && npx expo start
+cd mobile && npm run check   # ts-check + lint + jest
 ```
 
 ### Package Manager
@@ -36,6 +40,7 @@ Yarn 4.9.2 is used. Use `yarn` commands inside `frontend/` or `backend/` directo
 ### Active vs. Deprecated
 - **`frontend/`** — The active UI application (Next.js 16 App Router). All new UI development happens here. The crawlers in `frontend/crawler/*.ts` are **DEPRECATED** — do not modify or rely on them.
 - **`backend/`** — The active crawler backend, deployed to Google Cloud Run. All crawling logic lives here.
+- **`mobile/`** — Expo (SDK 57) / React Native app for iOS, Android and web. Consumes only the public, read-only API of `frontend/` (`/api/v1/*`, `/api/tv-ratings`) — no API key in the bundle. Uses npm (`package-lock.json`); run `npm run check` (ts-check + lint + jest) inside `mobile/`. See `mobile/README.md`.
 
 ### Data Flow
 ```
