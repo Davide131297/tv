@@ -25,10 +25,11 @@ import { useRefresh } from "@/hooks/useRefresh";
 import { spacing, useTheme } from "@/lib/theme";
 import { partyColor } from "@/lib/parties";
 import { formatNumber, formatDateShort, monthLabel } from "@/lib/format";
-import { showLabel } from "@/lib/shows";
+import { filterSummary } from "@/lib/shows";
 
 export default function OverviewScreen() {
   const t = useTheme();
+  const { dark, textFaint } = t;
   const router = useRouter();
   const filter = useFilter();
   const { refreshing, onRefresh } = useRefresh();
@@ -45,18 +46,17 @@ export default function OverviewScreen() {
     const slices = top.map((p) => ({
       label: p.party_name,
       value: p.count,
-      color: partyColor(p.party_name),
+      color: partyColor(p.party_name, dark),
     }));
     if (rest > 0)
-      slices.push({ label: "Weitere", value: rest, color: t.textFaint });
+      slices.push({ label: "Weitere", value: rest, color: textFaint });
     return slices;
-  }, [parties.data, t.textFaint]);
+  }, [parties.data, textFaint, dark]);
 
   return (
     <Screen refreshing={refreshing} onRefresh={onRefresh}>
       <Text variant="subhead" tone="muted" style={{ marginTop: spacing.xs }}>
-        {showLabel(filter.show)}
-        {filter.year !== "all" ? ` · ${filter.year}` : ""}
+        {filterSummary(filter.show, filter.year)}
       </Text>
 
       {/* KPI grid */}
@@ -153,7 +153,10 @@ export default function OverviewScreen() {
 
       {/* Einschaltquoten entry */}
       <View style={{ marginTop: spacing.xl }}>
-        <Card onPress={() => router.push("/einschaltquoten")}>
+        <Card
+          onPress={() => router.push("/einschaltquoten")}
+          accessibilityLabel="Einschaltquoten: Zuschauer und Marktanteile"
+        >
           <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.md }}>
             <View
               style={{
@@ -204,6 +207,12 @@ export default function OverviewScreen() {
                     name={r.politician_name}
                     party={r.party_name}
                     meta={`${r.show_name} · ${formatDateShort(r.episode_date)}`}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/politiker/[name]",
+                        params: { name: r.politician_name, party: r.party_name },
+                      })
+                    }
                   />
                 </View>
               ))}

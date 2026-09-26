@@ -4,13 +4,14 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "@/components/ui/Text";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorState, errorMessage } from "@/components/ui/QueryBoundary";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EpisodeCard } from "@/components/EpisodeCard";
 import { useEpisodes } from "@/hooks/queries";
 import { useFilter } from "@/hooks/useFilter";
 import { useRefresh } from "@/hooks/useRefresh";
 import { radius, spacing, useTheme } from "@/lib/theme";
-import { SHOWS_WITHOUT_ALL } from "@/lib/shows";
+import { ALL_SHOWS, SHOWS_WITHOUT_ALL, showLabel } from "@/lib/shows";
 import { tapLight } from "@/lib/haptics";
 import type { EpisodeData } from "@/lib/types";
 
@@ -25,7 +26,15 @@ export default function ShowsScreen() {
     filter.show !== "all" ? filter.show : SHOWS_WITHOUT_ALL[0].value;
   const [show, setShow] = useState(initial);
 
-  const episodes = useEpisodes(show, 40);
+  // Follow the global filter when a concrete show is selected there
+  // (state adjustment during render, see react.dev "You Might Not Need an Effect").
+  const [syncedFilterShow, setSyncedFilterShow] = useState(filter.show);
+  if (syncedFilterShow !== filter.show) {
+    setSyncedFilterShow(filter.show);
+    if (filter.show !== "all") setShow(filter.show);
+  }
+
+  const episodes = useEpisodes(show, filter.year);
 
   const openEpisode = (ep: EpisodeData) => {
     router.push({
@@ -46,7 +55,7 @@ export default function ShowsScreen() {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ gap: spacing.sm, paddingRight: spacing.lg }}
       >
-        {SHOWS_WITHOUT_ALL.map((s) => {
+        {ALL_SHOWS.map((s) => {
           const active = s.value === show;
           return (
             <Pressable
@@ -55,6 +64,9 @@ export default function ShowsScreen() {
                 tapLight();
                 setShow(s.value);
               }}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={s.label}
               style={{
                 flexDirection: "row",
                 alignItems: "center",
@@ -86,6 +98,11 @@ export default function ShowsScreen() {
           );
         })}
       </ScrollView>
+      <Text variant="subhead" tone="muted" style={{ marginTop: spacing.md }}>
+        {showLabel(show)}
+        {filter.year !== "all" ? ` · ${filter.year}` : " · Alle Jahre"}
+        {episodes.data ? ` · ${episodes.data.length} Sendungen` : ""}
+      </Text>
     </View>
   );
 
@@ -107,17 +124,29 @@ export default function ShowsScreen() {
         <EpisodeCard episode={item} onPress={() => openEpisode(item)} />
       )}
       ListEmptyComponent={
-        episodes.isLoading ? (
+        episodes.isPending ? (
           <View style={{ gap: spacing.md }}>
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} height={110} radius={16} />
             ))}
           </View>
+        ) : episodes.isError ? (
+          <ErrorState
+            message={errorMessage(episodes.error)}
+            retrying={episodes.isFetching}
+            onRetry={() => {
+              episodes.refetch();
+            }}
+          />
         ) : (
           <EmptyState
             icon="tv-outline"
             title="Keine Sendungen"
-            message="Für diese Show liegen noch keine Episoden vor."
+            message={
+              filter.year !== "all"
+                ? `Für ${showLabel(show)} liegen ${filter.year} keine Episoden vor.`
+                : "Für diese Show liegen noch keine Episoden vor."
+            }
           />
         )
       }

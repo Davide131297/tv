@@ -20,17 +20,30 @@ export const PARTY_COLORS: Record<string, string> = {
   Unbekannt: "#94a3b8",
 };
 
+// Near-black party colors vanish on the dark background, so dark mode uses a
+// light variant instead (same idea as the web app's foreground color).
+const DARK_MODE_OVERRIDES: Record<string, string> = {
+  CDU: "#E2E8F0",
+  Union: "#94A3B8",
+};
+
 const FALLBACK = "#94a3b8";
 
-export function partyColor(name: string | null | undefined): string {
-  if (!name) return FALLBACK;
-  if (PARTY_COLORS[name]) return PARTY_COLORS[name];
+function resolveKey(name: string): string | undefined {
+  // Remove zero-width characters (e.g. soft hyphen) the crawler sometimes keeps.
+  const normalized = name.replace(/[­​-‍﻿]/g, "").trim();
+  if (PARTY_COLORS[normalized]) return normalized;
   // loose match (e.g. "Bündnis 90/Die Grünen" casing)
-  const upper = name.toUpperCase();
-  const hit = Object.keys(PARTY_COLORS).find(
-    (k) => k.toUpperCase() === upper,
-  );
-  return hit ? PARTY_COLORS[hit] : FALLBACK;
+  const upper = normalized.toUpperCase();
+  return Object.keys(PARTY_COLORS).find((k) => k.toUpperCase() === upper);
+}
+
+export function partyColor(name: string | null | undefined, dark = false): string {
+  if (!name) return FALLBACK;
+  const key = resolveKey(name);
+  if (!key) return FALLBACK;
+  if (dark && DARK_MODE_OVERRIDES[key]) return DARK_MODE_OVERRIDES[key];
+  return PARTY_COLORS[key];
 }
 
 // Contrasting text color for a filled party chip.

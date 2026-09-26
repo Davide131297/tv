@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, View } from "react-native";
+import { Pressable } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "./ui/Text";
@@ -29,6 +29,8 @@ export function FilterButton() {
         router.push("/filter");
       }}
       hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={`Filter: ${summary}`}
       style={{
         flexDirection: "row",
         alignItems: "center",

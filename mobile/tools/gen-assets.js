@@ -70,7 +70,6 @@ function drawMark(transparent) {
     const dx = x - cx;
     const dy = y - cy;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    const t = (v) => v / size;
 
     const base = transparent ? [0, 0, 0, 0] : [...BG, 255];
 

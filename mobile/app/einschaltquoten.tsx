@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Linking, Pressable, View } from "react-native";
+import { Platform, Pressable, View } from "react-native";
+import { Stack } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Screen } from "@/components/ui/Screen";
 import { Card } from "@/components/ui/Card";
@@ -12,6 +13,10 @@ import { RankRow } from "@/components/RankRow";
 import { Divider } from "@/components/Divider";
 import { useTvRatings } from "@/hooks/queries";
 import { useRefresh } from "@/hooks/useRefresh";
+import { useFilter } from "@/hooks/useFilter";
+import { FilterButton } from "@/components/FilterButton";
+import { filterSummary, showLabel } from "@/lib/shows";
+import { isHttpUrl, openExternal } from "@/lib/links";
 import { spacing, useTheme } from "@/lib/theme";
 import { formatDate, formatMillions, formatNumber, formatPercent } from "@/lib/format";
 import { tapLight } from "@/lib/haptics";
@@ -38,14 +43,14 @@ function formatPeople(rating: TvRatingOverview) {
 
 function RatingRow({ rating }: { rating: TvRatingOverview }) {
   const t = useTheme();
-  const hasUrl = !!rating.episode_url;
+  const hasUrl = isHttpUrl(rating.episode_url);
 
   const content = (
     <View style={{ paddingVertical: spacing.md }}>
       <View style={{ flexDirection: "row", alignItems: "flex-start", gap: spacing.sm }}>
         <View style={{ flex: 1 }}>
           <Text variant="body" weight="semibold" numberOfLines={1}>
-            {rating.show_name}
+            {showLabel(rating.show_name)}
           </Text>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
             <Text variant="subhead" tone="muted">
@@ -76,9 +81,11 @@ function RatingRow({ rating }: { rating: TvRatingOverview }) {
     <Pressable
       onPress={() => {
         tapLight();
-        Linking.openURL(rating.episode_url!).catch(() => {});
+        openExternal(rating.episode_url);
       }}
       android_ripple={{ color: t.cardPressed }}
+      accessibilityRole="link"
+      accessibilityLabel={`${showLabel(rating.show_name)} vom ${formatDate(rating.episode_date)} in der Mediathek ansehen`}
     >
       {content}
     </Pressable>
@@ -114,16 +121,30 @@ function Highlight({
 export default function TvRatingsScreen() {
   const t = useTheme();
   const { refreshing, onRefresh } = useRefresh();
-  const ratings = useTvRatings();
+  const filter = useFilter();
+  const ratings = useTvRatings(filter);
   const [mode, setMode] = useState<"politiker" | "parteien">("politiker");
 
   return (
     <Screen refreshing={refreshing} onRefresh={onRefresh}>
+      <Stack.Screen
+        options={{
+          // native headers inset headerRight themselves; the web header does not
+          headerRight: () => (
+            <View style={{ marginRight: Platform.OS === "web" ? spacing.lg : 0 }}>
+              <FilterButton />
+            </View>
+          ),
+        }}
+      />
+      <Text variant="subhead" tone="muted" style={{ marginTop: spacing.xs }}>
+        {filterSummary(filter.show, filter.year)}
+      </Text>
       <QueryBoundary
         query={ratings}
         isEmpty={(d) => d.summary.total_ratings === 0}
         emptyTitle="Keine Quoten"
-        emptyMessage="Es liegen noch keine Einschaltquoten vor."
+        emptyMessage="Für diese Auswahl liegen keine Einschaltquoten vor."
       >
         {(data) => {
           const politicianMax = data.politicianStats[0]?.average_viewers_millions ?? 1;
@@ -342,7 +363,8 @@ export default function TvRatingsScreen() {
                   {TV_RATINGS_SOURCES.map((source, index) => (
                     <Pressable
                       key={source.url}
-                      onPress={() => Linking.openURL(source.url).catch(() => {})}
+                      onPress={() => openExternal(source.url)}
+                      accessibilityRole="link"
                     >
                       <Text variant="subhead" tone="accent">
                         {source.label}

@@ -10,9 +10,9 @@ import { QueryBoundary } from "@/components/ui/QueryBoundary";
 import { usePoliticalAreas } from "@/hooks/queries";
 import { useFilter } from "@/hooks/useFilter";
 import { useRefresh } from "@/hooks/useRefresh";
-import { spacing, useTheme } from "@/lib/theme";
+import { spacing } from "@/lib/theme";
 import { formatNumber } from "@/lib/format";
-import { showLabel } from "@/lib/shows";
+import { filterSummary } from "@/lib/shows";
 
 // A pleasant sequential accent ramp for topic bars (brand sky -> indigo).
 const TOPIC_COLORS = [
@@ -25,7 +25,6 @@ const TOPIC_COLORS = [
 ];
 
 export default function TopicsScreen() {
-  const t = useTheme();
   const filter = useFilter();
   const { refreshing, onRefresh } = useRefresh();
   const areas = usePoliticalAreas(filter);
@@ -33,8 +32,7 @@ export default function TopicsScreen() {
   return (
     <Screen refreshing={refreshing} onRefresh={onRefresh}>
       <Text variant="subhead" tone="muted" style={{ marginTop: spacing.xs }}>
-        {showLabel(filter.show)}
-        {filter.year !== "all" ? ` · ${filter.year}` : ""}
+        {filterSummary(filter.show, filter.year)}
       </Text>
 
       <SectionHeader

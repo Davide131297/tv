@@ -3,6 +3,9 @@ node_modules/
 
 # Expo
 .expo/
+# generated native projects (Continuous Native Generation)
+/ios
+/android
 dist/
 web-build/
 expo-env.d.ts
@@ -27,4 +30,11 @@ yarn-error.*
 .DS_Store
 
 # Env
+.env
 .env*.local
+
+# Test coverage
+coverage/
+
+# CanvasKit WASM for Skia on web (copied from node_modules on install)
+public/canvaskit.wasm

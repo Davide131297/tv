@@ -1,9 +1,11 @@
 import React from "react";
-import { View } from "react-native";
+import { Pressable, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { Text } from "./ui/Text";
 import { Avatar } from "./ui/Avatar";
 import { PartyBadge } from "./ui/PartyBadge";
-import { spacing } from "@/lib/theme";
+import { spacing, useTheme } from "@/lib/theme";
+import { tapLight } from "@/lib/haptics";
 
 /** Reusable appearance line: avatar, name, meta line and a party badge. */
 export function AppearanceRow({
@@ -11,13 +13,16 @@ export function AppearanceRow({
   party,
   meta,
   showAvatar = true,
+  onPress,
 }: {
   name: string;
   party?: string;
   meta?: string;
   showAvatar?: boolean;
+  onPress?: () => void;
 }) {
-  return (
+  const t = useTheme();
+  const body = (
     <View
       style={{
         flexDirection: "row",
@@ -38,6 +43,24 @@ export function AppearanceRow({
         ) : null}
       </View>
       {party ? <PartyBadge party={party} size="sm" /> : null}
+      {onPress ? (
+        <Ionicons name="chevron-forward" size={16} color={t.textFaint} />
+      ) : null}
     </View>
+  );
+
+  if (!onPress) return body;
+  return (
+    <Pressable
+      onPress={() => {
+        tapLight();
+        onPress();
+      }}
+      android_ripple={{ color: t.cardPressed }}
+      accessibilityRole="button"
+      accessibilityLabel={[name, party, meta].filter(Boolean).join(", ")}
+    >
+      {body}
+    </Pressable>
   );
 }

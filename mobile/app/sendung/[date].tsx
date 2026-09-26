@@ -1,6 +1,6 @@
 import React from "react";
-import { Linking, Pressable, View } from "react-native";
-import { Stack, useLocalSearchParams } from "expo-router";
+import { Pressable, View } from "react-native";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Screen } from "@/components/ui/Screen";
 import { Card } from "@/components/ui/Card";
@@ -12,10 +12,12 @@ import { radius, spacing, useTheme } from "@/lib/theme";
 import { formatDate } from "@/lib/format";
 import { showAccent } from "@/lib/shows";
 import { tapMedium } from "@/lib/haptics";
+import { isHttpUrl, openExternal } from "@/lib/links";
 import type { PoliticianInEpisode } from "@/lib/types";
 
 export default function EpisodeDetail() {
   const t = useTheme();
+  const router = useRouter();
   const params = useLocalSearchParams<{
     date: string;
     show?: string;
@@ -25,7 +27,7 @@ export default function EpisodeDetail() {
 
   const show = params.show ?? "Sendung";
   const date = params.date ?? "";
-  const url = params.url && params.url.length > 0 ? params.url : null;
+  const url = isHttpUrl(params.url) ? params.url : null;
 
   let guests: PoliticianInEpisode[] = [];
   try {
@@ -37,7 +39,7 @@ export default function EpisodeDetail() {
   const openUrl = () => {
     if (!url) return;
     tapMedium();
-    Linking.openURL(url).catch(() => {});
+    openExternal(url);
   };
 
   return (
@@ -73,6 +75,8 @@ export default function EpisodeDetail() {
           <Pressable
             onPress={openUrl}
             android_ripple={{ color: t.cardPressed }}
+            accessibilityRole="link"
+            accessibilityLabel="In der Mediathek ansehen"
             style={{
               flexDirection: "row",
               alignItems: "center",
@@ -107,7 +111,16 @@ export default function EpisodeDetail() {
             guests.map((g, i) => (
               <View key={`${g.name}-${i}`}>
                 {i > 0 ? <Divider inset={52} /> : null}
-                <AppearanceRow name={g.name} party={g.party_name} />
+                <AppearanceRow
+                  name={g.name}
+                  party={g.party_name}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/politiker/[name]",
+                      params: { name: g.name, party: g.party_name },
+                    })
+                  }
+                />
               </View>
             ))
           )}

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { LayoutChangeEvent, View } from "react-native";
 import { Canvas, Path, Skia } from "@shopify/react-native-skia";
 import { Text } from "../ui/Text";
+import { ChartBoundary } from "./ChartBoundary";
 import { spacing, useTheme } from "@/lib/theme";
 
 export interface LineSeries {
@@ -14,7 +15,7 @@ export interface LineSeries {
  * Multi-series native line chart (Skia). X axis is evenly spaced; Y scales to
  * the overall max across series. Sparse x labels avoid crowding.
  */
-export function LineChart({
+function LineChartInner({
   series,
   labels,
   height = 190,
@@ -109,5 +110,13 @@ export function LineChart({
         })}
       </View>
     </View>
+  );
+}
+
+export function LineChart(props: React.ComponentProps<typeof LineChartInner>) {
+  return (
+    <ChartBoundary height={props.height ?? 190}>
+      <LineChartInner {...props} />
+    </ChartBoundary>
   );
 }

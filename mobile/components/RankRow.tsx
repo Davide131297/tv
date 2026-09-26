@@ -29,7 +29,7 @@ export function RankRow({
   onPress?: () => void;
 }) {
   const t = useTheme();
-  const color = partyColor(party);
+  const color = partyColor(party, t.dark);
 
   const body = (
     <View
@@ -86,6 +86,8 @@ export function RankRow({
         onPress();
       }}
       android_ripple={{ color: t.cardPressed }}
+      accessibilityRole="button"
+      accessibilityLabel={`${rank}. ${name}${party ? `, ${party}` : ""}, ${count} ${countLabel ?? ""}`.trim()}
     >
       {body}
     </Pressable>

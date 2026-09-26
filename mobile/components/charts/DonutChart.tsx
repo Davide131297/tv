@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { View } from "react-native";
 import { Canvas, Path, Skia } from "@shopify/react-native-skia";
 import { Text } from "../ui/Text";
+import { ChartBoundary } from "./ChartBoundary";
 import { useTheme } from "@/lib/theme";
 
 export interface DonutSlice {
@@ -14,7 +15,7 @@ export interface DonutSlice {
  * Native donut chart drawn with Skia. Renders each slice as a stroked arc so no
  * font asset is required. A centered total is overlaid with RN text.
  */
-export function DonutChart({
+function DonutChartInner({
   data,
   size = 180,
   strokeWidth = 26,
@@ -35,17 +36,16 @@ export function DonutChart({
 
   const arcs = useMemo(() => {
     const rect = Skia.XYWHRect(cx - r, cy - r, r * 2, r * 2);
-    let startDeg = -90; // start at 12 o'clock
     const gap = total > 0 && data.length > 1 ? 2 : 0; // degrees between slices
-    return data
-      .filter((d) => d.value > 0)
-      .map((d) => {
-        const sweep = total > 0 ? (d.value / total) * 360 : 0;
-        const path = Skia.Path.Make();
-        path.addArc(rect, startDeg + gap / 2, Math.max(0, sweep - gap));
-        startDeg += sweep;
-        return { path, color: d.color };
-      });
+    const slices = data.filter((d) => d.value > 0);
+    const sweeps = slices.map((d) => (total > 0 ? (d.value / total) * 360 : 0));
+    return slices.map((d, i) => {
+      // start at 12 o'clock, offset by the sweeps of all previous slices
+      const startDeg = -90 + sweeps.slice(0, i).reduce((s, v) => s + v, 0);
+      const path = Skia.Path.Make();
+      path.addArc(rect, startDeg + gap / 2, Math.max(0, sweeps[i] - gap));
+      return { path, color: d.color };
+    });
   }, [data, total, cx, cy, r]);
 
   return (
@@ -98,5 +98,13 @@ export function DonutChart({
         </View>
       )}
     </View>
+  );
+}
+
+export function DonutChart(props: React.ComponentProps<typeof DonutChartInner>) {
+  return (
+    <ChartBoundary height={props.size ?? 180}>
+      <DonutChartInner {...props} />
+    </ChartBoundary>
   );
 }

@@ -77,6 +77,7 @@ export default function TabsLayout() {
         name="sendungen"
         options={{
           title: "Sendungen",
+          headerRight: filterRight,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="tv" color={color} size={size} />
           ),

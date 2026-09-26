@@ -12,10 +12,11 @@ import { ChartLegend } from "@/components/charts/ChartLegend";
 import { usePartyStats, usePartyTimeline } from "@/hooks/queries";
 import { useFilter } from "@/hooks/useFilter";
 import { useRefresh } from "@/hooks/useRefresh";
-import { spacing } from "@/lib/theme";
+import { spacing, useTheme } from "@/lib/theme";
 import { partyColor } from "@/lib/parties";
 import { formatNumber, timelineMonthLabel } from "@/lib/format";
 import type { PartyStats } from "@/lib/types";
+import { filterSummary } from "@/lib/shows";
 
 // Merge CDU + CSU into a single "Union" bucket when union mode is on.
 function applyUnion(list: PartyStats[], union: boolean): PartyStats[] {
@@ -31,6 +32,7 @@ function applyUnion(list: PartyStats[], union: boolean): PartyStats[] {
 }
 
 export default function PartiesScreen() {
+  const { dark } = useTheme();
   const filter = useFilter();
   const { union } = filter;
   const { refreshing, onRefresh } = useRefresh();
@@ -64,7 +66,7 @@ export default function PartiesScreen() {
 
     return top.map((name) => ({
       key: name,
-      color: partyColor(name),
+      color: partyColor(name, dark),
       values: rows.map((row) => {
         if (name === "Union")
           return (
@@ -73,7 +75,7 @@ export default function PartiesScreen() {
         return (row[name] as number) ?? 0;
       }),
     }));
-  }, [timeline.data, union]);
+  }, [timeline.data, union, dark]);
 
   const timelineLabels = useMemo(
     () => (timeline.data?.data ?? []).map((r) => timelineMonthLabel(r.month)),
@@ -82,6 +84,11 @@ export default function PartiesScreen() {
 
   return (
     <Screen refreshing={refreshing} onRefresh={onRefresh}>
+      <Text variant="subhead" tone="muted" style={{ marginTop: spacing.xs }}>
+        {filterSummary(filter.show, filter.year)}
+        {union ? " · Union zusammengefasst" : ""}
+      </Text>
+
       <SectionHeader
         title="Auftritte nach Partei"
         subtitle="Gesamtzahl je Partei"
@@ -123,7 +130,7 @@ export default function PartiesScreen() {
                           width: 10,
                           height: 10,
                           borderRadius: 3,
-                          backgroundColor: partyColor(p.party_name),
+                          backgroundColor: partyColor(p.party_name, dark),
                         }}
                       />
                       <Text variant="body" weight="medium" numberOfLines={1}>
@@ -136,7 +143,7 @@ export default function PartiesScreen() {
                   </View>
                   <ProgressBar
                     fraction={p.count / maxCount}
-                    color={partyColor(p.party_name)}
+                    color={partyColor(p.party_name, dark)}
                     height={7}
                   />
                 </View>

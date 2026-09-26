@@ -2,6 +2,7 @@ import React from "react";
 import { View } from "react-native";
 import { Text } from "./Text";
 import { partyColor, partyTextColor, initials } from "@/lib/parties";
+import { useTheme } from "@/lib/theme";
 
 /** Circular initials avatar tinted with the person's party color. */
 export function Avatar({
@@ -13,10 +14,13 @@ export function Avatar({
   party?: string;
   size?: number;
 }) {
-  const bg = partyColor(party);
+  const t = useTheme();
+  const bg = partyColor(party, t.dark);
   const fg = partyTextColor(bg);
   return (
     <View
+      accessible={false}
+      importantForAccessibility="no-hide-descendants"
       style={{
         width: size,
         height: size,

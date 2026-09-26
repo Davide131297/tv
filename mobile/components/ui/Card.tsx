@@ -12,6 +12,7 @@ import { tapLight } from "@/lib/haptics";
 interface CardProps {
   children: React.ReactNode;
   onPress?: () => void;
+  accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
   padded?: boolean;
 }
@@ -21,7 +22,13 @@ interface CardProps {
  * interactive card with a native press state (Android ripple / iOS opacity) and
  * a light haptic tap.
  */
-export function Card({ children, onPress, style, padded = true }: CardProps) {
+export function Card({
+  children,
+  onPress,
+  style,
+  padded = true,
+  accessibilityLabel,
+}: CardProps) {
   const t = useTheme();
   const base: ViewStyle = {
     backgroundColor: t.card,
@@ -42,6 +49,8 @@ export function Card({ children, onPress, style, padded = true }: CardProps) {
         onPress();
       }}
       android_ripple={{ color: t.cardPressed }}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
       style={({ pressed }) => [
         base,
         pressed ? { backgroundColor: t.cardPressed } : null,

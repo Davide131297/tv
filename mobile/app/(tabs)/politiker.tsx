@@ -2,9 +2,9 @@ import React, { useMemo, useState } from "react";
 import { FlatList, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { Card } from "@/components/ui/Card";
 import { Text } from "@/components/ui/Text";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorState, errorMessage } from "@/components/ui/QueryBoundary";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { RankRow } from "@/components/RankRow";
 import { Divider } from "@/components/Divider";
@@ -15,6 +15,9 @@ import { radius, spacing, useTheme } from "@/lib/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { PoliticianRanking } from "@/lib/types";
 
+// Enough to cover practically everyone for a year; search filters locally.
+const RANKING_LIMIT = 300;
+
 export default function PoliticiansScreen() {
   const t = useTheme();
   const router = useRouter();
@@ -23,7 +26,7 @@ export default function PoliticiansScreen() {
   const { refreshing, onRefresh } = useRefresh();
   const [query, setQuery] = useState("");
 
-  const rankings = useRankings(filter, 100);
+  const rankings = useRankings(filter, RANKING_LIMIT);
 
   const filtered = useMemo(() => {
     const list = rankings.data ?? [];
@@ -74,6 +77,7 @@ export default function PoliticiansScreen() {
           autoCorrect={false}
           clearButtonMode="while-editing"
           returnKeyType="search"
+          accessibilityLabel="Politiker:in suchen"
         />
       </View>
       {rankings.data ? (
@@ -85,7 +89,7 @@ export default function PoliticiansScreen() {
     </View>
   );
 
-  if (rankings.isLoading) {
+  if (rankings.isPending) {
     return (
       <View style={{ flex: 1, backgroundColor: t.bg, paddingHorizontal: spacing.lg }}>
         {header}
@@ -128,11 +132,27 @@ export default function PoliticiansScreen() {
         </View>
       )}
       ListEmptyComponent={
-        <EmptyState
-          icon="search-outline"
-          title="Keine Treffer"
-          message="Für diese Suche wurde niemand gefunden."
-        />
+        rankings.isError ? (
+          <ErrorState
+            message={errorMessage(rankings.error)}
+            retrying={rankings.isFetching}
+            onRetry={() => {
+              rankings.refetch();
+            }}
+          />
+        ) : query.trim() ? (
+          <EmptyState
+            icon="search-outline"
+            title="Keine Treffer"
+            message="Für diese Suche wurde niemand gefunden."
+          />
+        ) : (
+          <EmptyState
+            icon="people-outline"
+            title="Keine Politiker:innen"
+            message="Für diese Auswahl liegen keine Auftritte vor."
+          />
+        )
       }
     />
   );

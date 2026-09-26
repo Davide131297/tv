@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { LayoutChangeEvent, View } from "react-native";
 import { Canvas, RoundedRect } from "@shopify/react-native-skia";
 import { Text } from "../ui/Text";
+import { ChartBoundary } from "./ChartBoundary";
 import { spacing, useTheme } from "@/lib/theme";
 
 export interface BarPoint {
@@ -10,7 +11,7 @@ export interface BarPoint {
 }
 
 /** Native vertical bar chart (Skia) with RN month labels aligned underneath. */
-export function MonthlyBars({
+function MonthlyBarsInner({
   data,
   height = 150,
   color,
@@ -63,5 +64,13 @@ export function MonthlyBars({
         ))}
       </View>
     </View>
+  );
+}
+
+export function MonthlyBars(props: React.ComponentProps<typeof MonthlyBarsInner>) {
+  return (
+    <ChartBoundary height={props.height ?? 150}>
+      <MonthlyBarsInner {...props} />
+    </ChartBoundary>
   );
 }

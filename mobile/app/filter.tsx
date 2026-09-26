@@ -7,7 +7,8 @@ import { Text } from "@/components/ui/Text";
 import { Divider } from "@/components/Divider";
 import { radius, spacing, useTheme } from "@/lib/theme";
 import { useFilter } from "@/hooks/useFilter";
-import { SHOWS, availableYears } from "@/lib/shows";
+import { OTHER_SHOWS, SHOWS, availableYears } from "@/lib/shows";
+import type { ShowOption } from "@/lib/types";
 import { tapLight } from "@/lib/haptics";
 
 export default function FilterModal() {
@@ -40,7 +41,14 @@ export default function FilterModal() {
           paddingVertical: spacing.md,
         }}
       >
-        <Pressable onPress={reset} hitSlop={8}>
+        <Pressable
+          onPress={() => {
+            tapLight();
+            reset();
+          }}
+          hitSlop={8}
+          accessibilityRole="button"
+        >
           <Text variant="body" tone="accent">
             Zurücksetzen
           </Text>
@@ -54,6 +62,7 @@ export default function FilterModal() {
             router.back();
           }}
           hitSlop={8}
+          accessibilityRole="button"
         >
           <Text variant="body" weight="semibold" tone="accent">
             Fertig
@@ -75,53 +84,24 @@ export default function FilterModal() {
         >
           Sendung
         </Text>
-        <View
+        <ShowList options={SHOWS} selected={show} onSelect={setShow} />
+
+        <Text
+          variant="subhead"
+          tone="muted"
+          weight="semibold"
           style={{
-            backgroundColor: t.card,
-            borderRadius: radius.lg,
-            borderWidth: 1,
-            borderColor: t.border,
-            overflow: "hidden",
+            marginBottom: spacing.xs,
+            marginTop: spacing.xl,
+            textTransform: "uppercase",
           }}
         >
-          {SHOWS.map((s, i) => {
-            const active = s.value === show;
-            return (
-              <View key={s.value}>
-                {i > 0 ? <Divider inset={spacing.lg} /> : null}
-                <Pressable
-                  onPress={() => {
-                    tapLight();
-                    setShow(s.value);
-                  }}
-                  android_ripple={{ color: t.cardPressed }}
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    paddingHorizontal: spacing.lg,
-                    paddingVertical: spacing.md,
-                    gap: spacing.md,
-                  }}
-                >
-                  <View
-                    style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: 5,
-                      backgroundColor: s.accent,
-                    }}
-                  />
-                  <Text variant="body" style={{ flex: 1 }}>
-                    {s.label}
-                  </Text>
-                  {active ? (
-                    <Ionicons name="checkmark" size={20} color={t.accent} />
-                  ) : null}
-                </Pressable>
-              </View>
-            );
-          })}
-        </View>
+          Weitere Sendungen
+        </Text>
+        <Text variant="caption" tone="faint" style={{ marginBottom: spacing.sm }}>
+          Nicht in „Alle Shows“ enthalten.
+        </Text>
+        <ShowList options={OTHER_SHOWS} selected={show} onSelect={setShow} />
 
         <Text
           variant="subhead"
@@ -145,6 +125,8 @@ export default function FilterModal() {
                   tapLight();
                   setYear(y);
                 }}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
                 style={{
                   paddingHorizontal: spacing.lg,
                   paddingVertical: spacing.sm,
@@ -202,9 +184,74 @@ export default function FilterModal() {
               setUnion(v);
             }}
             trackColor={{ false: t.border, true: t.accent }}
+            accessibilityLabel="CDU/CSU als Union zusammenfassen"
           />
         </View>
       </ScrollView>
+    </View>
+  );
+}
+
+function ShowList({
+  options,
+  selected,
+  onSelect,
+}: {
+  options: ShowOption[];
+  selected: string;
+  onSelect: (value: string) => void;
+}) {
+  const t = useTheme();
+  return (
+    <View
+      style={{
+        backgroundColor: t.card,
+        borderRadius: radius.lg,
+        borderWidth: 1,
+        borderColor: t.border,
+        overflow: "hidden",
+      }}
+    >
+      {options.map((s, i) => {
+        const active = s.value === selected;
+        return (
+          <View key={s.value}>
+            {i > 0 ? <Divider inset={spacing.lg} /> : null}
+            <Pressable
+              onPress={() => {
+                tapLight();
+                onSelect(s.value);
+              }}
+              android_ripple={{ color: t.cardPressed }}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={s.label}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                paddingHorizontal: spacing.lg,
+                paddingVertical: spacing.md,
+                gap: spacing.md,
+              }}
+            >
+              <View
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: 5,
+                  backgroundColor: s.accent,
+                }}
+              />
+              <Text variant="body" style={{ flex: 1 }}>
+                {s.label}
+              </Text>
+              {active ? (
+                <Ionicons name="checkmark" size={20} color={t.accent} />
+              ) : null}
+            </Pressable>
+          </View>
+        );
+      })}
     </View>
   );
 }

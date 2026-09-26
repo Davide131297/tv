@@ -1,38 +1,33 @@
 import React, { useEffect, useState } from "react";
-import { Platform } from "react-native";
-import { Stack } from "expo-router";
+import { AppState, Platform, View, type AppStateStatus } from "react-native";
+import { Stack, type ErrorBoundaryProps } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import * as SystemUI from "expo-system-ui";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  QueryClient,
+  QueryClientProvider,
+  focusManager,
+} from "@tanstack/react-query";
 import { FilterProvider } from "@/hooks/useFilter";
 import { useTheme } from "@/lib/theme";
+import { ApiError } from "@/lib/api";
+import { ErrorState } from "@/components/ui/QueryBoundary";
+import { loadSkia } from "@/lib/skiaLoader";
 
-// canvaskit-wasm version must match the one pinned in package-lock.json —
-// check that pin when bumping dependencies.
-const CANVASKIT_VERSION = "0.41.0";
-
-function useSkiaWebReady() {
+function useSkiaReady() {
   const [ready, setReady] = useState(Platform.OS !== "web");
 
   useEffect(() => {
     if (Platform.OS !== "web") return;
 
     let cancelled = false;
-
-    import("@shopify/react-native-skia/lib/module/web/LoadSkiaWeb")
-      .then(({ LoadSkiaWeb }) =>
-        LoadSkiaWeb({
-          locateFile: (file: string) =>
-            `https://unpkg.com/canvaskit-wasm@${CANVASKIT_VERSION}/bin/full/${file}`,
-        })
-      )
-      .then(() => {
-        if (!cancelled) setReady(true);
-      })
+    loadSkia()
       .catch((error) => {
         console.error("Failed to load Skia for web", error);
+      })
+      .finally(() => {
         if (!cancelled) setReady(true);
       });
 
@@ -49,13 +44,45 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 1000 * 60 * 5, // 5 min
       gcTime: 1000 * 60 * 30,
-      retry: 1,
-      refetchOnWindowFocus: false,
+      // Retry transient failures (network, 5xx) but never client errors.
+      retry: (failureCount, error) =>
+        !(error instanceof ApiError && error.isClientError) && failureCount < 2,
+      // Refetch stale data when the app returns to the foreground (see below).
+      refetchOnWindowFocus: true,
     },
   },
 });
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+
+// React Query's "window focus" concept maps to the app becoming active on native.
+function onAppStateChange(status: AppStateStatus) {
+  if (Platform.OS !== "web") {
+    focusManager.setFocused(status === "active");
+  }
+}
+
+function useAppStateFocus() {
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", onAppStateChange);
+    return () => sub.remove();
+  }, []);
+}
+
+// Last-resort fallback for render errors anywhere in the navigation tree.
+export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
+  const t = useTheme();
+  return (
+    <View style={{ flex: 1, justifyContent: "center", backgroundColor: t.bg }}>
+      <ErrorState
+        message="Die App ist auf einen unerwarteten Fehler gestoßen."
+        onRetry={() => {
+          retry();
+        }}
+      />
+    </View>
+  );
+}
 
 function RootStack() {
   const t = useTheme();
@@ -103,7 +130,8 @@ function RootStack() {
 }
 
 export default function RootLayout() {
-  const skiaReady = useSkiaWebReady();
+  const skiaReady = useSkiaReady();
+  useAppStateFocus();
 
   useEffect(() => {
     if (skiaReady) {
