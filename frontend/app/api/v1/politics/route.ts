@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer as supabase } from "@/lib/supabase-server";
-import { applyShowFilter, getSummaryStats, getDetailedAppearances } from "@/lib/politics-data";
+import {
+  applyShowFilter,
+  getSummaryStats,
+  getDetailedAppearances,
+  getPoliticianRankings,
+} from "@/lib/politics-data";
 
 // Types
 interface PartyStats {
@@ -438,6 +443,33 @@ export async function GET(request: NextRequest) {
             latest_episode: stats.latest_episode,
           }),
         );
+
+        return NextResponse.json({
+          success: true,
+          data: results,
+        });
+      }
+
+      case "politician-rankings": {
+        // Öffentliche Variante der Rankings (u. a. für die Mobile-App),
+        // damit Clients keinen API-Key mitliefern müssen.
+        const rankingLimit = Math.min(limit > 0 ? limit : 50, 500);
+        const rankings = await getPoliticianRankings({
+          show: showName,
+          year,
+          tv_channel,
+          limit: rankingLimit,
+        });
+
+        const results = rankings.map((r) => ({
+          politician_name: r.politician_name,
+          party_name: r.party_name,
+          total_appearances: r.total_appearances,
+          shows_appeared_on: r.shows_appeared_on,
+          show_names: r.show_names,
+          latest_appearance: r.latest_appearance,
+          first_appearance: r.first_appearance,
+        }));
 
         return NextResponse.json({
           success: true,
