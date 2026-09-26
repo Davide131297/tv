@@ -1,12 +1,17 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getTvRatingsDashboardData } from "@/lib/politics-data";
 
 // Public, read-only endpoint that exposes the aggregated TV ratings dashboard
 // data (summary, politician stats, party stats) for external clients such as the
 // mobile app. Not covered by the API-key middleware (see proxy.ts matcher).
-export async function GET() {
+// Optional query params: `show` (single show or comma-separated list) and `year`.
+export async function GET(request: NextRequest) {
   try {
-    const data = await getTvRatingsDashboardData();
+    const { searchParams } = new URL(request.url);
+    const show = searchParams.get("show");
+    const year = searchParams.get("year");
+
+    const data = await getTvRatingsDashboardData({ show, year });
     return NextResponse.json(
       { success: true, data },
       {
