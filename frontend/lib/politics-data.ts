@@ -76,7 +76,8 @@ export async function getSummaryStats(params: {
     total_episodes: episodes,
     unique_politicians: politicians,
     parties_represented: parties,
-    show_name: params.show || "Alle Shows",
+    show_name:
+      params.show && params.show !== "all" ? params.show : "Alle Shows",
   };
 }
 
