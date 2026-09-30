@@ -7,6 +7,8 @@ import {
   checkPolitician,
   extractGuestsWithAI,
   getPoliticalArea,
+  fetchArdSynopsis,
+  buildArdItemApiUrl,
 } from "../lib/utils.js";
 
 // ARD Mediathek API — Maischberger Widget-Endpunkt
@@ -22,9 +24,14 @@ interface ArdTeaser {
   availableTo: string;
   duration: number;
   coreAssetType: string;
+  images?: {
+    aspect16x9?: { alt?: string };
+  };
   links: {
     target: {
       urlId: string;
+      // Vollständige Item-API-URL inkl. Query-Parameter
+      href?: string;
     };
   };
 }
@@ -67,61 +74,11 @@ async function fetchEpisodePage(
   return res.data;
 }
 
-async function fetchEpisodeDescription(episodeUrl: string): Promise<string> {
-  try {
-    const res = await axios.get<string>(episodeUrl, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      },
-      responseType: "text",
-    });
+// Beschreibung über die ARD Page-Gateway Item-API holen
+async function fetchEpisodeSynopsis(teaser: ArdTeaser): Promise<string> {
+  const itemApiUrl = teaser.links.target.href || buildArdItemApiUrl(teaser.id);
 
-    const html = res.data;
-    const match = html.match(
-      /<meta[^>]+property="og:description"[^>]+content="([^"]+)"/i,
-    );
-
-    if (!match) {
-      const fallback = html.match(
-        /<meta[^>]+name="description"[^>]+content="([^"]+)"/i,
-      );
-      return fallback ? decodeHtmlEntities(fallback[1]) : "";
-    }
-
-    return decodeHtmlEntities(match[1]);
-  } catch (error) {
-    if (axios.isAxiosError(error) && error.response) {
-      console.warn(
-        `⚠️  Episode-Seite nicht erreichbar (${error.response.status}): ${episodeUrl}`,
-      );
-      return "";
-    }
-
-    console.error(
-      `❌ Fehler beim Laden der Episodenseite ${episodeUrl}:`,
-      error,
-    );
-    return "";
-  }
-}
-
-function decodeHtmlEntities(text: string): string {
-  return text
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#039;/g, "'")
-    .replace(/&auml;/g, "ä")
-    .replace(/&ouml;/g, "ö")
-    .replace(/&uuml;/g, "ü")
-    .replace(/&Auml;/g, "Ä")
-    .replace(/&Ouml;/g, "Ö")
-    .replace(/&Uuml;/g, "Ü")
-    .replace(/&szlig;/g, "ß");
+  return fetchArdSynopsis(itemApiUrl);
 }
 
 function isSignLanguageVariant(teaser: ArdTeaser): boolean {
@@ -169,10 +126,22 @@ async function fetchNewEpisodes(
 
       console.log(`🔍 Lade Beschreibung für ${date}: ${teaser.longTitle}`);
 
-      const description = await fetchEpisodeDescription(episodeUrl);
-      const guestNames = await extractGuestsWithAI(
-        description || teaser.longTitle,
-      );
+      const description = await fetchEpisodeSynopsis(teaser);
+
+      if (!description) {
+        console.warn(
+          `⚠️  Keine Synopsis für ${date} — nutze Titel/Bildunterschrift als Fallback`,
+        );
+      }
+
+      // Fallback: die Bild-Alt-Texte enthalten in der Regel die Gästeliste
+      const aiInput =
+        description ||
+        [teaser.longTitle, teaser.images?.aspect16x9?.alt]
+          .filter(Boolean)
+          .join(" – ");
+
+      const guestNames = await extractGuestsWithAI(aiInput);
       const guests: EpisodeGuest[] = guestNames.map((name) => ({ name }));
 
       newEpisodes.push({

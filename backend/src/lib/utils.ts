@@ -363,6 +363,67 @@ export async function getLatestEpisodeDate(
   }
 }
 
+// ─────────────────────────────────────────────
+// ARD Mediathek: Episodenbeschreibung (Synopsis)
+// ─────────────────────────────────────────────
+// Die Seiten auf www.ardmediathek.de sind eine Client-Side-SPA und liefern
+// keine og:description-Meta-Tags mehr. Die Beschreibung kommt deshalb aus der
+// Page-Gateway-API: widgets[].synopsis des Player-Widgets.
+
+interface ArdItemPageResponse {
+  widgets?: Array<{ synopsis?: string | null }>;
+}
+
+// Baut die Item-API-URL aus einer Asset-ID (base64-kodierte crid)
+export function buildArdItemApiUrl(assetId: string): string {
+  return `https://api.ardmediathek.de/page-gateway/pages/ard/item/${encodeURIComponent(
+    assetId,
+  )}?devicetype=pc&embedded=true`;
+}
+
+// Extrahiert die Asset-ID aus einer ardmediathek.de-Video-URL
+// Format: /video/<show-slug>/<episoden-slug>/<partner>/<base64-crid>
+export function extractArdAssetId(ardUrl: string): string {
+  try {
+    const segments = new URL(ardUrl).pathname.split("/").filter(Boolean);
+    return segments[segments.length - 1] || "";
+  } catch {
+    return "";
+  }
+}
+
+// Holt die Episodenbeschreibung über die ARD Page-Gateway-API.
+// itemApiUrl: entweder eine fertige Item-API-URL (teaser.links.target.href)
+// oder via buildArdItemApiUrl() erzeugt.
+export async function fetchArdSynopsis(itemApiUrl: string): Promise<string> {
+  if (!itemApiUrl) return "";
+
+  try {
+    const res = await axios.get<ArdItemPageResponse>(itemApiUrl);
+
+    const synopsis = res.data.widgets?.find((widget) =>
+      widget.synopsis?.trim(),
+    )?.synopsis;
+
+    if (!synopsis) return "";
+
+    return synopsis
+      .replace(/\r\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      console.warn(
+        `⚠️  ARD Item-API nicht erreichbar (${error.response.status}): ${itemApiUrl}`,
+      );
+      return "";
+    }
+
+    console.error(`❌ Fehler beim Laden der ARD Item-API ${itemApiUrl}:`, error);
+    return "";
+  }
+}
+
 // Hole alle bereits gecrawlten Episode-Daten aus show_links
 // Zuverlässiger als getLatestEpisodeDate, da show_links immer befüllt wird
 // (unabhängig davon, ob die Episode Politiker enthält)
