@@ -1,6 +1,7 @@
 import PoliticianTable from "@/components/PoliticianTable";
 import PoliticianFilters from "@/components/PoliticianFilters";
 import { Suspense } from "react";
+import { periodFromSearchParams } from "@/utils/dateRange";
 import { TableOnlySkeleton } from "@/components/ui/page-skeletons";
 import type { Metadata } from "next";
 import { getDetailedAppearances } from "@/lib/politics-data";
@@ -23,7 +24,7 @@ export default async function PoliticiansPage({
 }) {
   const params = await searchParams;
   const show = typeof params.show === "string" ? params.show : "all";
-  const year = typeof params.year === "string" ? params.year : String(new Date().getFullYear());
+  const year = periodFromSearchParams(params);
   const search = typeof params.search === "string" ? params.search : "";
   const page = typeof params.page === "string" ? parseInt(params.page) : 1;
   const pageSize = 20;

@@ -3,7 +3,8 @@
 import { useUrlUpdater } from "@/hooks/useUrlUpdater";
 import PartyTimelineChart from "@/components/PartyTimelineChart";
 import ShowOptionsButtons from "@/components/ShowOptionsButtons";
-import { useYearList } from "@/hooks/useYearList";
+import { usePeriodUpdater } from "@/hooks/usePeriodUpdater";
+import type { DateRange } from "@/utils/dateRange";
 import { useSearchParams } from "next/navigation";
 
 interface MonthlyPartyStats {
@@ -28,7 +29,7 @@ export default function PartyTimelinePageContent({
 }: PartyTimelinePageContentProps) {
   const searchParams = useSearchParams();
   const updateUrl = useUrlUpdater();
-  const years = useYearList(2024);
+  const updatePeriod = usePeriodUpdater();
 
   const unionMode = searchParams.get("union") === "true";
   const selectedParties = searchParams.getAll("parteien");
@@ -37,8 +38,8 @@ export default function PartyTimelinePageContent({
     updateUrl({ show });
   };
 
-  const handleYearChange = (year: string) => {
-    updateUrl({ year });
+  const handleRangeChange = (range: DateRange) => {
+    updatePeriod(range);
   };
 
   const handleUnionModeChange = (union: boolean) => {
@@ -54,7 +55,7 @@ export default function PartyTimelinePageContent({
       <div className="mb-8">
         <h1 className="text-4xl font-bold mb-2">Zeitverlauf Parteien</h1>
         <p className="text-muted-foreground">
-          Monatliche Entwicklung der Partei-Auftritte über das Jahr
+          Monatliche Entwicklung der Partei-Auftritte im gewählten Zeitraum
         </p>
       </div>
 
@@ -82,14 +83,13 @@ export default function PartyTimelinePageContent({
           onUnionModeChange={handleUnionModeChange}
           onSelectedPartiesChange={handleSelectedPartiesChange}
           selectedYear={initialYear}
-          handleYearChange={handleYearChange}
-          years={years}
+          handleRangeChange={handleRangeChange}
         />
 
         {initialData.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center py-12 text-muted-foreground">
-              Keine Daten für das ausgewählte Jahr verfügbar.
+              Keine Daten für den ausgewählten Zeitraum verfügbar.
             </div>
           </div>
         )}

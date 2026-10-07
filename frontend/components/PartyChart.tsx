@@ -26,18 +26,15 @@ import {
 } from "@/components/ui/chart";
 import type { PartyChartProps } from "@/types";
 import { PARTY_COLORS } from "@/types";
-import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select";
+import DateRangePicker from "@/components/DateRangePicker";
+import { type DateRange, describePeriod } from "@/utils/dateRange";
 import ChannelOptionsButtons from "./ChannelOptionsButtons";
 
 export default function PartyChart({
   data,
   selectedShow,
   selectedYear,
-  years,
-  handleYearChange,
+  handleRangeChange,
   unionMode,
   onUnionChange,
 }: PartyChartProps) {
@@ -91,7 +88,7 @@ export default function PartyChart({
             </CardTitle>
             <CardDescription className="text-slate-500 dark:text-slate-400 mt-1">
               Verteilung der Politiker nach Parteien{" "}
-              {selectedYear !== "all" && `im Jahr ${selectedYear}`}
+              {selectedYear && selectedYear !== "all" && `(${describePeriod(selectedYear)})`}
             </CardDescription>
           </div>
           <div className="bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 px-4 py-2 rounded-full font-medium flex items-center gap-2 shadow-sm shrink-0 border border-blue-100 dark:border-blue-800/50">
@@ -103,21 +100,11 @@ export default function PartyChart({
         <div className="flex flex-col md:flex-row justify-between mt-3 gap-5 md:gap-0">
           <div className="flex flex-col md:flex-row gap-2.5 md:gap-10">
             <div>
-              <label className="text-sm font-medium mb-2 block dark:text-gray-300">Jahr:</label>
-              <NativeSelect
-                value={selectedYear}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                  handleYearChange && handleYearChange(e.target.value)
-                }
-              >
-                <NativeSelectOption value="all">Insgesamt</NativeSelectOption>
-                {years &&
-                  years.map((y) => (
-                    <NativeSelectOption key={y} value={y}>
-                      {y}
-                    </NativeSelectOption>
-                  ))}
-              </NativeSelect>
+              <label className="text-sm font-medium mb-2 block dark:text-gray-300">Zeitraum:</label>
+              <DateRangePicker
+                period={selectedYear ?? "all"}
+                onChange={(range) => handleRangeChange?.(range)}
+              />
             </div>
             <ChannelOptionsButtons />
           </div>

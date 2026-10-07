@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer as supabase } from "@/lib/supabase-server";
+import { applyPeriodFilter, parsePeriod, monthKeysForRange, periodFromQuery, getDefaultRange, toPeriod } from "@/utils/dateRange";
 
 // Types
 interface PoliticalAreaStats {
@@ -12,7 +13,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const showName = searchParams.get("show");
-    const year = searchParams.get("year");
+    const year = periodFromQuery(searchParams);
     const tv_channel = searchParams.get("tv_channel");
 
     // Base query to join political areas with episode data (include episode_date for monthly timeline)
@@ -38,11 +39,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Only apply year filtering when a year param is provided and not equal to "all"
-    if (year && year !== "all") {
-      query = query
-        .gte("episode_date", `${year}-01-01`)
-        .lte("episode_date", `${year}-12-31`);
-    }
+    query = applyPeriodFilter(query, year);
 
     if (tv_channel) {
       query = query.eq("tv_channel", tv_channel);

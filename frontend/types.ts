@@ -34,8 +34,7 @@ export interface PartyChartProps {
   data: PartyStats[];
   selectedShow?: string;
   selectedYear?: string;
-  years?: string[];
-  handleYearChange?: (year: string) => void;
+  handleRangeChange?: (range: { from: string; to: string }) => void;
   unionMode: boolean;
   onUnionChange: (union: boolean) => void;
 }
@@ -54,8 +53,7 @@ export interface PoliticalAreasChartProps {
   data: PoliticalAreaStats[];
   selectedShow?: string;
   selectedYear?: string;
-  years?: string[];
-  handleYearChange?: (year: string) => void;
+  handleRangeChange?: (range: { from: string; to: string }) => void;
 }
 
 export interface PoliticalAreaEpisodeRow {

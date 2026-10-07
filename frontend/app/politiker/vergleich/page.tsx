@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { periodFromSearchParams } from "@/utils/dateRange";
 import type { Metadata } from "next";
 import ComparisonClient from "./ComparisonClient";
 import {
@@ -66,7 +67,7 @@ async function ComparisonPageContent({
   const params = await searchParams;
   const requestedP1 = typeof params.p1 === "string" ? params.p1 : undefined;
   const requestedP2 = typeof params.p2 === "string" ? params.p2 : undefined;
-  const year = typeof params.year === "string" ? params.year : "all";
+  const year = periodFromSearchParams(params);
 
   const rankings = await getPoliticianRankings({ year: "all" });
   const politicianOptions = buildComparisonOptions(rankings);

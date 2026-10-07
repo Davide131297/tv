@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer as supabase } from "@/lib/supabase-server";
 import { applyShowFilter, getSummaryStats, getDetailedAppearances } from "@/lib/politics-data";
+import { applyPeriodFilter, parsePeriod, monthKeysForRange, periodFromQuery, getDefaultRange, toPeriod } from "@/utils/dateRange";
 
 // Types
 interface PartyStats {
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
         { status: 400 },
       );
     }
-    const year = searchParams.get("year");
+    const year = periodFromQuery(searchParams);
     const tv_channel = searchParams.get("tv_channel");
     const limit = parseInt(searchParams.get("limit") || "0");
     const offset = parseInt(searchParams.get("offset") || "0");

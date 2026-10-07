@@ -1,4 +1,5 @@
 import { supabaseServer as supabase } from "./supabase-server";
+import { applyPeriodFilter, parsePeriod, monthKeysForRange, getDefaultRange, toPeriod } from "@/utils/dateRange";
 import type {
   PartyTvRatingsStat,
   PoliticianInEpisode,
@@ -21,11 +22,7 @@ export function applyShowFilter(
     query = query.eq("show_name", showName);
   }
 
-  if (year && year !== "all") {
-    const startDate = `${year}-01-01`;
-    const endDate = `${year}-12-31`;
-    query = query.gte("episode_date", startDate).lte("episode_date", endDate);
-  }
+  query = applyPeriodFilter(query, year);
 
   if (tv_channel && tv_channel !== "all") {
     query = query.eq("tv_channel", tv_channel);
@@ -255,11 +252,7 @@ export async function getPoliticalAreas(params: {
       .neq("show_name", "Blome & Pfeffer");
   }
 
-  if (params.year && params.year !== "all") {
-    query = query
-      .gte("episode_date", `${params.year}-01-01`)
-      .lte("episode_date", `${params.year}-12-31`);
-  }
+  query = applyPeriodFilter(query, params.year);
 
   if (params.tv_channel && params.tv_channel !== "all") {
     query = query.eq("tv_channel", params.tv_channel);
@@ -303,9 +296,10 @@ export async function getEpisodesWithPoliticians(params: {
 
   if (params.limit) politiciansQuery = politiciansQuery.limit(500); // Higher limit for grouping
 
-  if (params.year && params.year !== "all") {
-    const startDate = `${params.year}-01-01`;
-    const endDate = `${params.year}-12-31`;
+  const periodRange = parsePeriod(params.year);
+  if (periodRange) {
+    const startDate = periodRange.from;
+    const endDate = periodRange.to;
     politiciansQuery = politiciansQuery.gte("episode_date", startDate).lte("episode_date", endDate);
   }
 
@@ -351,9 +345,10 @@ export async function getEpisodeStatistics(params: {
 }) {
   let query = supabase.from("tv_show_politicians").select("episode_date").eq("show_name", params.show);
 
-  if (params.year && params.year !== "all") {
-    const startDate = `${params.year}-01-01`;
-    const endDate = `${params.year}-12-31`;
+  const periodRange = parsePeriod(params.year);
+  if (periodRange) {
+    const startDate = periodRange.from;
+    const endDate = periodRange.to;
     query = query.gte("episode_date", startDate).lte("episode_date", endDate);
   }
 
@@ -388,7 +383,8 @@ export async function getPartyTimeline(params: {
   year?: string | null;
   tv_channel?: string | null;
 }) {
-  const year = params.year || new Date().getFullYear().toString();
+  const year = params.year || toPeriod(getDefaultRange());
+  const periodRange = parsePeriod(year);
 
   let query = supabase
     .from("tv_show_politicians")
@@ -400,9 +396,7 @@ export async function getPartyTimeline(params: {
     .neq("show_name", "Pinar Atalay")
     .neq("show_name", "Blome & Pfeffer");
 
-  if (year !== "all") {
-    query = query.gte("episode_date", `${year}-01-01`).lte("episode_date", `${year}-12-31`);
-  }
+  query = applyPeriodFilter(query, year);
 
   if (params.show && params.show !== "all") {
     query = query.eq("show_name", params.show);
@@ -428,7 +422,7 @@ export async function getPartyTimeline(params: {
 
   const monthKeys: string[] = [];
 
-  if (year === "all") {
+  if (!periodRange) {
     if (validDates.length === 0) return { data: [], parties: [], year };
     let minDate = new Date(Math.min(...validDates.map((d) => d.getTime())));
     let maxDate = new Date(Math.max(...validDates.map((d) => d.getTime())));
@@ -440,9 +434,7 @@ export async function getPartyTimeline(params: {
       cur.setMonth(cur.getMonth() + 1);
     }
   } else {
-    for (let m = 1; m <= 12; m++) {
-      monthKeys.push(`${year}-${pad2(m)}`);
-    }
+    monthKeys.push(...monthKeysForRange(periodRange));
   }
 
   monthKeys.forEach((mk) => { monthlyStats[mk] = {}; });
@@ -743,16 +735,7 @@ export async function getPoliticianComparisonStats(
     baseShows.map((show) => [show, { show, A: 0, B: 0 }]),
   );
 
-  const applyYearFilter = <T>(query: T): T => {
-    if (year && year !== "all") {
-      const startDate = `${year}-01-01`;
-      const endDate = `${year}-12-31`;
-      // Supabase query builders are immutable; return the refined query.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return (query as any).gte("episode_date", startDate).lte("episode_date", endDate);
-    }
-    return query;
-  };
+  const applyYearFilter = <T>(query: T): T => applyPeriodFilter(query, year);
 
   const buildQuery = (politicianName: string) =>
     applyYearFilter(

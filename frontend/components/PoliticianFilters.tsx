@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useUrlUpdater } from "@/hooks/useUrlUpdater";
-import { useYearList } from "@/hooks/useYearList";
+import { usePeriodUpdater } from "@/hooks/usePeriodUpdater";
+import DateRangePicker from "@/components/DateRangePicker";
+import type { DateRange } from "@/utils/dateRange";
 import {
   InputGroup,
   InputGroupAddon,
@@ -26,7 +28,7 @@ export default function PoliticianFilters({
   initialYear,
   initialSearch,
 }: PoliticianFiltersProps) {
-  const years = useYearList(2024);
+  const updatePeriod = usePeriodUpdater();
   const updateUrl = useUrlUpdater();
   const [searchInput, setSearchInput] = useState(initialSearch);
 
@@ -42,8 +44,8 @@ export default function PoliticianFilters({
     updateUrl({ search: searchInput, page: "1" });
   };
 
-  const handleYearChange = (yearValue: string) => {
-    updateUrl({ year: yearValue, page: "1" });
+  const handleRangeChange = (range: DateRange) => {
+    updatePeriod(range, { page: "1" });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -60,20 +62,8 @@ export default function PoliticianFilters({
             Politiker-Auftritte
           </h2>
           <div className="flex gap-2 items-center">
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Jahr</p>
-            <NativeSelect
-              value={initialYear}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                handleYearChange(e.target.value)
-              }
-            >
-              <NativeSelectOption value="all">Insgesamt</NativeSelectOption>
-              {years.map((y) => (
-                <NativeSelectOption key={y} value={y}>
-                  {y}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Zeitraum</p>
+            <DateRangePicker period={initialYear} onChange={handleRangeChange} />
           </div>
         </div>
 

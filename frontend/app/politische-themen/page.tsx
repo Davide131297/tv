@@ -1,5 +1,6 @@
 import PoliticalAreasPageContent from "@/components/PoliticalAreasPageContent";
 import { Suspense } from "react";
+import { periodFromSearchParams } from "@/utils/dateRange";
 import { ChartSkeleton } from "@/components/ui/page-skeletons";
 import type { Metadata } from "next";
 import { getPoliticalAreas } from "@/lib/politics-data";
@@ -22,7 +23,7 @@ export default async function PoliticalAreasPage({
 }) {
   const params = await searchParams;
   const show = typeof params.show === "string" ? params.show : "all";
-  const year = typeof params.year === "string" ? params.year : String(new Date().getFullYear());
+  const year = periodFromSearchParams(params);
   const tv_channel = typeof params.tv_channel === "string" ? params.tv_channel : undefined;
 
   return (

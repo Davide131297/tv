@@ -2,6 +2,7 @@ import PoliticianRankings from "@/components/PoliticianRankings";
 import RankingsFilters from "@/components/RankingsFilters";
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { periodFromSearchParams } from "@/utils/dateRange";
 import { RankingsOnlySkeleton } from "@/components/ui/page-skeletons";
 import { getPoliticianRankings } from "@/lib/politics-data";
 
@@ -23,7 +24,7 @@ export default async function PoliticianRankingsPage({
 }) {
   const params = await searchParams;
   const show = typeof params.show === "string" ? params.show : "all";
-  const year = typeof params.year === "string" ? params.year : String(new Date().getFullYear());
+  const year = periodFromSearchParams(params);
 
   return (
     <div className="container mx-auto py-8 px-4">

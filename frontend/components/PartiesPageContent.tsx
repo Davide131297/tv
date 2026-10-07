@@ -4,7 +4,8 @@ import { useUrlUpdater } from "@/hooks/useUrlUpdater";
 import PartyChart from "@/components/PartyChart";
 import type { PartyStats } from "@/types";
 import ShowOptionsButtons from "./ShowOptionsButtons";
-import { useYearList } from "@/hooks/useYearList";
+import { usePeriodUpdater } from "@/hooks/usePeriodUpdater";
+import type { DateRange } from "@/utils/dateRange";
 import { useSearchParams } from "next/navigation";
 
 interface PartiesPageContentProps {
@@ -22,7 +23,7 @@ export default function PartiesPageContent({
 }: PartiesPageContentProps) {
   const searchParams = useSearchParams();
   const updateUrl = useUrlUpdater();
-  const years = useYearList(2024);
+  const updatePeriod = usePeriodUpdater();
 
   const unionMode = searchParams.get("union") === "true";
 
@@ -34,8 +35,8 @@ export default function PartiesPageContent({
     updateUrl({ union: unionValue });
   };
 
-  const handleYearChange = (yearValue: string) => {
-    updateUrl({ year: yearValue });
+  const handleRangeChange = (range: DateRange) => {
+    updatePeriod(range);
   };
 
   // Hilfsfunktion: CDU & CSU zu Union zusammenfassen
@@ -81,8 +82,7 @@ export default function PartiesPageContent({
           data={displayedStats}
           selectedShow={initialShow}
           selectedYear={initialYear}
-          years={years}
-          handleYearChange={handleYearChange}
+          handleRangeChange={handleRangeChange}
           unionMode={unionMode}
           onUnionChange={handleUnionModeChange}
         />

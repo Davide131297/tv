@@ -1,6 +1,7 @@
 import SendungenPageContent from "@/components/SendungenPageContent";
 import EpisodeFilters from "@/components/EpisodeFilters";
 import { Suspense } from "react";
+import { periodFromSearchParams } from "@/utils/dateRange";
 import { StatsAndTableSkeleton } from "@/components/ui/page-skeletons";
 import type { Metadata } from "next";
 import { getEpisodesWithPoliticians, getEpisodeStatistics } from "@/lib/politics-data";
@@ -23,7 +24,7 @@ export default async function EpisodesPage({
 }) {
   const params = await searchParams;
   const show = typeof params.show === "string" ? params.show : "Markus Lanz";
-  const year = typeof params.year === "string" ? params.year : String(new Date().getFullYear());
+  const year = periodFromSearchParams(params);
 
   return (
     <div className="container mx-auto py-8 px-4">

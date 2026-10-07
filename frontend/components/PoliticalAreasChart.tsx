@@ -23,10 +23,8 @@ import type {
   PoliticalAreasChartPropsExtended,
   PoliticalAreaEpisodeRow,
 } from "@/types";
-import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select";
+import DateRangePicker from "@/components/DateRangePicker";
+import { type DateRange, parsePeriod, parseIsoDate } from "@/utils/dateRange";
 import {
   Tooltip as ChadcnTooltip,
   TooltipContent,
@@ -41,8 +39,7 @@ export default function PoliticalAreasChart({
   rows,
   selectedShow,
   selectedYear,
-  years,
-  handleYearChange,
+  handleRangeChange,
 }: PoliticalAreasChartPropsExtended) {
   const [isMobile, setIsMobile] = useState<boolean>(false);
   // Sortiere Daten nach Anzahl
@@ -127,11 +124,18 @@ export default function PoliticalAreasChart({
   // aggregation for the selected single year.
   let monthlyData: Record<string, any>[] = [];
 
-  if (selectedYear === "all") {
+  const periodRange = parsePeriod(selectedYear);
+  const isSingleFullYear =
+    !!periodRange &&
+    periodRange.from.slice(0, 4) === periodRange.to.slice(0, 4) &&
+    periodRange.from.endsWith("-01-01") &&
+    periodRange.to.endsWith("-12-31");
+
+  if (!isSingleFullYear) {
     // Build continuous month-year buckets between min and max episode_date
-    if (rows && rows.length > 0) {
+    if ((rows && rows.length > 0) || periodRange) {
       // find min and max dates
-      const dates = rows
+      const dates = (rows ?? [])
         .map((r: PoliticalAreaEpisodeRow) => {
           try {
             return new Date(r.episode_date);
@@ -141,9 +145,13 @@ export default function PoliticalAreasChart({
         })
         .filter(Boolean) as Date[];
 
-      if (dates.length > 0) {
-        let minDate = new Date(Math.min(...dates.map((d) => d.getTime())));
-        let maxDate = new Date(Math.max(...dates.map((d) => d.getTime())));
+      if (dates.length > 0 || periodRange) {
+        let minDate = periodRange
+          ? parseIsoDate(periodRange.from)
+          : new Date(Math.min(...dates.map((d) => d.getTime())));
+        let maxDate = periodRange
+          ? parseIsoDate(periodRange.to)
+          : new Date(Math.max(...dates.map((d) => d.getTime())));
 
         // normalize to first day of month
         minDate = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
@@ -171,7 +179,7 @@ export default function PoliticalAreasChart({
         });
 
         // fill counts
-        rows.forEach((r: PoliticalAreaEpisodeRow) => {
+        (rows ?? []).forEach((r: PoliticalAreaEpisodeRow) => {
           try {
             if (!r || !r.episode_date) return;
             const d = new Date(r.episode_date);
@@ -290,22 +298,12 @@ export default function PoliticalAreasChart({
         </CardDescription>
         <div>
           <label className="text-sm font-medium mb-2 block">
-            Jahr auswählen:
+            Zeitraum:
           </label>
-          <NativeSelect
-            value={selectedYear}
-            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-              handleYearChange && handleYearChange(e.target.value)
-            }
-          >
-            <NativeSelectOption value="all">Insgesamt</NativeSelectOption>
-            {years &&
-              years.map((y) => (
-                <NativeSelectOption key={y} value={y}>
-                  {y}
-                </NativeSelectOption>
-              ))}
-          </NativeSelect>
+          <DateRangePicker
+                period={selectedYear ?? "all"}
+                onChange={(range) => handleRangeChange?.(range)}
+              />
         </div>
         <ChannelOptionsButtons />
       </CardHeader>

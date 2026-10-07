@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer as supabase } from "@/lib/supabase-server";
 import { randomUUID } from "crypto";
+import { applyPeriodFilter, parsePeriod, monthKeysForRange, periodFromQuery, getDefaultRange, toPeriod } from "@/utils/dateRange";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const firstname = searchParams.get("first_name");
   const lastname = searchParams.get("last_name");
-  const year = searchParams.get("year");
+  const year = periodFromQuery(searchParams);
 
   if (!firstname || !lastname) {
     return NextResponse.json(
@@ -28,11 +29,7 @@ export async function GET(request: NextRequest) {
       .neq("show_name", "Blome & Pfeffer")
       .order("episode_date", { ascending: false });
 
-    if (year && year !== "all") {
-      const startDate = `${year}-01-01`;
-      const endDate = `${year}-12-31`;
-      query = query.gte("episode_date", startDate).lte("episode_date", endDate);
-    }
+    query = applyPeriodFilter(query, year);
 
     const { data: appearances, error } = await query;
 

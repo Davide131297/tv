@@ -5,7 +5,8 @@ import PoliticalAreasChart from "@/components/PoliticalAreasChart";
 import type { PoliticalAreaStats, PoliticalAreaEpisodeRow } from "@/types";
 import ShowOptionsButtons from "@/components/ShowOptionsButtons";
 import PoliticalAreasTable from "./PoliticalAreasTable";
-import { useYearList } from "@/hooks/useYearList";
+import { usePeriodUpdater } from "@/hooks/usePeriodUpdater";
+import type { DateRange } from "@/utils/dateRange";
 import TopicPartyHeatmap from "@/components/TopicPartyHeatmap";
 import PartyDominanceChart from "@/components/PartyDominanceChart";
 
@@ -25,14 +26,14 @@ export default function PoliticalAreasPageContent({
   initialChannel,
 }: PoliticalAreasPageContentProps) {
   const updateUrl = useUrlUpdater();
-  const years = useYearList(2024);
+  const updatePeriod = usePeriodUpdater();
 
   const handleShowChange = (showValue: string) => {
     updateUrl({ show: showValue });
   };
 
-  const handleYearChange = (yearValue: string) => {
-    updateUrl({ year: yearValue });
+  const handleRangeChange = (range: DateRange) => {
+    updatePeriod(range);
   };
 
   return (
@@ -64,8 +65,7 @@ export default function PoliticalAreasPageContent({
             rows={initialRows}
             selectedShow={initialShow}
             selectedYear={initialYear}
-            years={years}
-            handleYearChange={handleYearChange}
+            handleRangeChange={handleRangeChange}
           />
 
           {/* Themen-Details Tabelle */}

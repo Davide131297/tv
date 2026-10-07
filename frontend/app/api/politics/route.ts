@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer as supabase } from "@/lib/supabase-server";
 import { applyShowFilter, getSummaryStats, getDetailedAppearances } from "@/lib/politics-data";
+import { applyPeriodFilter, parsePeriod, monthKeysForRange, periodFromQuery, getDefaultRange, toPeriod } from "@/utils/dateRange";
 
 // Types
 interface PartyStats {
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type") || "party-stats";
     const showName = searchParams.get("show");
-    const year = searchParams.get("year");
+    const year = periodFromQuery(searchParams);
     const tv_channel = searchParams.get("tv_channel");
     const limit = parseInt(searchParams.get("limit") || "0");
     const offset = parseInt(searchParams.get("offset") || "0");
@@ -114,13 +115,7 @@ export async function GET(request: NextRequest) {
           politiciansQuery = politiciansQuery.limit(limit);
         }
 
-        if (year && year !== "all") {
-          const startDate = `${year}-01-01`;
-          const endDate = `${year}-12-31`;
-          politiciansQuery = politiciansQuery
-            .gte("episode_date", startDate)
-            .lte("episode_date", endDate);
-        }
+        politiciansQuery = applyPeriodFilter(politiciansQuery, year);
 
         const { data: politiciansData, error: politiciansError } =
           await politiciansQuery;

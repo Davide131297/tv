@@ -26,6 +26,8 @@ import {
   NativeSelectOption,
 } from "@/components/ui/native-select";
 import { cn } from "@/lib/utils";
+import DateRangePicker from "@/components/DateRangePicker";
+import { parsePeriod, periodFromParams, toPeriod } from "@/utils/dateRange";
 import type { PoliticianComparisonPoint } from "@/lib/politics-data";
 
 type ComparisonOption = {
@@ -52,7 +54,6 @@ type ComparisonSummary = {
   tieCount: number;
 };
 
-const YEAR_START = 2021;
 const SERIES = {
   A: {
     stroke: "#2563eb",
@@ -65,13 +66,6 @@ const SERIES = {
     dotFill: "#dc2626",
   },
 } as const;
-
-function buildYears() {
-  const currentYear = new Date().getFullYear();
-  return Array.from({ length: currentYear - YEAR_START + 1 }, (_, index) =>
-    String(currentYear - index),
-  );
-}
 
 function getSummary(
   data: PoliticianComparisonPoint[],
@@ -138,7 +132,6 @@ export default function ComparisonClient({
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
 
-  const availableYears = useMemo(buildYears, []);
   const chartData = useMemo(() => getChartData(data), [data]);
   const summary = useMemo(() => getSummary(data, p1, p2), [data, p1, p2]);
 
@@ -149,7 +142,11 @@ export default function ComparisonClient({
 
     const currentP1 = searchParams.get("p1");
     const currentP2 = searchParams.get("p2");
-    const currentYear = searchParams.get("year") ?? "all";
+    const currentYear = periodFromParams({
+      from: searchParams.get("from"),
+      to: searchParams.get("to"),
+      year: searchParams.get("year"),
+    });
 
     if (currentP1 === p1 && currentP2 === p2 && currentYear === year) {
       return;
@@ -159,10 +156,14 @@ export default function ComparisonClient({
     params.set("p1", p1);
     params.set("p2", p2);
 
-    if (year === "all") {
-      params.delete("year");
+    params.delete("year");
+    const range = parsePeriod(year);
+    if (range) {
+      params.set("from", range.from);
+      params.set("to", range.to);
     } else {
-      params.set("year", year);
+      params.delete("from");
+      params.delete("to");
     }
 
     router.replace(`/politiker/vergleich?${params.toString()}`, {
@@ -185,9 +186,7 @@ export default function ComparisonClient({
 
       try {
         const params = new URLSearchParams({ p1, p2 });
-        if (year !== "all") {
-          params.set("year", year);
-        }
+        params.set("year", year);
 
         const response = await fetch(
           `/api/politician-comparison?${params.toString()}`,
@@ -250,7 +249,7 @@ export default function ComparisonClient({
   const handleReset = () => {
     setP1(initialP1);
     setP2(initialP2);
-    setYear("all");
+    setYear(initialYear);
     setError(null);
   };
 
@@ -542,21 +541,14 @@ export default function ComparisonClient({
                 Vergleichsfenster
               </h2>
               <p className="mt-1 text-sm leading-6 text-gray-600 dark:text-gray-300">
-                Ein Jahr isolieren oder die gesamte Historie vergleichen.
+                Einen beliebigen Zeitraum (von – bis) auswählen und vergleichen.
               </p>
             </div>
-            <NativeSelect
-              value={year}
-              onChange={(event) => setYear(event.target.value)}
-              className="h-11 rounded-2xl border-gray-200 bg-gray-50 px-4 text-sm font-semibold text-gray-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-            >
-              <NativeSelectOption value="all">Alle Jahre</NativeSelectOption>
-              {availableYears.map((availableYear) => (
-                <NativeSelectOption key={availableYear} value={availableYear}>
-                  {availableYear}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
+            <DateRangePicker
+              period={year}
+              onChange={(range) => setYear(toPeriod(range))}
+              className="h-11 w-full rounded-2xl border-gray-200 bg-gray-50 px-4 text-sm font-semibold text-gray-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            />
           </CardContent>
         </Card>
 

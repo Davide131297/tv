@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { periodFromSearchParams } from "@/utils/dateRange";
 import OverviewPageContent from "@/components/OverviewPageContent";
 import OverviewFilters from "@/components/OverviewFilters";
 import { OverviewOnlySkeleton } from "@/components/ui/page-skeletons";
@@ -23,7 +24,7 @@ export default async function OverviewPage({
 }) {
   const params = await searchParams;
   const show = typeof params.show === "string" ? params.show : "all";
-  const year = typeof params.year === "string" ? params.year : String(new Date().getFullYear());
+  const year = periodFromSearchParams(params);
   const tv_channel = typeof params.tv_channel === "string" ? params.tv_channel : undefined;
 
   return (

@@ -1,7 +1,9 @@
 "use client";
 
 import { useUrlUpdater } from "@/hooks/useUrlUpdater";
-import { useYearList } from "@/hooks/useYearList";
+import { usePeriodUpdater } from "@/hooks/usePeriodUpdater";
+import DateRangePicker from "@/components/DateRangePicker";
+import type { DateRange } from "@/utils/dateRange";
 import {
   NativeSelect,
   NativeSelectOption,
@@ -18,14 +20,14 @@ export default function EpisodeFilters({
   initialYear,
 }: EpisodeFiltersProps) {
   const updateUrl = useUrlUpdater();
-  const years = useYearList(2024);
+  const updatePeriod = usePeriodUpdater();
 
   const handleShowChange = (showValue: string) => {
     updateUrl({ show: showValue });
   };
 
-  const handleYearChange = (yearValue: string) => {
-    updateUrl({ year: yearValue });
+  const handleRangeChange = (range: DateRange) => {
+    updatePeriod(range);
   };
 
   return (
@@ -38,20 +40,8 @@ export default function EpisodeFilters({
         />
 
         <div className="flex gap-2 items-center">
-          <p className="text-sm font-medium text-gray-700 dark:text-gray-400">Jahr</p>
-          <NativeSelect
-            value={initialYear}
-            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-              handleYearChange(e.target.value)
-            }
-          >
-            <NativeSelectOption value="all">Insgesamt</NativeSelectOption>
-            {years.map((y) => (
-              <NativeSelectOption key={y} value={y}>
-                {y}
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-400">Zeitraum</p>
+          <DateRangePicker period={initialYear} onChange={handleRangeChange} />
         </div>
       </div>
 

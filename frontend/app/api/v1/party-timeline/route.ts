@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer as supabase } from "@/lib/supabase-server";
+import { applyPeriodFilter, parsePeriod, monthKeysForRange, periodFromQuery, getDefaultRange, toPeriod } from "@/utils/dateRange";
 
 interface MonthlyPartyStats {
   month: string;
@@ -10,8 +11,11 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const showName = searchParams.get("show");
-    const year =
-      searchParams.get("year") || new Date().getFullYear().toString();
+    const year = periodFromQuery(
+      searchParams,
+      toPeriod(getDefaultRange()),
+    ) as string;
+    const periodRange = parsePeriod(year);
     const tv_channel = searchParams.get("tv_channel");
 
     // Base query without year filters; add year filters only if a specific year is requested
@@ -25,11 +29,7 @@ export async function GET(request: NextRequest) {
       .neq("show_name", "Pinar Atalay")
       .neq("show_name", "Blome & Pfeffer");
 
-    if (year !== "all") {
-      query = query
-        .gte("episode_date", `${year}-01-01`)
-        .lte("episode_date", `${year}-12-31`);
-    }
+    query = applyPeriodFilter(query, year);
 
     // Filter nach Show
     if (showName && showName !== "all") {
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
 
     const monthKeys: string[] = [];
 
-    if (year === "all") {
+    if (!periodRange) {
       if (validDates.length === 0) {
         // nothing to show
         return NextResponse.json({
@@ -90,10 +90,8 @@ export async function GET(request: NextRequest) {
         cur.setMonth(cur.getMonth() + 1);
       }
     } else {
-      // Specific year: generate 12 months for that year
-      for (let m = 1; m <= 12; m++) {
-        monthKeys.push(`${year}-${pad2(m)}`);
-      }
+      // Specific range: generate all months between from and to
+      monthKeys.push(...monthKeysForRange(periodRange));
     }
 
     // initialize

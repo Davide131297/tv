@@ -19,10 +19,8 @@ import {
 } from "@/components/ui/chart";
 import { Switch } from "@/components/ui/switch";
 import { PARTY_COLORS } from "@/types";
-import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select";
+import DateRangePicker from "@/components/DateRangePicker";
+import { type DateRange, describePeriod } from "@/utils/dateRange";
 import ChannelOptionsButtons from "./ChannelOptionsButtons";
 
 interface MonthlyPartyStats {
@@ -40,8 +38,7 @@ interface PartyTimelineChartProps {
   onUnionModeChange: (value: boolean) => void;
   onSelectedPartiesChange: (parties: string[]) => void;
   selectedYear: string;
-  handleYearChange: (year: string) => void;
-  years: string[];
+  handleRangeChange: (range: DateRange) => void;
 }
 
 export default function PartyTimelineChart({
@@ -54,8 +51,7 @@ export default function PartyTimelineChart({
   onUnionModeChange,
   onSelectedPartiesChange,
   selectedYear,
-  handleYearChange,
-  years,
+  handleRangeChange,
 }: PartyTimelineChartProps) {
   const toggleParty = (party: string) => {
     const newSelection = selectedParties.includes(party)
@@ -108,7 +104,7 @@ export default function PartyTimelineChart({
 
   // Dynamischer Titel basierend auf der ausgewählten Show
   const getTitle = () => {
-    const baseTitle = `Partei-Auftritte ${year || "2025"}`;
+    const baseTitle = `Partei-Auftritte ${describePeriod(year ?? "all")}`;
     switch (selectedShow) {
       case "all":
         return `${baseTitle} - Alle Shows`;
@@ -165,7 +161,7 @@ export default function PartyTimelineChart({
       <CardHeader>
         <CardTitle>{getTitle()}</CardTitle>
         <CardDescription>
-          Monatliche Entwicklung der Partei-Auftritte über das Jahr
+          Monatliche Entwicklung der Partei-Auftritte im gewählten Zeitraum
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -174,23 +170,10 @@ export default function PartyTimelineChart({
             {/* Year Filter */}
             <div>
               <label className="text-sm font-medium mb-2 block">
-                Jahr auswählen:
+                Zeitraum:
               </label>
               {/* Use either selectedYear prop or fallback to year prop for robustness */}
-              <NativeSelect
-                value={yearValue}
-                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                  handleYearChange?.(e.target.value)
-                }
-              >
-                <NativeSelectOption value="all">Insgesamt</NativeSelectOption>
-                {years &&
-                  years.map((y) => (
-                    <NativeSelectOption key={y} value={y}>
-                      {y}
-                    </NativeSelectOption>
-                  ))}
-              </NativeSelect>
+              <DateRangePicker period={yearValue} onChange={handleRangeChange} />
             </div>
             <ChannelOptionsButtons />
           </div>
@@ -342,7 +325,7 @@ export default function PartyTimelineChart({
         </div>
         <div className="text-muted-foreground leading-none">
           Verteilung der Partei-Auftritte nach Monaten im Jahr{" "}
-          {year === "all" ? "Alle Jahre" : year || "2025"}
+          {describePeriod(year ?? "all")}
         </div>
       </CardFooter>
     </Card>

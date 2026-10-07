@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPoliticianComparisonStats } from "@/lib/politics-data";
+import { applyPeriodFilter, parsePeriod, monthKeysForRange, periodFromQuery, getDefaultRange, toPeriod } from "@/utils/dateRange";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const p1 = searchParams.get("p1");
   const p2 = searchParams.get("p2");
-  const year = searchParams.get("year");
+  const year = periodFromQuery(searchParams);
 
   if (!p1 || !p2) {
     return NextResponse.json(
