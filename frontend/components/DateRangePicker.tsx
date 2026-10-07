@@ -48,16 +48,17 @@ export default function DateRangePicker({
     if (!next) setDraft(undefined);
   };
 
-  const handleSelect = (range: DayPickerRange | undefined) => {
-    setDraft(range);
-    if (range?.from && range?.to) {
-      onChange({
-        from: formatIsoDate(range.from),
-        to: formatIsoDate(range.to),
-      });
-      setDraft(undefined);
-      setOpen(false);
+  // Zwei Klicks: erster Klick setzt den Start, zweiter Klick das Ende.
+  const handleDayClick = (day: Date) => {
+    if (!draft?.from) {
+      setDraft({ from: day, to: undefined });
+      return;
     }
+    const [from, to] =
+      day < draft.from ? [day, draft.from] : [draft.from, day];
+    onChange({ from: formatIsoDate(from), to: formatIsoDate(to) });
+    setDraft(undefined);
+    setOpen(false);
   };
 
   const resetToDefault = () => {
@@ -87,7 +88,7 @@ export default function DateRangePicker({
           endMonth={new Date(new Date().getFullYear() + 1, 11)}
           defaultMonth={selected.from}
           selected={selected}
-          onSelect={handleSelect}
+          onDayClick={handleDayClick}
           numberOfMonths={1}
         />
         <div className="flex justify-end border-t p-2">
