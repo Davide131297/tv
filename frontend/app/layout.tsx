@@ -6,6 +6,7 @@ import Footer from "@/components/Footer";
 import ChatBot from "@/components/ChatBot";
 import { CookieBanner } from "@/components/CookieBanner";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { Analytics } from "@vercel/analytics/next";
 //import YearReview2025Modal from "@/components/YearReview2025Modal";
 
 const geistSans = Geist({
@@ -171,6 +172,7 @@ export default function RootLayout({
           {/* <YearReview2025Modal />  Jahresrückblick 2025*/}
           <CookieBanner />
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
