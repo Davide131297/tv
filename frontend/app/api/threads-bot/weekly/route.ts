@@ -1,113 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer as supabase } from "@/lib/supabase-server";
+import {
+  getThreadsBotConfig,
+  refreshThreadsToken,
+} from "@/lib/threads-bot";
+import {
+  getThreadsTextLength,
+  publishThread,
+  splitTextForThreads,
+  ThreadsPublishError,
+} from "@/lib/threads";
+
+const THREADS_TOPIC_TAG = "Polittalk";
 
 // Types
 interface ShowData {
   show_name: string;
   episode_date: string;
   guests: { name: string; party: string | null }[];
-}
-
-interface BotConfig {
-  key: string;
-  value: string;
-}
-
-interface ThreadsApiErrorPayload {
-  message?: string;
-  type?: string;
-  code?: number;
-  fbtrace_id?: string;
-}
-
-function isThreadsPermissionError(
-  error: ThreadsApiErrorPayload | undefined,
-): boolean {
-  return !!error && error.type === "THApiException" && error.code === 10;
-}
-
-async function getBotConfig() {
-  const { data, error } = await supabase
-    .from("bot_configuration")
-    .select("key, value")
-    .in("key", ["THREADS_USER_ID", "THREADS_ACCESS_TOKEN"]);
-
-  if (error) throw error;
-
-  const config: Record<string, string> = {};
-  data.forEach((row: BotConfig) => {
-    config[row.key] = row.value;
-  });
-
-  return config;
-}
-
-async function updateAccessToken(newToken: string) {
-  const { error } = await supabase
-    .from("bot_configuration")
-    .update({ value: newToken, updated_at: new Date().toISOString() })
-    .eq("key", "THREADS_ACCESS_TOKEN");
-
-  if (error) console.error("Failed to update access token in DB:", error);
-}
-
-async function refreshThreadsToken(currentToken: string) {
-  try {
-    const url = `https://graph.threads.net/refresh_access_token?grant_type=th_refresh_token&access_token=${currentToken}`;
-    const res = await fetch(url, { method: "GET" });
-    const data = await res.json();
-
-    if (data.access_token) {
-      console.log("Token refreshed successfully.");
-      await updateAccessToken(data.access_token);
-      return data.access_token;
-    } else {
-      console.warn("Failed to refresh token:", data);
-      return currentToken; // Fallback to current
-    }
-  } catch (e) {
-    console.error("Error refreshing token:", e);
-    return currentToken;
-  }
-}
-
-function splitTextForThreads(text: string, limit: number = 490): string[] {
-  if (text.length <= limit) return [text];
-
-  const chunks: string[] = [];
-  const lines = text.split("\n");
-  let currentChunk = "";
-
-  for (const line of lines) {
-    if ((currentChunk + line).length + 1 > limit) {
-      if (currentChunk.trim().length > 0) {
-        chunks.push(currentChunk.trim());
-        currentChunk = "";
-      }
-
-      if (line.length > limit) {
-        let remainingLine = line;
-        while (remainingLine.length > 0) {
-          chunks.push(remainingLine.substring(0, limit));
-          remainingLine = remainingLine.substring(limit);
-        }
-      } else {
-        currentChunk = line + "\n";
-      }
-    } else {
-      currentChunk += line + "\n";
-    }
-  }
-
-  if (currentChunk.trim().length > 0) {
-    chunks.push(currentChunk.trim());
-  }
-
-  if (chunks.length > 1) {
-    return chunks.map((c, i) => `${c}\n\n(${i + 1}/${chunks.length})`);
-  }
-
-  return chunks;
 }
 
 export async function GET(request: NextRequest) {
@@ -118,9 +28,9 @@ export async function GET(request: NextRequest) {
 
     // 1. Fetch Credentials from DB
     currentStep = "db_config";
-    const config = await getBotConfig();
-    const USER_ID = config["THREADS_USER_ID"];
-    let ACCESS_TOKEN = config["THREADS_ACCESS_TOKEN"];
+    const config = await getThreadsBotConfig();
+    const USER_ID = config.userId;
+    let ACCESS_TOKEN = config.accessToken;
 
     if (!USER_ID || !ACCESS_TOKEN) {
       return NextResponse.json(
@@ -235,7 +145,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    fullText += `\nMehr zu sehen auf www.polittalk-watcher.de\n\n#Polittalk`;
+    fullText += `\nMehr zu sehen auf www.polittalk-watcher.de`;
 
     const chunks = splitTextForThreads(fullText);
 
@@ -244,95 +154,29 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: true,
         dryRun: true,
-        originalLength: fullText.length,
+        originalLength: getThreadsTextLength(fullText),
         chunks: chunks,
+        chunkLengths: chunks.map(getThreadsTextLength),
         chunksCount: chunks.length,
         configLoaded: { hasUserId: !!USER_ID }, // Proof that DB read worked
         data: Array.from(episodes.values()),
       });
     }
 
-    let lastCreationId: string | null = null;
-    const publishedIds: string[] = [];
-    let fellBackToStandalonePosts = false;
-
-    // Publish chunks sequentially
+    // Erster Teil als Post, Rest als Antworten darunter
     currentStep = "threads_publish";
-    for (const textChunk of chunks) {
-      currentStep = `threads_container_chunk_${publishedIds.length + 1}`;
-      const createContainer = async (replyToId?: string | null) => {
-        const containerUrl = new URL(
-          `https://graph.threads.net/v1.0/${USER_ID}/threads`,
-        );
-        containerUrl.searchParams.append("media_type", "TEXT");
-        containerUrl.searchParams.append("text", textChunk);
-        containerUrl.searchParams.append("access_token", ACCESS_TOKEN);
-
-        if (replyToId) {
-          containerUrl.searchParams.append("reply_to_id", replyToId);
-        }
-
-        const containerRes = await fetch(containerUrl.toString(), {
-          method: "POST",
-        });
-        return containerRes.json();
-      };
-
-      let containerJson = await createContainer(lastCreationId);
-
-      if (
-        containerJson.error &&
-        lastCreationId &&
-        isThreadsPermissionError(containerJson.error)
-      ) {
-        console.warn(
-          `Threads reply permission missing. Retrying chunk ${publishedIds.length + 1} without reply_to_id.`,
-          containerJson.error,
-        );
-        fellBackToStandalonePosts = true;
-        containerJson = await createContainer(null);
-      }
-
-      if (containerJson.error) {
-        throw new Error(
-          `Threads Container Error (Chunk ${publishedIds.length + 1}): ${JSON.stringify(containerJson.error)}`,
-        );
-      }
-
-      const creationId = containerJson.id;
-
-      // Wait for container to be ready
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      currentStep = `threads_publish_chunk_${publishedIds.length + 1}`;
-      const publishUrl = new URL(
-        `https://graph.threads.net/v1.0/${USER_ID}/threads_publish`,
-      );
-      publishUrl.searchParams.append("creation_id", creationId);
-      publishUrl.searchParams.append("access_token", ACCESS_TOKEN);
-
-      const publishRes = await fetch(publishUrl.toString(), { method: "POST" });
-      const publishJson = await publishRes.json();
-
-      if (publishJson.error) {
-        throw new Error(
-          `Threads Publish Error (Chunk ${publishedIds.length + 1}): ${JSON.stringify(publishJson.error)}`,
-        );
-      }
-
-      lastCreationId = publishJson.id;
-      publishedIds.push(publishJson.id);
-
-      await new Promise((res) => setTimeout(res, 1000));
-    }
+    const publishedIds = await publishThread({
+      userId: USER_ID,
+      accessToken: ACCESS_TOKEN,
+      chunks,
+      topicTag: THREADS_TOPIC_TAG,
+    });
 
     return NextResponse.json({
       success: true,
-      publishedIds: publishedIds,
-      mode: fellBackToStandalonePosts ? "standalone_posts" : "threaded_replies",
-      warning: fellBackToStandalonePosts
-        ? "Replies could not be created via API permission. Published remaining chunks as standalone posts."
-        : undefined,
+      rootPostId: publishedIds[0],
+      replyIds: publishedIds.slice(1),
+      publishedIds,
     });
   } catch (error: any) {
     console.error(`Error in threads-bot route (step: ${currentStep}):`, error);
@@ -340,6 +184,8 @@ export async function GET(request: NextRequest) {
       {
         error: error.message,
         step: currentStep,
+        publishedIds:
+          error instanceof ThreadsPublishError ? error.publishedIds : undefined,
         stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
       },
       { status: 500 },
