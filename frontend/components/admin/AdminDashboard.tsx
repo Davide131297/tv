@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { AdminTableConfig } from "@/lib/admin-schema";
+import EpisodeLinkImport from "@/components/admin/EpisodeLinkImport";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -844,6 +845,16 @@ export default function AdminDashboard({ tables }: AdminDashboardProps) {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    {activeTable === "tv_show_politicians" && (
+                      <EpisodeLinkImport
+                        showOptions={SHOW_NAME_OPTIONS}
+                        channelOptions={TV_CHANNEL_OPTIONS}
+                        onSaved={async (savedMessage) => {
+                          await loadTable(activeTable);
+                          setMessage(savedMessage);
+                        }}
+                      />
+                    )}
                     {renderForm("new", newForm)}
                     <Button
                       onClick={() => void submitRecord("POST")}
