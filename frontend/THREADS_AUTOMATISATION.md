@@ -19,6 +19,10 @@ Der Bot erstellt jeden Montag einen Thread auf [Threads](https://www.threads.net
     - Das Access Token für Threads wird bei jedem regulären Aufruf (nicht Dry-Run) automatisch erneuert und in der Datenbank aktualisiert, da diese Tokens nach 60 Tagen ablaufen.
 4.  **Datenabruf**:
     - Es werden alle Einträge aus `tv_show_politicians` für die letzte Woche (Montag bis Sonntag) geladen.
-5.  **Posting**:
-    - Der Text wird generiert und falls nötig in mehrere Teile (Chunks) à max. 500 Zeichen aufgeteilt.
-    - Die Posts werden als Thread (aneinandergereht) veröffentlicht.
+5.  **Posting** (`lib/threads.ts`, genutzt von `weekly` und `monthly`):
+    - Der Text wird generiert und falls nötig in mehrere Teile à max. 500 Zeichen aufgeteilt. Gezählt wird wie bei Threads: ein Zeichen pro Graphem, Emojis mit ihrer Anzahl an UTF-8 Bytes (z.B. 📊 = 4). Der Zähler „(1/3)“ ist im Limit enthalten.
+    - Getrennt wird bevorzugt an Absätzen (eine Sendung bleibt zusammen), dann an Zeilenumbrüchen, dann an Wörtern.
+    - Der erste Teil wird als normaler Post veröffentlicht (mit Topic-Tag `Polittalk` über den `topic_tag`-Parameter), alle weiteren Teile als Antworten (`reply_to_id`) darunter – jeweils auf den vorherigen Teil, damit die Reihenfolge erhalten bleibt.
+    - Vor jedem Veröffentlichen wird der Container-Status abgefragt, bis er `FINISHED` ist. Das Erstellen einer Antwort wird bei Fehlern zweimal wiederholt.
+    - Es wird **nie** auf eigenständige Posts ausgewichen. Schlägt eine Antwort endgültig fehl, liefert die Route einen Fehler (HTTP 500) inkl. der bereits veröffentlichten `publishedIds`.
+    - Mit `?dryRun=true` werden nur die Teile (`chunks`) und ihre Längen (`chunkLengths`) zurückgegeben, ohne zu posten.

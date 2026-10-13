@@ -1,109 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer as supabase } from "@/lib/supabase-server";
+import { getThreadsBotConfig } from "@/lib/threads-bot";
+import {
+  getThreadsTextLength,
+  publishThread,
+  splitTextForThreads,
+  ThreadsPublishError,
+} from "@/lib/threads";
 
-// Types
-interface BotConfig {
-  key: string;
-  value: string;
-}
-
-interface ThreadsApiErrorPayload {
-  message?: string;
-  type?: string;
-  code?: number;
-  fbtrace_id?: string;
-}
-
-function isThreadsPermissionError(
-  error: ThreadsApiErrorPayload | undefined,
-): boolean {
-  return !!error && error.type === "THApiException" && error.code === 10;
-}
-
-// Helper functions (duplicated from weekly bot to avoid refactoring risks)
-async function getBotConfig() {
-  const { data, error } = await supabase
-    .from("bot_configuration")
-    .select("key, value")
-    .in("key", ["THREADS_USER_ID", "THREADS_ACCESS_TOKEN"]);
-
-  if (error) throw error;
-
-  const config: Record<string, string> = {};
-  data.forEach((row: BotConfig) => {
-    config[row.key] = row.value;
-  });
-
-  return config;
-}
-
-async function updateAccessToken(newToken: string) {
-  const { error } = await supabase
-    .from("bot_configuration")
-    .update({ value: newToken, updated_at: new Date().toISOString() })
-    .eq("key", "THREADS_ACCESS_TOKEN");
-
-  if (error) console.error("Failed to update access token in DB:", error);
-}
-
-async function refreshThreadsToken(currentToken: string) {
-  try {
-    const url = `https://graph.threads.net/refresh_access_token?grant_type=th_refresh_token&access_token=${currentToken}`;
-    const res = await fetch(url, { method: "GET" });
-    const data = await res.json();
-
-    if (data.access_token) {
-      console.log("Token refreshed successfully.");
-      await updateAccessToken(data.access_token);
-      return data.access_token;
-    } else {
-      console.warn("Failed to refresh token:", data);
-      return currentToken; // Fallback to current
-    }
-  } catch (e) {
-    console.error("Error refreshing token:", e);
-    return currentToken;
-  }
-}
-
-function splitTextForThreads(text: string, limit: number = 490): string[] {
-  if (text.length <= limit) return [text];
-
-  const chunks: string[] = [];
-  const lines = text.split("\n");
-  let currentChunk = "";
-
-  for (const line of lines) {
-    if ((currentChunk + line).length + 1 > limit) {
-      if (currentChunk.trim().length > 0) {
-        chunks.push(currentChunk.trim());
-        currentChunk = "";
-      }
-
-      if (line.length > limit) {
-        let remainingLine = line;
-        while (remainingLine.length > 0) {
-          chunks.push(remainingLine.substring(0, limit));
-          remainingLine = remainingLine.substring(limit);
-        }
-      } else {
-        currentChunk = line + "\n";
-      }
-    } else {
-      currentChunk += line + "\n";
-    }
-  }
-
-  if (currentChunk.trim().length > 0) {
-    chunks.push(currentChunk.trim());
-  }
-
-  if (chunks.length > 1) {
-    return chunks.map((c, i) => `${c}\n\n(${i + 1}/${chunks.length})`);
-  }
-
-  return chunks;
-}
+const THREADS_TOPIC_TAG = "Polittalk";
 
 export async function GET(request: NextRequest) {
   try {
@@ -111,9 +16,8 @@ export async function GET(request: NextRequest) {
     const dryRun = searchParams.get("dryRun") === "true";
 
     // 1. Fetch Credentials from DB
-    const config = await getBotConfig();
-    let ACCESS_TOKEN = config["THREADS_ACCESS_TOKEN"];
-    const USER_ID = config["THREADS_USER_ID"];
+    const { userId: USER_ID, accessToken: ACCESS_TOKEN } =
+      await getThreadsBotConfig();
 
     if (!ACCESS_TOKEN || !USER_ID) {
       return NextResponse.json(
@@ -185,8 +89,6 @@ export async function GET(request: NextRequest) {
       fullText += `\nGesamtanzahl Gäste: ${totalGuests}`;
     }
 
-    fullText += "\n\n#Polittalk";
-
     const chunks = splitTextForThreads(fullText);
 
     // 6. Publish to Threads
@@ -196,90 +98,36 @@ export async function GET(request: NextRequest) {
         dryRun: true,
         month: monthName,
         dateRange: { start: startDate, end: endDate },
-        originalLength: fullText.length,
+        originalLength: getThreadsTextLength(fullText),
         chunks: chunks,
+        chunkLengths: chunks.map(getThreadsTextLength),
         data: sortedParties,
       });
     }
 
-    let lastCreationId: string | null = null;
-    const publishedIds: string[] = [];
-    let fellBackToStandalonePosts = false;
-
-    // Publish chunks sequentially
-    for (const textChunk of chunks) {
-      const createContainer = async (replyToId?: string | null) => {
-        const containerUrl = new URL(
-          `https://graph.threads.net/v1.0/${USER_ID}/threads`,
-        );
-        containerUrl.searchParams.append("media_type", "TEXT");
-        containerUrl.searchParams.append("text", textChunk);
-        containerUrl.searchParams.append("access_token", ACCESS_TOKEN);
-
-        if (replyToId) {
-          containerUrl.searchParams.append("reply_to_id", replyToId);
-        }
-
-        const containerRes = await fetch(containerUrl.toString(), {
-          method: "POST",
-        });
-        return containerRes.json();
-      };
-
-      let containerJson = await createContainer(lastCreationId);
-
-      if (
-        containerJson.error &&
-        lastCreationId &&
-        isThreadsPermissionError(containerJson.error)
-      ) {
-        console.warn(
-          `Threads reply permission missing. Retrying chunk ${publishedIds.length + 1} without reply_to_id.`,
-          containerJson.error,
-        );
-        fellBackToStandalonePosts = true;
-        containerJson = await createContainer(null);
-      }
-
-      if (containerJson.error) {
-        throw new Error(
-          `Threads Container Error (Chunk ${publishedIds.length + 1}): ${JSON.stringify(containerJson.error)}`,
-        );
-      }
-
-      const creationId = containerJson.id;
-
-      const publishUrl = new URL(
-        `https://graph.threads.net/v1.0/${USER_ID}/threads_publish`,
-      );
-      publishUrl.searchParams.append("creation_id", creationId);
-      publishUrl.searchParams.append("access_token", ACCESS_TOKEN);
-
-      const publishRes = await fetch(publishUrl.toString(), { method: "POST" });
-      const publishJson = await publishRes.json();
-
-      if (publishJson.error) {
-        throw new Error(
-          `Threads Publish Error (Chunk ${publishedIds.length + 1}): ${JSON.stringify(publishJson.error)}`,
-        );
-      }
-
-      lastCreationId = publishJson.id;
-      publishedIds.push(publishJson.id);
-
-      await new Promise((res) => setTimeout(res, 1000));
-    }
+    // Erster Teil als Post, Rest als Antworten darunter
+    const publishedIds = await publishThread({
+      userId: USER_ID,
+      accessToken: ACCESS_TOKEN,
+      chunks,
+      topicTag: THREADS_TOPIC_TAG,
+    });
 
     return NextResponse.json({
       success: true,
-      publishedIds: publishedIds,
-      mode: fellBackToStandalonePosts ? "standalone_posts" : "threaded_replies",
-      warning: fellBackToStandalonePosts
-        ? "Replies could not be created via API permission. Published remaining chunks as standalone posts."
-        : undefined,
+      rootPostId: publishedIds[0],
+      replyIds: publishedIds.slice(1),
+      publishedIds,
     });
   } catch (error: any) {
     console.error("Error in monthly threads-bot route:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: error.message,
+        publishedIds:
+          error instanceof ThreadsPublishError ? error.publishedIds : undefined,
+      },
+      { status: 500 },
+    );
   }
 }
