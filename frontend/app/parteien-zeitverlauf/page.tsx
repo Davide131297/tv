@@ -2,7 +2,7 @@ import PartyTimelinePageContent from "@/components/PartyTimelinePageContent";
 import { Suspense } from "react";
 import { ChartSkeleton } from "@/components/ui/page-skeletons";
 import type { Metadata } from "next";
-import { getPartyTimeline } from "@/lib/politics-data";
+import { getPartyTimeline, getWahlen } from "@/lib/politics-data";
 
 export const metadata: Metadata = {
   title: "Zeitverlauf Parteien",
@@ -41,12 +41,16 @@ async function PartyTimelineDataWrapper({
   year: string; 
   tv_channel?: string 
 }) {
-  const { data, parties } = await getPartyTimeline({ show, year, tv_channel });
-  
+  const [{ data, parties }, wahlen] = await Promise.all([
+    getPartyTimeline({ show, year, tv_channel }),
+    getWahlen({ year }),
+  ]);
+
   return (
     <PartyTimelinePageContent 
       initialData={data} 
       initialParties={parties}
+      wahlen={wahlen}
       initialShow={show} 
       initialYear={year}
       initialChannel={tv_channel}

@@ -5,6 +5,7 @@ import PartyTimelineChart from "@/components/PartyTimelineChart";
 import ShowOptionsButtons from "@/components/ShowOptionsButtons";
 import { useYearList } from "@/hooks/useYearList";
 import { useSearchParams } from "next/navigation";
+import type { Wahl } from "@/types";
 
 interface MonthlyPartyStats {
   month: string;
@@ -14,6 +15,7 @@ interface MonthlyPartyStats {
 interface PartyTimelinePageContentProps {
   initialData: MonthlyPartyStats[];
   initialParties: string[];
+  wahlen: Wahl[];
   initialShow: string;
   initialYear: string;
   initialChannel?: string;
@@ -22,6 +24,7 @@ interface PartyTimelinePageContentProps {
 export default function PartyTimelinePageContent({
   initialData,
   initialParties,
+  wahlen,
   initialShow,
   initialYear,
   initialChannel,
@@ -75,6 +78,7 @@ export default function PartyTimelinePageContent({
         <PartyTimelineChart
           data={initialData}
           parties={initialParties}
+          wahlen={wahlen}
           selectedShow={initialShow}
           year={initialYear}
           unionMode={unionMode}

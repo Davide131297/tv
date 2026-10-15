@@ -47,6 +47,20 @@ create table public.show_links (
 ) TABLESPACE pg_default;
 ```
 
+```sql
+-- Wahltermine: Landtags- und Bundestagswahlen (gecrawlt von wahlrecht.de/termine.htm)
+create table public.wahlen (
+  id text not null, -- "<typ>-<gebiet>-<jahr>", z. B. "landtag-bw-2026", "bundestag-de-2025"
+  election_type text not null check (election_type in ('landtag', 'bundestag')),
+  state_code text not null, -- Bundesland-Kürzel bzw. "DE" bei Bundestagswahlen
+  state_name text not null,
+  parliament text not null,
+  election_date date not null,
+  created_at timestamp with time zone not null default now(),
+  constraint wahlen_pkey primary key (id)
+) TABLESPACE pg_default;
+```
+
 ### 2. API
 
 #### Politics API (`/api/politics`)

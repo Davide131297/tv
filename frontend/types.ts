@@ -164,6 +164,14 @@ export interface PartyTvRatingsStat {
 // SHOW & OPTION TYPES
 // =============================================================================
 
+export interface Wahl {
+  election_type: "landtag" | "bundestag";
+  state_code: string;
+  state_name: string;
+  parliament: string;
+  election_date: string;
+}
+
 export interface ShowOption {
   value: string;
   label: string;

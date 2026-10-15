@@ -22,6 +22,7 @@ import CrawlPhoenixRunde from "./crawler/phoenix-runde.js";
 import CrawlPhoenixPersoenlich from "./crawler/phoenix-persoenlich.js";
 import CrawlBlomePfeffer from "./crawler/blome-pfeffer.js";
 import { crawlARDRatings, crawlZDFRatings } from "./crawler/tv-ratings.js";
+import { crawlWahlen } from "./crawler/wahlen.js";
 
 dotenv.config();
 
@@ -90,6 +91,7 @@ app.get("/api/crawl/all", async (req, res) => {
   await runCrawler("Hart aber Fair", crawlHartAberFair);
   await runCrawler("Maischberger", crawlNewMaischbergerEpisodes);
   await runCrawler("Caren Miosga", crawlIncrementalCarenMiosgaEpisodes);
+  await runCrawler("Wahltermine", crawlWahlen);
   // await runCrawler("Pinar Atalay", CrawlPinarAtalay);
   // await runCrawler("Phoenix Runde", CrawlPhoenixRunde);
   // await runCrawler("Phoenix Persönlich", CrawlPhoenixPersoenlich);
@@ -307,6 +309,17 @@ app.post("/api/crawl/tv-ratings", async (req, res) => {
       : "TV Ratings Crawler mit Fehlern abgeschlossen",
     results,
   });
+});
+
+// POST /api/crawl/wahlen - Landtags- und Bundestagswahl-Termine
+app.post("/api/crawl/wahlen", async (req, res) => {
+  try {
+    const result = await crawlWahlen();
+    res.json(result);
+  } catch (error) {
+    console.error("❌ Wahltermine Crawler Fehler:", error);
+    res.status(500).json({ error: "Wahlen crawler failed" });
+  }
 });
 
 // ============================================

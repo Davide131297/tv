@@ -2,7 +2,14 @@
 
 import { useMemo } from "react";
 import { TrendingUp } from "lucide-react";
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ReferenceLine,
+  XAxis,
+  YAxis,
+} from "recharts";
 import {
   Card,
   CardContent,
@@ -18,7 +25,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { Switch } from "@/components/ui/switch";
-import { PARTY_COLORS } from "@/types";
+import { PARTY_COLORS, type Wahl } from "@/types";
 import {
   NativeSelect,
   NativeSelectOption,
@@ -33,6 +40,7 @@ interface MonthlyPartyStats {
 interface PartyTimelineChartProps {
   data: MonthlyPartyStats[];
   parties: string[];
+  wahlen?: Wahl[];
   selectedShow?: string;
   year?: string;
   unionMode: boolean;
@@ -47,6 +55,7 @@ interface PartyTimelineChartProps {
 export default function PartyTimelineChart({
   data,
   parties,
+  wahlen = [],
   selectedShow,
   year,
   unionMode,
@@ -105,6 +114,39 @@ export default function PartyTimelineChart({
 
     return { data: newData, parties: sortedParties };
   }, [data, parties, unionMode]);
+
+  // Wahlen nach Monat gruppieren (X-Achse ist monatlich: YYYY-MM)
+  const electionMarkers = useMemo(() => {
+    const monthsInChart = new Set(data.map((d) => d.month));
+    const byMonth = new Map<string, Wahl[]>();
+    wahlen.forEach((wahl) => {
+      const month = wahl.election_date.slice(0, 7);
+      if (!monthsInChart.has(month)) return;
+      byMonth.set(month, [...(byMonth.get(month) ?? []), wahl]);
+    });
+    return Array.from(byMonth, ([month, monthWahlen]) => {
+      const hasBundestagswahl = monthWahlen.some(
+        (w) => w.election_type === "bundestag",
+      );
+      const landtagCodes = monthWahlen
+        .filter((w) => w.election_type === "landtag")
+        .map((w) => w.state_code);
+      const label = [
+        hasBundestagswahl ? "BTW" : null,
+        landtagCodes.length > 0 ? `LTW ${landtagCodes.join(", ")}` : null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      return { month, wahlen: monthWahlen, hasBundestagswahl, label };
+    });
+  }, [data, wahlen]);
+
+  const formatElectionDate = (date: string) =>
+    new Date(`${date}T00:00:00`).toLocaleDateString("de-DE", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
 
   // Dynamischer Titel basierend auf der ausgewählten Show
   const getTitle = () => {
@@ -257,7 +299,7 @@ export default function PartyTimelineChart({
                 accessibilityLayer
                 data={processedData.data}
                 margin={{
-                  top: 20,
+                  top: electionMarkers.length > 0 ? 32 : 20,
                   left: 12,
                   right: 12,
                   bottom: 12,
@@ -296,6 +338,29 @@ export default function PartyTimelineChart({
                   tickMargin={8}
                   className="fill-muted-foreground text-xs"
                 />
+                {electionMarkers.map((marker) => (
+                  <ReferenceLine
+                    key={marker.month}
+                    x={marker.month}
+                    // Bundestagswahl: durchgezogen und kräftiger, Landtagswahl: gestrichelt
+                    stroke={
+                      marker.hasBundestagswahl
+                        ? "var(--color-foreground)"
+                        : "var(--color-muted-foreground)"
+                    }
+                    strokeDasharray={marker.hasBundestagswahl ? undefined : "4 4"}
+                    strokeWidth={marker.hasBundestagswahl ? 2 : 1.5}
+                    ifOverflow="extendDomain"
+                    label={{
+                      value: marker.label,
+                      position: "top",
+                      fill: marker.hasBundestagswahl
+                        ? "var(--color-foreground)"
+                        : "var(--color-muted-foreground)",
+                      fontSize: 11,
+                    }}
+                  />
+                ))}
                 <ChartTooltip
                   cursor={false}
                   content={<ChartTooltipContent />}
@@ -329,6 +394,36 @@ export default function PartyTimelineChart({
             </ChartContainer>
           </div>
         </div>
+
+        {electionMarkers.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5 font-medium">
+              <span className="inline-block h-3 border-l-2 border-foreground" />
+              Bundestagswahl
+            </span>
+            <span className="flex items-center gap-1.5 font-medium">
+              <span className="inline-block h-3 border-l-2 border-dashed border-muted-foreground" />
+              Landtagswahl
+            </span>
+            {electionMarkers.flatMap((marker) =>
+              marker.wahlen.map((wahl) => (
+                <span
+                  key={`${wahl.election_type}-${wahl.state_code}-${wahl.election_date}`}
+                  className={
+                    wahl.election_type === "bundestag"
+                      ? "font-medium text-foreground"
+                      : undefined
+                  }
+                >
+                  {wahl.election_type === "bundestag"
+                    ? "Bundestag"
+                    : `${wahl.state_name} (${wahl.state_code})`}
+                  , {formatElectionDate(wahl.election_date)}
+                </span>
+              )),
+            )}
+          </div>
+        )}
 
         {/* Hinweis für Mobile Nutzer */}
         <div className="sm:hidden text-xs text-muted-foreground text-center mt-2">

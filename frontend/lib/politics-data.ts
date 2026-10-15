@@ -1,5 +1,6 @@
 import { supabaseServer as supabase } from "./supabase-server";
 import type {
+  Wahl,
   PartyTvRatingsStat,
   PoliticianInEpisode,
   PoliticianTvRatingsStat,
@@ -466,6 +467,33 @@ export async function getPartyTimeline(params: {
   });
 
   return { data: results, parties: Array.from(allParties), year };
+}
+
+/**
+ * Landtags- und Bundestagswahl-Termine (gecrawlt von wahlrecht.de) für die Markierung im Zeitverlauf.
+ * Fehler werden nur geloggt, damit das Chart auch ohne Wahltermine funktioniert.
+ */
+export async function getWahlen(params: {
+  year?: string | null;
+}): Promise<Wahl[]> {
+  let query = supabase
+    .from("wahlen")
+    .select("election_type, state_code, state_name, parliament, election_date")
+    .order("election_date", { ascending: true });
+
+  if (params.year && params.year !== "all") {
+    query = query
+      .gte("election_date", `${params.year}-01-01`)
+      .lte("election_date", `${params.year}-12-31`);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error("Fehler beim Laden der Wahltermine:", error);
+    return [];
+  }
+
+  return (data || []) as Wahl[];
 }
 
 export async function getTvRatingsDashboardData(): Promise<{
