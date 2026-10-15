@@ -40,6 +40,7 @@ type PoliticianSuggestion = {
   party_name: string;
   politician_id: string;
   party_id: string;
+  abgeordnetenwatch_url: string;
 };
 
 const HIDDEN_TABLE_COLUMNS = new Set(["id", "created_at", "updated_at"]);
@@ -65,6 +66,18 @@ const SHOW_NAME_OPTIONS = [
   "Pinar Atalay",
   "Blome & Pfeffer",
 ];
+
+const SHOW_CHANNEL_MAP: Record<string, string> = {
+  "Markus Lanz": "ZDF",
+  "Maybrit Illner": "ZDF",
+  "Caren Miosga": "Das Erste",
+  Maischberger: "Das Erste",
+  "Hart aber fair": "Das Erste",
+  "Phoenix Runde": "Phoenix",
+  "Phoenix Persönlich": "Phoenix",
+  "Pinar Atalay": "NTV",
+  "Blome & Pfeffer": "NTV",
+};
 
 function formatCellValue(value: unknown) {
   if (value === null || value === undefined) {
@@ -96,6 +109,18 @@ function buildFormState(columns: string[], record?: JsonRecord) {
 
     return accumulator;
   }, {});
+}
+
+function buildNewFormState(columns: string[]) {
+  const state = buildFormState(columns);
+
+  if ("created_at" in state) {
+    const now = new Date();
+    const pad = (value: number) => String(value).padStart(2, "0");
+    state.created_at = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  }
+
+  return state;
 }
 
 function inferValueType(
@@ -206,7 +231,7 @@ export default function AdminDashboard({ tables }: AdminDashboardProps) {
     setSearch("");
     setCurrentPage(1);
     setEditForm(buildFormState(currentColumns));
-    setNewForm(buildFormState(currentColumns));
+    setNewForm(buildNewFormState(currentColumns));
   }, [activeTable, currentColumns.join("|")]);
 
   useEffect(() => {
@@ -255,6 +280,10 @@ export default function AdminDashboard({ tables }: AdminDashboardProps) {
           row.party_id === null || row.party_id === undefined
             ? ""
             : String(row.party_id),
+        abgeordnetenwatch_url:
+          typeof row.abgeordnetenwatch_url === "string"
+            ? row.abgeordnetenwatch_url
+            : "",
       });
     });
 
@@ -318,6 +347,16 @@ export default function AdminDashboard({ tables }: AdminDashboardProps) {
     const applyUpdate = (current: FormState) => {
       const next = { ...current, [column]: value };
 
+      if (column === "show_name") {
+        const channel = SHOW_CHANNEL_MAP[value];
+
+        if (channel && "tv_channel" in next) {
+          next.tv_channel = channel;
+        }
+
+        return next;
+      }
+
       if (column !== "politician_name") {
         return next;
       }
@@ -339,6 +378,9 @@ export default function AdminDashboard({ tables }: AdminDashboardProps) {
       }
       if ("party_id" in next) {
         next.party_id = match.party_id;
+      }
+      if ("abgeordnetenwatch_url" in next) {
+        next.abgeordnetenwatch_url = match.abgeordnetenwatch_url;
       }
 
       return next;
@@ -392,7 +434,7 @@ export default function AdminDashboard({ tables }: AdminDashboardProps) {
       );
 
       if (method === "POST") {
-        setNewForm(buildFormState(currentColumns));
+        setNewForm(buildNewFormState(currentColumns));
       }
     } catch (submitError) {
       setError(
