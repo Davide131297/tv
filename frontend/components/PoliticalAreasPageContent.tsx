@@ -38,10 +38,10 @@ export default function PoliticalAreasPageContent({
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2 dark:text-gray-100">
           🏛️ Politische Themenbereiche
         </h1>
-        <p className="text-gray-600 mb-4">
+        <p className="text-gray-600 mb-4 dark:text-gray-300">
           Verteilung der politischen Themen in deutschen TV-Talkshows
         </p>
 
