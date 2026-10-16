@@ -7,6 +7,7 @@ import type {
   TvRatingOverview,
   TvRatingsSummary,
 } from "@/types";
+import type { AppearanceRow } from "./election-phase-analysis";
 
 /**
  * Wendet die Standardfilter (Show, Jahr, Sender) auf eine Supabase-Query an.
@@ -473,6 +474,27 @@ export async function getPartyTimeline(params: {
  * Landtags- und Bundestagswahl-Termine (gecrawlt von wahlrecht.de) für die Markierung im Zeitverlauf.
  * Fehler werden nur geloggt, damit das Chart auch ohne Wahltermine funktioniert.
  */
+/**
+ * Alle Partei-Auftritte (über alle Jahre) für die Wahlphasen-Analyse.
+ */
+export async function getElectionPhaseRows(params: {
+  show?: string | null;
+  tv_channel?: string | null;
+}): Promise<AppearanceRow[]> {
+  let query = supabase
+    .from("tv_show_politicians")
+    .select("party_name, episode_date, show_name")
+    .not("party_name", "is", null)
+    .neq("party_name", "");
+
+  query = applyShowFilter(query, params.show || null, "all", params.tv_channel);
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  return (data || []).filter((row) => row.episode_date) as AppearanceRow[];
+}
+
 export async function getWahlen(params: {
   year?: string | null;
 }): Promise<Wahl[]> {

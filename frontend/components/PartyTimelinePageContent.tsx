@@ -5,6 +5,8 @@ import PartyTimelineChart from "@/components/PartyTimelineChart";
 import ShowOptionsButtons from "@/components/ShowOptionsButtons";
 import { useYearList } from "@/hooks/useYearList";
 import { useSearchParams } from "next/navigation";
+import ElectionPhaseAnalysis from "@/components/ElectionPhaseAnalysis";
+import type { AppearanceRow } from "@/lib/election-phase-analysis";
 import type { Wahl } from "@/types";
 
 interface MonthlyPartyStats {
@@ -16,6 +18,8 @@ interface PartyTimelinePageContentProps {
   initialData: MonthlyPartyStats[];
   initialParties: string[];
   wahlen: Wahl[];
+  alleWahlen: Wahl[];
+  electionPhaseRows: AppearanceRow[];
   initialShow: string;
   initialYear: string;
   initialChannel?: string;
@@ -25,6 +29,8 @@ export default function PartyTimelinePageContent({
   initialData,
   initialParties,
   wahlen,
+  alleWahlen,
+  electionPhaseRows,
   initialShow,
   initialYear,
   initialChannel,
@@ -97,6 +103,15 @@ export default function PartyTimelinePageContent({
             </div>
           </div>
         )}
+      </div>
+
+      <div className="mt-8">
+        <ElectionPhaseAnalysis
+          rows={electionPhaseRows}
+          wahlen={alleWahlen}
+          unionMode={unionMode}
+          selectedParties={selectedParties}
+        />
       </div>
     </div>
   );
