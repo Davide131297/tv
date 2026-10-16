@@ -31,13 +31,6 @@ frontend/
 │   ├── layout.tsx               # Root Layout
 │   ├── page.tsx                 # Homepage
 │   ├── api/                     # API Routes (Backend Integration)
-│   │   ├── crawl/               # Crawler-Trigger Endpunkte
-│   │   │   ├── all/route.ts     # Alle Crawler
-│   │   │   ├── haf/route.ts     # Hart aber Fair
-│   │   │   ├── illner/route.ts  # Maybrit Illner
-│   │   │   ├── lanz/route.ts    # Markus Lanz
-│   │   │   ├── maischberger/route.ts # Maischberger
-│   │   │   └── miosga/route.ts  # Caren Miosga
 │   │   ├── database-entries/route.ts # DB-Verwaltung
 │   │   ├── political-areas/route.ts  # Politische Themen
 │   │   └── politics/route.ts    # Hauptdaten-API
@@ -78,14 +71,7 @@ frontend/
 │       ├── switch.tsx           # Toggle-Switches
 │       ├── textarea.tsx         # Textareas
 │       └── tooltip.tsx          # Tooltips
-├── crawler/                     # Frontend-Crawler (Duplikate)
-│   ├── haf.ts                   # Hart aber Fair
-│   ├── illner.ts                # Maybrit Illner
-│   ├── lanz.ts                  # Markus Lanz
-│   ├── maischberger.ts          # Maischberger
-│   └── miosga.ts                # Caren Miosga
 ├── lib/                         # Utility-Bibliotheken
-│   ├── browser-config.ts        # Browser-Konfiguration
 │   ├── db.ts                    # Datenbank-Utils
 │   ├── server-utils.ts          # Server-Utilities
 │   ├── supabase-server-utils.ts # Supabase Server-Utils
@@ -126,8 +112,8 @@ Erstelle `.env.local`:
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
-# API Keys für Crawler (Optional)
-CRAWL_API_KEY=your_secure_crawler_api_key
+# API Keys (Optional) – CRAWL_API_KEY schützt Bot- und Embedding-Routen
+CRAWL_API_KEY=your_secure_api_key
 POLITICS_API_KEY=your_politics_api_key
 
 # Hugging Face (Optional - für AI-Features)
@@ -281,21 +267,9 @@ GET /api/politics?type=politician-rankings&show=all&limit=50
 GET /api/politics?type=summary&show=all
 ```
 
-#### Crawler APIs
+#### Crawler
 
-```typescript
-// Einzelne Crawler triggern
-POST / api / crawl / lanz;
-POST / api / crawl / illner;
-POST / api / crawl / miosga;
-POST / api / crawl / maischberger;
-POST / api / crawl / haf;
-POST / api / crawl / atalay;
-POST / api / crawl / phoenix - runde;
-
-// Alle Crawler
-POST / api / crawl / all;
-```
+Das Crawling läuft ausschließlich im Backend (`backend/`, Cloud Run).
 
 #### Weitere APIs
 

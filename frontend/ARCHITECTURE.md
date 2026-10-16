@@ -57,5 +57,5 @@ Die Hauptnavigation spiegelt die Ordnerstruktur in `app/` wider:
 
 ## 🔄 Datenfluss
 
-1. **Crawler (api/crawler/\*)** -> Schreibt Daten in Supabase DB.
+1. **Crawler (Backend, Cloud Run)** -> Schreibt Daten in Supabase DB.
 2. **Frontend** -> Interaktive Filterung und Sortierung der Daten im Browser.

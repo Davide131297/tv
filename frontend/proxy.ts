@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Rate limiting storage (in production use Redis or database)
-const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
-
 // Environment variables
 const CRAWL_API_KEY = process.env.CRAWL_API_KEY;
 const POLITICS_API_KEY = process.env.NEXT_PUBLIC_POLITICS_API_KEY;
@@ -10,9 +7,8 @@ const POLITICS_API_KEY = process.env.NEXT_PUBLIC_POLITICS_API_KEY;
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Apply middleware to crawl API routes and politics API
+  // Apply middleware to protected API routes
   const isProtectedAPIRoute =
-    pathname.startsWith("/api/crawl/") ||
     pathname.startsWith("/api/politics") ||
     pathname.startsWith("/api/database-entries") ||
     pathname.startsWith("/api/party-timeline") ||
@@ -52,9 +48,7 @@ function handleAPIProtection(request: NextRequest) {
 
     // Method validation - different rules for different APIs
     let allowedMethods: string[];
-    if (pathname.startsWith("/api/crawl/")) {
-      allowedMethods = ["POST", "DELETE"];
-    } else if (pathname.startsWith("/api/politics")) {
+    if (pathname.startsWith("/api/politics")) {
       allowedMethods = ["GET"]; // Politics API is read-only
     } else {
       allowedMethods = ["GET", "POST"];
@@ -67,50 +61,11 @@ function handleAPIProtection(request: NextRequest) {
       );
     }
 
-    // Rate limiting - only for crawl APIs with higher limits
-    if (pathname.startsWith("/api/crawl/")) {
-      const rateLimitKey = `api:${ip}`;
-      const now = Date.now();
-      const rateLimitWindowMs = 60 * 1000; // 1 minute
-
-      const maxRequestsPerWindow =
-        pathname.includes("maischberger") && request.method === "DELETE"
-          ? 10 // Increased from 3 to 10
-          : 20; // Increased from 5 to 20
-
-      const rateLimitEntry = rateLimitStore.get(rateLimitKey);
-
-      if (rateLimitEntry) {
-        if (now < rateLimitEntry.resetTime) {
-          if (rateLimitEntry.count >= maxRequestsPerWindow) {
-            return NextResponse.json(
-              {
-                error: "Rate limit exceeded",
-                retryAfter: Math.ceil((rateLimitEntry.resetTime - now) / 1000),
-              },
-              { status: 429 },
-            );
-          }
-          rateLimitEntry.count++;
-        } else {
-          // Reset window
-          rateLimitEntry.count = 1;
-          rateLimitEntry.resetTime = now + rateLimitWindowMs;
-        }
-      } else {
-        rateLimitStore.set(rateLimitKey, {
-          count: 1,
-          resetTime: now + rateLimitWindowMs,
-        });
-      }
-    }
-
     // Authentication check - different API keys for different routes
     let requireAuth = false;
     let expectedApiKey = "";
 
     if (
-      pathname.startsWith("/api/crawl/") ||
       pathname.startsWith("/api/threads-bot") ||
       pathname.startsWith("/api/bluesky-bot") ||
       pathname.startsWith("/api/embed-documents")
@@ -162,7 +117,6 @@ function handleAPIProtection(request: NextRequest) {
 // Configure which paths the middleware should run on
 export const config = {
   matcher: [
-    "/api/crawl/:path*",
     "/api/politics",
     "/api/threads-bot/:path*",
     "/api/bluesky-bot/:path*",
@@ -170,15 +124,3 @@ export const config = {
   ],
 };
 
-// Cleanup function for rate limit store (should be called periodically)
-setInterval(
-  () => {
-    const now = Date.now();
-    for (const [key, entry] of rateLimitStore.entries()) {
-      if (now >= entry.resetTime) {
-        rateLimitStore.delete(key);
-      }
-    }
-  },
-  5 * 60 * 1000,
-); // Clean up every 5 minutes

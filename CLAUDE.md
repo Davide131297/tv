@@ -34,7 +34,7 @@ Yarn 4.9.2 is used. Use `yarn` commands inside `frontend/` or `backend/` directo
 ## Architecture
 
 ### Active vs. Deprecated
-- **`frontend/`** — The active UI application (Next.js 16 App Router). All new UI development happens here. The crawlers in `frontend/crawler/*.ts` are **DEPRECATED** — do not modify or rely on them.
+- **`frontend/`** — The active UI application (Next.js 16 App Router). All new UI development happens here. It contains **no crawling code** — do not add crawlers here.
 - **`backend/`** — The active crawler backend, deployed to Google Cloud Run. All crawling logic lives here.
 
 ### Data Flow
@@ -50,22 +50,16 @@ ZDF/ARD/RTL Mediathek websites
 
 ### Frontend Structure (`frontend/`)
 
-**Crawlers** (`frontend/crawler/*.ts`): **DEPRECATED** — crawling has moved to the backend (Cloud Run). Do not modify these files.
-
 **API Routes** (`frontend/app/api/`):
-- `/api/crawl/[show]` — Trigger crawl for a specific show (POST). Protected by `CRAWL_API_KEY`.
-- `/api/crawl/all` — Trigger all crawlers sequentially.
 - `/api/politics` — Main data query endpoint (GET). Protected by `POLITICS_API_KEY`.
 - `/api/threads-bot/`, `/api/embed-documents/` — Automation endpoints.
 
-**Middleware** (`frontend/proxy.ts`): API key auth, IP-based rate limiting, HTTP method validation. Applied to all `/api/crawl/*`, `/api/politics`, `/api/threads-bot/*`, `/api/embed-documents/*` routes.
+**Middleware** (`frontend/proxy.ts`): API key auth and HTTP method validation. Applied to `/api/politics`, `/api/threads-bot/*`, `/api/embed-documents/*` routes.
 
 **UI Pages** (`frontend/app/`): German-language routes — `uebersicht/` (overview dashboard), `politiker/` (politicians table), `parteien/` (party stats), `sendungen/` (episodes), `politische-themen/` (topics), `politiker-rankings/` (rankings).
 
 **Key libs**:
 - `lib/supabase.ts` / `lib/supabase-server-utils.ts` — Database client
-- `lib/browser-config.ts` — Puppeteer/Chrome configuration
-- `lib/crawler-utils.ts` — Shared crawler helpers
 - `lib/ai-utils.ts` — Gemini / LM Studio integration for topic classification
 - `types.ts` — Central TypeScript type definitions
 
@@ -73,7 +67,7 @@ ZDF/ARD/RTL Mediathek websites
 Main tables: `tv_show_politicians` (guest appearances), `tv_show_episode_political_areas` (episode topics), `show_links` (episode URLs), `political_areas` (topic categories).
 
 ### Automation (GitHub Actions)
-- **`crawl-weekly.yml`** — Calls `/api/crawl/all` every Monday at 2 AM UTC
+- **`crawl-weekly.yml`** — Calls the backend `GET /api/crawl/all` (Cloud Run, `BACKEND_URL`) every Monday at 2 AM UTC
 - **`threads-weekly.yml` / `threads-monthly.yml`** — Posts stats to Threads social media
 - **`nightly-embed.yml`** — Nightly document embedding for AI search
 - **`deploy-cloud-run.yml`** — Deploys backend Docker image to Google Cloud Run (triggered on backend changes to main)
