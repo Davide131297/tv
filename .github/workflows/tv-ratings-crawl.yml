@@ -2,8 +2,8 @@ name: TV Ratings Crawl
 
 on:
   schedule:
-    # Jeden Tag um 15:00 Uhr UTC (= 16:00 Uhr MEZ / 17:00 Uhr MESZ)
-    - cron: "0 15 * * *"
+    # Jeden Tag um 15:00 Uhr UTC (= 12:00 Uhr MEZ / 13:00 Uhr MESZ)
+    - cron: "0 11 * * *"
   workflow_dispatch:
 
 jobs:
