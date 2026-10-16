@@ -205,6 +205,12 @@ export default function PartyChart({
                   fill={`url(#colorGradient-${index})`}
                   stroke={entry.fill}
                   strokeWidth={1}
+                  // Sehr dunkle Balken (CDU, Union) bekommen im Darkmode einen hellen Rand
+                  className={
+                    entry.party === "CDU" || entry.party === "Union"
+                      ? "dark:stroke-slate-500 dark:[stroke-width:1.5]"
+                      : undefined
+                  }
                 />
               ))}
               <LabelList
