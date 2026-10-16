@@ -3,6 +3,7 @@ import { supabase } from "../supabase.js";
 import dotenv from "dotenv";
 import { AbgeordnetenwatchPolitician } from "../types/abgeordnetenwatch.js";
 import axios from "axios";
+import https from "https";
 
 dotenv.config();
 
@@ -652,6 +653,22 @@ function sanitizePartyName(name: string | undefined): string | undefined {
   return name.replace(/[­​‌‍⁠﻿]/g, "").trim();
 }
 
+// abgeordnetenwatch drosselt schnelle Anfragefolgen mit HTTP 429 – daher Mindestabstand zwischen Requests
+const ABGEORDNETENWATCH_MIN_INTERVAL_MS = 1500;
+const ABGEORDNETENWATCH_TIMEOUT_MS = 10000;
+const abgeordnetenwatchAgent = new https.Agent({ keepAlive: false });
+let nextAbgeordnetenwatchSlot = 0;
+
+async function waitForAbgeordnetenwatchSlot(): Promise<void> {
+  const now = Date.now();
+  const slot = Math.max(now, nextAbgeordnetenwatchSlot);
+  // Slot reservieren, bevor gewartet wird, damit parallele Aufrufer sich hinten anstellen
+  nextAbgeordnetenwatchSlot = slot + ABGEORDNETENWATCH_MIN_INTERVAL_MS;
+  if (slot > now) {
+    await new Promise((resolve) => setTimeout(resolve, slot - now));
+  }
+}
+
 // Politiker-Prüfung mit Abgeordnetenwatch API
 export async function checkPolitician(
   name: string,
@@ -679,7 +696,12 @@ export async function checkPolitician(
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      const { data } = await axios.get(url);
+      await waitForAbgeordnetenwatchSlot();
+      const { data } = await axios.get(url, {
+        timeout: ABGEORDNETENWATCH_TIMEOUT_MS,
+        // Ohne Keep-Alive: nach einem 429 schließt nginx die Verbindung, Wiederverwendung endet in ECONNRESET
+        httpsAgent: abgeordnetenwatchAgent,
+      });
       const politicians: AbgeordnetenwatchPolitician[] = data?.data || [];
 
       if (politicians.length === 0) {
@@ -764,9 +786,12 @@ export async function checkPolitician(
         partyName: correctedPartyName,
       };
     } catch (error) {
+      const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+      const reason = axios.isAxiosError(error)
+        ? (status ? `HTTP ${status}` : error.code ?? error.message)
+        : String(error);
       console.error(
-        `❌ API-Fehler für ${name} (Versuch ${attempt}/${retries}):`,
-        error,
+        `❌ API-Fehler für ${name} (Versuch ${attempt}/${retries}): ${reason}`,
       );
 
       if (attempt === retries) {
@@ -776,6 +801,10 @@ export async function checkPolitician(
           politicianId: null,
         };
       }
+
+      // Bei Rate Limit (HTTP 429) deutlich länger warten als bei sonstigen Fehlern
+      const delayMs = status === 429 ? attempt * 5000 : attempt * 2000;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
   }
 
@@ -895,6 +924,78 @@ Gib mir die Namen der Gäste im Text ausschließlich als JSON Array mit Strings 
 
     return [];
   }
+}
+
+export type ExtractedEpisodeGuest = {
+  name: string;
+  role: string;
+};
+
+/**
+ * Extrahiert die Gäste einer einzelnen Talkshow-Episode aus dem Seitentext
+ * (inkl. Meta-Tags und Bild-Alt-Texten). Wird vom Admin-Link-Import genutzt.
+ * Wirft bei KI-Fehlern, damit der Aufrufer eine Warnung anzeigen kann.
+ */
+export async function extractEpisodeGuestsWithAI(
+  pageText: string,
+): Promise<ExtractedEpisodeGuest[]> {
+  const systemInstruction =
+    'Du antwortest ausschließlich mit einem gültigen JSON Array von Objekten der Form {"name": string, "role": string}. Keine zusätzlichen Zeichen.';
+  const prompt = `Der folgende Text stammt von der Webseite einer deutschen Polit-Talkshow-Episode.
+Liste alle Gäste dieser einen Episode auf (nicht den Moderator, keine Gäste aus anderen/früheren Sendungen, keine Personen, über die nur gesprochen wird).
+"role" ist die Funktion bzw. Partei, wie sie auf der Seite steht (leer, falls unbekannt).
+
+Text:
+${pageText}`;
+
+  await waitForRateLimit();
+
+  let content = "";
+
+  if (process.env.LokalLLM === "true") {
+    const response = await axios.post(
+      "http://127.0.0.1:1234/v1/chat/completions",
+      {
+        model: "local-model",
+        messages: [
+          { role: "system", content: systemInstruction },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.1,
+      },
+    );
+    content = response.data.choices[0].message.content;
+  } else {
+    const response = await getGoogleAI().models.generateContent({
+      model: googleModel,
+      contents: prompt,
+      config: { systemInstruction, responseMimeType: "application/json" },
+    });
+    content = response.text ?? "";
+  }
+
+  const arrayMatch = content.match(/\[[\s\S]*\]/);
+  if (!arrayMatch) {
+    return [];
+  }
+
+  const parsed: unknown = JSON.parse(arrayMatch[0]);
+  if (!Array.isArray(parsed)) {
+    return [];
+  }
+
+  return parsed
+    .filter(
+      (item): item is { name: string; role?: unknown } =>
+        typeof item === "object" &&
+        item !== null &&
+        typeof (item as { name?: unknown }).name === "string",
+    )
+    .map((item) => ({
+      name: item.name.trim(),
+      role: typeof item.role === "string" ? item.role.trim() : "",
+    }))
+    .filter((item) => item.name.length > 0);
 }
 
 // Hilfsfunktion zum Speichern der politischen Themenbereiche

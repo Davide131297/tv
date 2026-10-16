@@ -1,8 +1,7 @@
-import "server-only";
-
-import { supabaseAdmin } from "@/lib/supabase-admin";
-import { checkPolitician } from "@/lib/supabase-server-utils";
-import { extractEpisodeGuestsWithAI } from "@/lib/ai-utils";
+import axios from "axios";
+import { supabase } from "../supabase.js";
+import { checkPolitician, extractEpisodeGuestsWithAI } from "./utils.js";
+import { parseZdfEpisodeHtml } from "./zdf-api.js";
 import {
   buildAbgeordnetenwatchUrl,
   detectShowFromUrl,
@@ -16,11 +15,17 @@ import {
   type ImportConfirmPayload,
   type ImportPreview,
   type ImportPreviewGuest,
-} from "@/lib/episode-import";
+} from "./episode-import.js";
 
 const MAX_GUESTS = 20;
 const FETCH_TIMEOUT_MS = 15000;
 const MAX_REDIRECTS = 3;
+
+// Sendungen, für die der Crawler-Parser die strukturierte ZDF-Gästeliste liest
+const ZDF_PARSER_SHOWS: Record<string, "lanz" | "illner"> = {
+  "Markus Lanz": "lanz",
+  "Maybrit Illner": "illner",
+};
 
 async function fetchPageHtml(url: URL): Promise<string> {
   let currentUrl = url;
@@ -34,7 +39,6 @@ async function fetchPageHtml(url: URL): Promise<string> {
         "Accept-Language": "de-DE,de;q=0.9",
       },
       redirect: "manual",
-      cache: "no-store",
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
 
@@ -55,7 +59,7 @@ async function fetchPageHtml(url: URL): Promise<string> {
 }
 
 async function getExistingPoliticians(showName: string, episodeDate: string) {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await supabase
     .from("tv_show_politicians")
     .select("politician_id, politician_name")
     .eq("show_name", showName)
@@ -74,6 +78,61 @@ async function getExistingPoliticians(showName: string, episodeDate: string) {
     names: new Set(
       (data ?? []).map((row) => String(row.politician_name).toLowerCase()),
     ),
+  };
+}
+
+function extractZdfParserGuests(
+  url: URL,
+  showName: string | undefined,
+  html: string,
+): Array<{ name: string; role: string }> {
+  const parserShow = showName ? ZDF_PARSER_SHOWS[showName] : undefined;
+  const isZdf = url.hostname === "zdf.de" || url.hostname.endsWith(".zdf.de");
+  if (!parserShow || !isZdf) {
+    return [];
+  }
+
+  try {
+    return parseZdfEpisodeHtml(parserShow, html).guests.map((guest) => ({
+      name: guest.name,
+      role: guest.role ?? "",
+    }));
+  } catch (error) {
+    console.error("Link-Import: ZDF-Parser fehlgeschlagen:", error);
+    return [];
+  }
+}
+
+type ExistingPoliticians = Awaited<ReturnType<typeof getExistingPoliticians>>;
+
+async function buildPreviewGuest(
+  guest: { name: string; role: string },
+  existing: ExistingPoliticians,
+): Promise<ImportPreviewGuest> {
+  const details = await checkPolitician(guest.name, guest.role || undefined);
+  const politicianName = details.isPolitician
+    ? details.politicianName || guest.name
+    : null;
+  const partyName = details.isPolitician
+    ? normalizePartyName(details.partyName)
+    : null;
+  const alreadyInDb =
+    (details.politicianId !== null && existing.ids.has(details.politicianId)) ||
+    existing.names.has((politicianName ?? guest.name).toLowerCase());
+
+  return {
+    name: guest.name,
+    role: guest.role,
+    isPolitician: details.isPolitician,
+    politician_id: details.isPolitician ? details.politicianId : null,
+    politician_name: politicianName,
+    party_id: details.isPolitician ? (details.party ?? null) : null,
+    party_name: partyName,
+    abgeordnetenwatch_url: politicianName
+      ? buildAbgeordnetenwatchUrl(politicianName)
+      : null,
+    alreadyInDb,
+    needsReview: details.isPolitician && !roleMatchesParty(guest.role, partyName),
   };
 }
 
@@ -98,21 +157,29 @@ export async function buildImportPreview(rawUrl: string): Promise<ImportPreview>
     warnings.push("Sendedatum konnte nicht erkannt werden – bitte manuell eintragen.");
   }
 
+  const zdfParserGuests = extractZdfParserGuests(url, show?.show_name, html);
   const partyTaggedGuests = extractPartyTaggedGuests(text);
+  const deterministicCount = zdfParserGuests.length + partyTaggedGuests.length;
   let aiGuests: Array<{ name: string; role: string }> = [];
 
   try {
     aiGuests = await extractEpisodeGuestsWithAI(text);
   } catch (error) {
-    console.error("Link-Import: KI-Extraktion fehlgeschlagen:", error);
+    // Nur die Ursache loggen – das axios-Fehlerobjekt enthält den kompletten Seitentext
+    const reason = axios.isAxiosError(error)
+      ? `${error.code ?? error.message} (${error.config?.url ?? "KI-Endpunkt"})`
+      : error instanceof Error
+        ? error.message
+        : String(error);
+    console.warn(`⚠️  Link-Import: KI-Extraktion fehlgeschlagen: ${reason}`);
     warnings.push(
-      partyTaggedGuests.length > 0
-        ? "KI-Extraktion fehlgeschlagen – es werden nur Gäste mit Parteiangabe von der Seite angezeigt."
-        : "KI-Extraktion fehlgeschlagen und keine Gäste mit Parteiangabe gefunden.",
+      deterministicCount > 0
+        ? "KI-Extraktion fehlgeschlagen – es werden nur direkt von der Seite gelesene Gäste angezeigt."
+        : "KI-Extraktion fehlgeschlagen und keine Gäste auf der Seite erkannt.",
     );
   }
 
-  let guests = mergeGuests(partyTaggedGuests, aiGuests);
+  let guests = mergeGuests(zdfParserGuests, partyTaggedGuests, aiGuests);
   if (guests.length > MAX_GUESTS) {
     warnings.push(`Mehr als ${MAX_GUESTS} Gäste gefunden – nur die ersten ${MAX_GUESTS} werden geprüft.`);
     guests = guests.slice(0, MAX_GUESTS);
@@ -122,40 +189,16 @@ export async function buildImportPreview(rawUrl: string): Promise<ImportPreview>
     warnings.push("Auf der Seite wurden keine Gäste gefunden.");
   }
 
-  const existing =
+  const existing: ExistingPoliticians =
     show && episodeDate
       ? await getExistingPoliticians(show.show_name, episodeDate)
       : { ids: new Set<number>(), names: new Set<string>() };
 
-  const previewGuests = await Promise.all(
-    guests.map(async (guest): Promise<ImportPreviewGuest> => {
-      const details = await checkPolitician(guest.name, guest.role || undefined);
-      const politicianName = details.isPolitician
-        ? details.politicianName || guest.name
-        : null;
-      const partyName = details.isPolitician
-        ? normalizePartyName(details.partyName)
-        : null;
-      const alreadyInDb =
-        (details.politicianId !== null && existing.ids.has(details.politicianId)) ||
-        existing.names.has((politicianName ?? guest.name).toLowerCase());
-
-      return {
-        name: guest.name,
-        role: guest.role,
-        isPolitician: details.isPolitician,
-        politician_id: details.isPolitician ? details.politicianId : null,
-        politician_name: politicianName,
-        party_id: details.isPolitician ? (details.party ?? null) : null,
-        party_name: partyName,
-        abgeordnetenwatch_url: politicianName
-          ? buildAbgeordnetenwatchUrl(politicianName)
-          : null,
-        alreadyInDb,
-        needsReview: details.isPolitician && !roleMatchesParty(guest.role, partyName),
-      };
-    }),
-  );
+  // Nacheinander prüfen wie in den Crawlern – parallele Anfragen lösen bei abgeordnetenwatch HTTP 429 aus
+  const previewGuests: ImportPreviewGuest[] = [];
+  for (const guest of guests) {
+    previewGuests.push(await buildPreviewGuest(guest, existing));
+  }
 
   return {
     url: url.toString(),
@@ -197,17 +240,20 @@ export async function saveImportedPoliticians(payload: ImportConfirmPayload) {
   const skipped = payload.politicians.length - rowsToInsert.length;
 
   if (rowsToInsert.length === 0) {
-    return { inserted: [], skipped };
+    return { inserted: 0, skipped };
   }
 
-  const { data, error } = await supabaseAdmin
+  // Gleicher Konflikt-Schlüssel wie bei den Crawlern; vorhandene Zeilen werden nicht überschrieben
+  const { error } = await supabase
     .from("tv_show_politicians")
-    .insert(rowsToInsert)
-    .select();
+    .upsert(rowsToInsert, {
+      onConflict: "show_name,episode_date,politician_id",
+      ignoreDuplicates: true,
+    });
 
   if (error) {
     throw error;
   }
 
-  return { inserted: data ?? [], skipped };
+  return { inserted: rowsToInsert.length, skipped };
 }

@@ -23,6 +23,11 @@ import CrawlPhoenixPersoenlich from "./crawler/phoenix-persoenlich.js";
 import CrawlBlomePfeffer from "./crawler/blome-pfeffer.js";
 import { crawlARDRatings, crawlZDFRatings } from "./crawler/tv-ratings.js";
 import { crawlWahlen } from "./crawler/wahlen.js";
+import {
+  buildImportPreview,
+  saveImportedPoliticians,
+} from "./lib/episode-import-service.js";
+import { parseImportConfirmPayload } from "./lib/episode-import.js";
 
 dotenv.config();
 
@@ -319,6 +324,54 @@ app.post("/api/crawl/wahlen", async (req, res) => {
   } catch (error) {
     console.error("❌ Wahltermine Crawler Fehler:", error);
     res.status(500).json({ error: "Wahlen crawler failed" });
+  }
+});
+
+// ============================================
+// Admin: Episoden-Import per Link
+// ============================================
+
+// POST /api/import-episode/preview - lädt die Episodenseite und gleicht Gäste ab, schreibt nichts in die DB
+app.post("/api/import-episode/preview", requireBearerToken, async (req, res) => {
+  const url: unknown = req.body?.url;
+
+  if (typeof url !== "string" || !url.trim()) {
+    res.status(400).json({ error: "Link fehlt." });
+    return;
+  }
+
+  try {
+    const preview = await buildImportPreview(url);
+    res.json({ preview });
+  } catch (error) {
+    console.error("❌ Link-Import Vorschau Fehler:", error);
+    res.status(400).json({
+      error:
+        error instanceof Error
+          ? error.message
+          : "Link konnte nicht ausgewertet werden.",
+    });
+  }
+});
+
+// POST /api/import-episode/confirm - speichert die in der Vorschau bestätigten Politiker
+app.post("/api/import-episode/confirm", requireBearerToken, async (req, res) => {
+  let payload;
+  try {
+    payload = parseImportConfirmPayload(req.body);
+  } catch (error) {
+    res.status(400).json({
+      error: error instanceof Error ? error.message : "Ungültige Anfrage.",
+    });
+    return;
+  }
+
+  try {
+    const result = await saveImportedPoliticians(payload);
+    res.json(result);
+  } catch (error) {
+    console.error("❌ Link-Import Speichern Fehler:", error);
+    res.status(500).json({ error: "Politiker konnten nicht gespeichert werden." });
   }
 });
 

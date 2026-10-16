@@ -1,34 +1,26 @@
 import { NextResponse } from "next/server";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
-import { parseImportConfirmPayload } from "@/lib/episode-import";
-import { saveImportedPoliticians } from "@/lib/episode-import-server";
+import { postToBackend } from "@/lib/backend-api";
 
 export const runtime = "nodejs";
 
-// Speichert die in der Vorschau bestätigten Politiker
+// Speichert die in der Vorschau bestätigten Politiker über das Backend
 export async function POST(request: Request) {
   if (!(await isAdminAuthenticated())) {
     return NextResponse.json({ error: "Nicht autorisiert." }, { status: 401 });
   }
 
-  let payload;
   try {
-    payload = parseImportConfirmPayload(await request.json());
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Ungültige Anfrage." },
-      { status: 400 },
+    const { status, data } = await postToBackend(
+      "/api/import-episode/confirm",
+      await request.json(),
     );
-  }
-
-  try {
-    const result = await saveImportedPoliticians(payload);
-    return NextResponse.json(result);
+    return NextResponse.json(data, { status });
   } catch (error) {
     console.error("Admin import confirm error:", error);
     return NextResponse.json(
-      { error: "Politiker konnten nicht gespeichert werden." },
-      { status: 500 },
+      { error: "Backend für den Link-Import nicht erreichbar." },
+      { status: 502 },
     );
   }
 }

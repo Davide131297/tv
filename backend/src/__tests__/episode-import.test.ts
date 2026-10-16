@@ -9,7 +9,7 @@ import {
   parseImportConfirmPayload,
   parseImportUrl,
   roleMatchesParty,
-} from "@/lib/episode-import";
+} from "../lib/episode-import";
 
 const HAF_HTML = `
 <html><head><title>hart aber fair - Das Erste</title>

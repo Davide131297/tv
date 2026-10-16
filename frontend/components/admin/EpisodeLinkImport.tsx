@@ -133,7 +133,7 @@ export default function EpisodeLinkImport({
         body: JSON.stringify(payload),
       });
       const data = (await response.json()) as {
-        inserted?: unknown[];
+        inserted?: number;
         skipped?: number;
         error?: string;
       };
@@ -142,7 +142,7 @@ export default function EpisodeLinkImport({
         throw new Error(data.error || "Speichern fehlgeschlagen.");
       }
 
-      const insertedCount = data.inserted?.length ?? 0;
+      const insertedCount = data.inserted ?? 0;
       const skippedText = data.skipped
         ? ` ${data.skipped} bereits vorhanden und übersprungen.`
         : "";
