@@ -1,0 +1,71 @@
+{
+ "success": true,
+ "data": [
+  {
+   "area_id": 3,
+   "area_label": "Sicherheit, Verteidigung und Außenpolitik",
+   "count": 93
+  },
+  {
+   "area_id": 5,
+   "area_label": "Haushalt, öffentliche Finanzen und Sozialpolitik",
+   "count": 51
+  },
+  {
+   "area_id": 2,
+   "area_label": "Wirtschaft, Innovation und Wettbewerbsfähigkeit",
+   "count": 50
+  },
+  {
+   "area_id": 6,
+   "area_label": "Digitalisierung, Medien und Demokratie",
+   "count": 46
+  },
+  {
+   "area_id": 4,
+   "area_label": "Migration, Integration und gesellschaftlicher Zusammenhalt",
+   "count": 27
+  },
+  {
+   "area_id": 7,
+   "area_label": "Kultur, Identität und Erinnerungspolitik",
+   "count": 21
+  },
+  {
+   "area_id": 1,
+   "area_label": "Energie, Klima und Versorgungssicherheit",
+   "count": 18
+  }
+ ],
+ "rows": [
+  {
+   "political_area_id": 3,
+   "episode_date": "2026-01-18",
+   "political_area": {
+    "id": 3,
+    "label": "Sicherheit, Verteidigung und Außenpolitik"
+   }
+  },
+  {
+   "political_area_id": 1,
+   "episode_date": "2026-01-25",
+   "political_area": {
+    "id": 1,
+    "label": "Energie, Klima und Versorgungssicherheit"
+   }
+  },
+  {
+   "political_area_id": 3,
+   "episode_date": "2026-01-25",
+   "political_area": {
+    "id": 3,
+    "label": "Sicherheit, Verteidigung und Außenpolitik"
+   }
+  }
+ ],
+ "total": 306,
+ "metadata": {
+  "show_filter": "all",
+  "areas_count": 7
+ }
+}

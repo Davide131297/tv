@@ -36,6 +36,7 @@ Yarn 4.9.2 is used. Use `yarn` commands inside `frontend/` or `backend/` directo
 ### Active vs. Deprecated
 - **`frontend/`** — The active UI application (Next.js 16 App Router). All new UI development happens here. It contains **no crawling code** — do not add crawlers here.
 - **`backend/`** — The active crawler backend, deployed to Google Cloud Run. All crawling logic lives here.
+- **`mobile/`** — Native Android app (Kotlin, Jetpack Compose). Consumes the same public Next.js API routes as the web frontend (`/api/v1/*`, `/api/tv-ratings`, `/api/politician-comparison`). Build with `cd mobile && ./gradlew :app:assembleDebug`; tests via `./gradlew :app:testDebugUnitTest`. See `mobile/README.md`.
 
 ### Data Flow
 ```

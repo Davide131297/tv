@@ -1,0 +1,125 @@
+{
+ "success": true,
+ "data": {
+  "summary": {
+   "total_ratings": 129,
+   "total_viewers_millions": 183.43,
+   "average_market_share": 13.23,
+   "average_viewers_millions": 1.42
+  },
+  "ratings": [
+   {
+    "show_name": "maybrit illner",
+    "episode_date": "2026-10-15",
+    "market_share": 14.1,
+    "viewers_millions": 1.99,
+    "episode_url": "https://www.zdf.de/video/talk/maybrit-illner-128/maybrit-illner-vom-15-oktober-2026-100",
+    "politicians": [
+     {
+      "name": "Ralf Stegner",
+      "party_name": "SPD"
+     },
+     {
+      "name": "Claudia Wittig",
+      "party_name": "BSW"
+     },
+     {
+      "name": "Johann Wadephul",
+      "party_name": "CDU"
+     }
+    ]
+   },
+   {
+    "show_name": "Markus Lanz",
+    "episode_date": "2026-10-15",
+    "market_share": 14.7,
+    "viewers_millions": 1.19,
+    "episode_url": "https://www.zdf.de/video/talk/markus-lanz-114/markus-lanz-vom-15-oktober-2026-102",
+    "politicians": [
+     {
+      "name": "Katharina Günther-Wünsch",
+      "party_name": "CDU"
+     }
+    ]
+   },
+   {
+    "show_name": "Maischberger",
+    "episode_date": "2026-10-14",
+    "market_share": 14.7,
+    "viewers_millions": 1.43,
+    "episode_url": "https://www.ardmediathek.de/video/Y3JpZDovL3dkci5kZS9CZWl0cmFnLXNvcGhvcmEtZWUxMmM2NzktNDNkZi00M2QxLTkxYmEtNmJhOTg4YzQ3ZTE1",
+    "politicians": [
+     {
+      "name": "Tim Klüssendorf",
+      "party_name": "SPD"
+     },
+     {
+      "name": "Thorsten Frei",
+      "party_name": "CDU"
+     }
+    ]
+   }
+  ],
+  "politicianStats": [
+   {
+    "politician_name": "Friedrich Merz",
+    "party_name": "CDU",
+    "appearances": 1,
+    "total_viewers_millions": 2.78,
+    "average_viewers_millions": 2.78,
+    "total_market_share": 15.6,
+    "average_market_share": 15.6,
+    "latest_episode": "2026-05-03"
+   },
+   {
+    "politician_name": "Tino Chrupalla",
+    "party_name": "AfD",
+    "appearances": 2,
+    "total_viewers_millions": 5.52,
+    "average_viewers_millions": 2.76,
+    "total_market_share": 31.8,
+    "average_market_share": 15.9,
+    "latest_episode": "2026-09-07"
+   },
+   {
+    "politician_name": "Philipp Amthor",
+    "party_name": "CDU",
+    "appearances": 1,
+    "total_viewers_millions": 2.65,
+    "average_viewers_millions": 2.65,
+    "total_market_share": 13.1,
+    "average_market_share": 13.1,
+    "latest_episode": "2026-09-07"
+   }
+  ],
+  "partyStats": [
+   {
+    "party_name": "PdF",
+    "rated_episodes": 1,
+    "total_viewers_millions": 2.28,
+    "average_viewers_millions": 2.28,
+    "total_market_share": 11.2,
+    "average_market_share": 11.2,
+    "latest_episode": "2026-08-31"
+   },
+   {
+    "party_name": "AfD",
+    "rated_episodes": 15,
+    "total_viewers_millions": 26.17,
+    "average_viewers_millions": 1.74,
+    "total_market_share": 211,
+    "average_market_share": 14.07,
+    "latest_episode": "2026-10-06"
+   },
+   {
+    "party_name": "parteilos",
+    "rated_episodes": 5,
+    "total_viewers_millions": 8.32,
+    "average_viewers_millions": 1.66,
+    "total_market_share": 76.7,
+    "average_market_share": 15.34,
+    "latest_episode": "2026-09-17"
+   }
+  ]
+ }
+}

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer as supabase } from "@/lib/supabase-server";
-import { applyShowFilter, getSummaryStats, getDetailedAppearances } from "@/lib/politics-data";
+import {
+  applyShowFilter,
+  getSummaryStats,
+  getDetailedAppearances,
+  getPoliticianRankings,
+} from "@/lib/politics-data";
 
 // Types
 interface PartyStats {
@@ -481,6 +486,20 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({
           success: true,
           data: results,
+        });
+      }
+
+      case "politician-rankings": {
+        const rankings = await getPoliticianRankings({
+          show: showName,
+          year,
+          tv_channel,
+          limit: limit > 0 ? limit : 50,
+        });
+
+        return NextResponse.json({
+          success: true,
+          data: rankings.map(({ shows: _shows, ...rest }) => rest),
         });
       }
 

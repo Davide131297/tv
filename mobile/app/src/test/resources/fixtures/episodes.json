@@ -1,0 +1,68 @@
+{
+ "success": true,
+ "data": [
+  {
+   "episode_date": "2026-10-15",
+   "politician_count": 1,
+   "episode_url": "https://www.zdf.de/video/talk/markus-lanz-114/markus-lanz-vom-15-oktober-2026-102",
+   "politicians": [
+    {
+     "name": "Katharina Günther-Wünsch",
+     "party_name": "CDU"
+    }
+   ]
+  },
+  {
+   "episode_date": "2026-10-13",
+   "politician_count": 1,
+   "episode_url": "https://www.zdf.de/video/talk/markus-lanz-114/markus-lanz-vom-13-oktober-2026-100",
+   "politicians": [
+    {
+     "name": "Sigmar Gabriel",
+     "party_name": "SPD"
+    }
+   ]
+  },
+  {
+   "episode_date": "2026-10-08",
+   "politician_count": 1,
+   "episode_url": "https://www.zdf.de/video/talk/markus-lanz-114/markus-lanz-vom-8-oktober-2026-100",
+   "politicians": [
+    {
+     "name": "Peter Altmaier",
+     "party_name": "CDU"
+    }
+   ]
+  },
+  {
+   "episode_date": "2026-10-07",
+   "politician_count": 2,
+   "episode_url": "https://www.zdf.de/video/talk/markus-lanz-114/markus-lanz-vom-7-oktober-2026-100",
+   "politicians": [
+    {
+     "name": "Mathias Middelberg",
+     "party_name": "CDU"
+    },
+    {
+     "name": "Felix Banaszak",
+     "party_name": "BÜNDNIS 90/DIE GRÜNEN"
+    }
+   ]
+  },
+  {
+   "episode_date": "2026-10-06",
+   "politician_count": 2,
+   "episode_url": "https://www.zdf.de/video/talk/markus-lanz-114/markus-lanz-vom-6-oktober-2026-100",
+   "politicians": [
+    {
+     "name": "Bernd Baumann",
+     "party_name": "AfD"
+    },
+    {
+     "name": "Georg Maier",
+     "party_name": "SPD"
+    }
+   ]
+  }
+ ]
+}
