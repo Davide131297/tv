@@ -116,6 +116,26 @@ describe("extractPartyTaggedGuests", () => {
     ).toEqual([{ name: "Norbert Lammert", role: "Im Interview, CDU" }]);
   });
 
+  it("findet ZDF-Zeilen im Format 'Name (PARTEI), Rolle'", () => {
+    const text = [
+      "Mit Bundesaußenminister Johann Wadephul (CDU), SPD-Außenpolitiker Ralf Stegner, Peter Neumann und Claudia Wittig (BSW-Sachsen-Anhalt)",
+      "Zu Gast am 15. Oktober 2026",
+      "Johann Wadephul (CDU), Bundesaußenminister",
+      "Ralf Stegner (SPD), MdB, Außenpolitiker",
+      "Peter R. Neumann, Politikwissenschaftler, Sicherheitsexperte, King’s College London",
+      "Claudia Wittig (BSW), stellvertretende Fraktionsvorsitzende im Landtag Sachsen-Anhalt, zugeschaltet",
+    ].join("\n");
+
+    expect(extractPartyTaggedGuests(text)).toEqual([
+      { name: "Johann Wadephul", role: "CDU, Bundesaußenminister" },
+      { name: "Ralf Stegner", role: "SPD, MdB, Außenpolitiker" },
+      {
+        name: "Claudia Wittig",
+        role: "BSW, stellvertretende Fraktionsvorsitzende im Landtag Sachsen-Anhalt, zugeschaltet",
+      },
+    ]);
+  });
+
   it("ignoriert Fließtext mit Parteinamen", () => {
     expect(
       extractPartyTaggedGuests("Union und SPD sind mächtig unter Druck, sagt SPD"),

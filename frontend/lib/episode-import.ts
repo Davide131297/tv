@@ -346,7 +346,36 @@ export function roleMatchesParty(role: string, partyName: string | null): boolea
 }
 
 /**
- * Findet Zeilen im Format "Name, PARTEI" (z.B. WDR/ARD-Gästelisten).
+ * Zerlegt eine Gästezeile in Präfix, Name, Partei und optionale Rolle.
+ * Unterstützt "Name, PARTEI" (WDR/ARD) und "Name (PARTEI), Rolle" (ZDF).
+ */
+function parseGuestLine(
+  line: string,
+): { prefix?: string; name: string; party: string; details?: string } | null {
+  // Klammer-Format zuerst, da "Name (PARTEI), Rolle" sonst als "Name, PARTEI" mit Rolle als Partei erkannt würde.
+  // Rolle darf keine weitere Klammer enthalten, sonst ist es eine Fließtext-Aufzählung mehrerer Gäste
+  const bracketMatch = line.match(
+    /^(?:(Im Interview):\s*)?([^,:()]{4,60}?)\s*\(([^()]{2,40})\)(?:,\s*([^()]{1,200}))?$/,
+  );
+  if (bracketMatch) {
+    return {
+      prefix: bracketMatch[1],
+      name: bracketMatch[2],
+      party: bracketMatch[3],
+      details: bracketMatch[4],
+    };
+  }
+
+  const commaMatch = line.match(/^(?:(Im Interview):\s*)?([^,:]{4,60}),\s*([^,]{2,40})$/);
+  if (commaMatch) {
+    return { prefix: commaMatch[1], name: commaMatch[2], party: commaMatch[3] };
+  }
+
+  return null;
+}
+
+/**
+ * Findet Gästezeilen mit Parteiangabe (z.B. WDR/ARD- und ZDF-Gästelisten).
  * Funktioniert ohne KI als deterministische Grundlage.
  */
 export function extractPartyTaggedGuests(
@@ -356,20 +385,21 @@ export function extractPartyTaggedGuests(
   const seen = new Map<string, { name: string; role: string }>();
 
   for (const line of text.split("\n")) {
-    const match = line.match(/^(?:(Im Interview):\s*)?([^,:]{4,60}),\s*([^,]{2,40})$/);
-    if (!match) {
+    const parsed = parseGuestLine(line);
+    if (!parsed) {
       continue;
     }
 
-    const [, prefix, rawName, rawParty] = match;
-    const name = rawName.trim();
-    const party = rawParty.trim();
+    const { prefix } = parsed;
+    const name = parsed.name.trim();
+    const party = parsed.party.trim();
 
     if (!roleMentionsParty(party) || !looksLikePersonName(name)) {
       continue;
     }
 
-    const role = prefix ? `${prefix}, ${party}` : party;
+    const partyRole = parsed.details ? `${party}, ${parsed.details.trim()}` : party;
+    const role = prefix ? `${prefix}, ${partyRole}` : partyRole;
     const key = name.toLowerCase();
     const existing = seen.get(key);
     if (existing) {
