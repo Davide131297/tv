@@ -167,7 +167,7 @@ Das Backend verwendet die **Google GenAI API** (`gemini-2.5-flash`), um:
 Das Backend führt **keine** internen cron-Skripte aus. Die Zeitsteuerung ist komplett über **GitHub Actions** geregelt. Die Workflows rufen die API-Endpunkte der gehosteten Anwendung auf:
 
 * **Wöchentlicher Crawl (`crawl-weekly.yml`):** Läuft jeden Montag um 2:00 Uhr UTC und triggert `GET /api/crawl/all`.
-* **Täglicher Quoten-Crawl (`tv-ratings-crawl.yml`):** Läuft jeden Tag um 15:00 Uhr UTC und triggert `POST /api/crawl/tv-ratings`.
+* **Täglicher Quoten-Crawl (`tv-ratings-crawl.yml`):** Läuft jeden Tag um 11:00 Uhr UTC und triggert `POST ${BACKEND_URL}/api/crawl/tv-ratings`.
 
 ---
 
