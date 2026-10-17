@@ -23,7 +23,7 @@ jobs:
             --request POST \
             --header "Authorization: Bearer ${{ secrets.CRAWL_API_KEY }}" \
             --header "Content-Type: application/json" \
-            "${{ secrets.BACKEND_URL }}/api/crawl/tv-ratings")
+            "https://api.polittalk-watcher.de/api/crawl/tv-ratings")
 
           echo "::group::API-Antwort"
           if command -v jq >/dev/null 2>&1; then
