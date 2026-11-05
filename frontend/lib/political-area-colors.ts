@@ -7,3 +7,14 @@ export const POLITICAL_AREA_COLORS: Record<number, string> = {
   6: "#06b6d4", // Digitalisierung – Cyan/Türkis (Tech/Innovation)
   7: "#ea580c", // Kultur, Identität – Orange (Kreativität/Kultur)
 };
+
+// Kurznamen für Diagramm-Achsen, wo die vollen Bezeichnungen zu lang sind
+export const POLITICAL_AREA_SHORT_LABELS: Record<number, string> = {
+  1: "Energie & Klima",
+  2: "Wirtschaft",
+  3: "Sicherheit & Außen",
+  4: "Migration",
+  5: "Haushalt & Soziales",
+  6: "Digitales & Medien",
+  7: "Kultur & Identität",
+};

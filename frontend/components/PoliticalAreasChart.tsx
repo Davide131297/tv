@@ -5,9 +5,9 @@ import { useEffect, useState } from "react";
 import {
   Bar,
   BarChart,
-  CartesianGrid,
   LabelList,
   XAxis,
+  YAxis,
   Tooltip,
 } from "recharts";
 import {
@@ -34,7 +34,10 @@ import {
 } from "@/components/ui/tooltip";
 import ChannelOptionsButtons from "./ChannelOptionsButtons";
 
-import { POLITICAL_AREA_COLORS } from "@/lib/political-area-colors";
+import {
+  POLITICAL_AREA_COLORS,
+  POLITICAL_AREA_SHORT_LABELS,
+} from "@/lib/political-area-colors";
 
 export default function PoliticalAreasChart({
   data,
@@ -79,9 +82,12 @@ export default function PoliticalAreasChart({
     7: "T7", // Kultur, Identität und Erinnerungspolitik
   };
 
-  // Erstelle Chart-Daten mit festen T-Nummern (sortiert nach Häufigkeit für Anzeige)
+  // Chart-Daten mit Kurznamen für die Achse (sortiert nach Häufigkeit)
   const chartData = sortedData.map((item) => ({
-    thema: AREA_ID_TO_T_NUMBER[item.area_id] || `T${item.area_id}`,
+    thema:
+      POLITICAL_AREA_SHORT_LABELS[item.area_id] ||
+      item.area_label ||
+      `Thema ${item.area_id}`,
     auftritte: item.count,
     full_label: item.area_label,
     area_id: item.area_id,
@@ -254,7 +260,7 @@ export default function PoliticalAreasChart({
               {firstPayload.full_label}
             </p>
             <p className="text-gray-600 dark:text-gray-400 leading-tight">
-              {label}: {firstPayload.auftritte} Episoden
+              {firstPayload.auftritte} Episoden
             </p>
           </div>
         ) : (
@@ -288,154 +294,160 @@ export default function PoliticalAreasChart({
         <CardDescription className="hidden">
           Verteilung der politischen Themenbereiche
         </CardDescription>
-        <div>
-          <label className="text-sm font-medium mb-2 block">
-            Jahr auswählen:
-          </label>
-          <NativeSelect
-            value={selectedYear}
-            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-              handleYearChange && handleYearChange(e.target.value)
-            }
-          >
-            <NativeSelectOption value="all">Insgesamt</NativeSelectOption>
-            {years &&
-              years.map((y) => (
-                <NativeSelectOption key={y} value={y}>
-                  {y}
-                </NativeSelectOption>
-              ))}
-          </NativeSelect>
+        <div className="flex flex-wrap gap-x-6 gap-y-3">
+          <div>
+            <label className="text-sm font-medium mb-2 block">
+              Jahr auswählen:
+            </label>
+            <NativeSelect
+              value={selectedYear}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                handleYearChange && handleYearChange(e.target.value)
+              }
+            >
+              <NativeSelectOption value="all">Insgesamt</NativeSelectOption>
+              {years &&
+                years.map((y) => (
+                  <NativeSelectOption key={y} value={y}>
+                    {y}
+                  </NativeSelectOption>
+                ))}
+            </NativeSelect>
+          </div>
+          <ChannelOptionsButtons />
         </div>
-        <ChannelOptionsButtons />
       </CardHeader>
       <CardContent>
         <div className="flex flex-col gap-8">
-          {/* Timeline (line chart) */}
-          <div className="w-full bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
-            <h3 className="text-sm font-semibold mb-3 text-gray-900 dark:text-gray-100">
-              Themen nach Zeitverlauf
-            </h3>
-            <div className="max-h-[420px] overflow-y-auto">
-              {/* Custom per-month stacked bars so each month shows segments ordered
-                  from largest to smallest (left → right). This is implemented
-                  with simple flex-based divs rather than Recharts to allow
-                  per-row ordering of segments. */}
-              <div className="space-y-2">
-                {monthlyData.map((md) => {
-                  // build segments for this month
-                  const segments = Object.entries(md)
-                    .filter(([k]) => k !== "month" && k !== "__key")
-                    .map(([k, v]) => ({ key: k, value: Number(v) }))
-                    .map((s) => {
-                      // find meta (label + color) for this key
-                      const metaItem = sortedData.find(
-                        (it) =>
-                          (AREA_ID_TO_T_NUMBER[it.area_id] ||
-                            `T${it.area_id}`) === s.key
-                      );
-                      return {
-                        ...s,
-                        label: metaItem?.area_label || s.key,
-                        color: metaItem
-                          ? POLITICAL_AREA_COLORS[metaItem.area_id]
-                          : "#6b7280",
-                      };
-                    })
-                    .sort((a, b) => b.value - a.value);
+          {/* Auf großen Bildschirmen: Zeitverlauf und Verteilung nebeneinander */}
+          <div className="grid gap-8 xl:grid-cols-2">
+            {/* Timeline (line chart) */}
+            <div className="w-full bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+              <h3 className="text-sm font-semibold mb-3 text-gray-900 dark:text-gray-100">
+                Themen nach Zeitverlauf
+              </h3>
+              <div className="max-h-[420px] overflow-y-auto">
+                {/* Custom per-month stacked bars so each month shows segments ordered
+                    from largest to smallest (left → right). This is implemented
+                    with simple flex-based divs rather than Recharts to allow
+                    per-row ordering of segments. */}
+                <div className="space-y-2">
+                  {monthlyData.map((md) => {
+                    // build segments for this month
+                    const segments = Object.entries(md)
+                      .filter(([k]) => k !== "month" && k !== "__key")
+                      .map(([k, v]) => ({ key: k, value: Number(v) }))
+                      .map((s) => {
+                        // find meta (label + color) for this key
+                        const metaItem = sortedData.find(
+                          (it) =>
+                            (AREA_ID_TO_T_NUMBER[it.area_id] ||
+                              `T${it.area_id}`) === s.key
+                        );
+                        return {
+                          ...s,
+                          label: metaItem?.area_label || s.key,
+                          color: metaItem
+                            ? POLITICAL_AREA_COLORS[metaItem.area_id]
+                            : "#6b7280",
+                        };
+                      })
+                      .sort((a, b) => b.value - a.value);
 
-                  const total = segments.reduce((sum, s) => sum + s.value, 0);
+                    const total = segments.reduce((sum, s) => sum + s.value, 0);
 
-                  return (
-                    <div
-                      key={md.__key || md.month}
-                      className="flex items-center"
-                    >
-                      <div className="w-10 text-xs text-gray-700 dark:text-gray-300">
-                        {md.month}
+                    return (
+                      <div
+                        key={md.__key || md.month}
+                        className="flex items-center"
+                      >
+                        <div className="w-10 text-xs text-gray-700 dark:text-gray-300">
+                          {md.month}
+                        </div>
+                        <div className="flex-1 bg-gray-100 dark:bg-gray-800 rounded overflow-hidden h-6 flex">
+                          {segments.map((seg) => {
+                            const pct = total > 0 ? (seg.value / total) * 100 : 0;
+                            return (
+                              <ChadcnTooltip key={seg.key}>
+                                <TooltipTrigger asChild>
+                                  <div
+                                    key={seg.key}
+                                    title={`${seg.label}: ${seg.value}`}
+                                    style={{
+                                      width: `${pct}%`,
+                                      backgroundColor: seg.color,
+                                    }}
+                                    className="h-full"
+                                  />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>{`${seg.label}: ${seg.value}`}</p>
+                                </TooltipContent>
+                              </ChadcnTooltip>
+                            );
+                          })}
+                        </div>
+                        <div className="w-12 text-right text-sm text-gray-700 dark:text-gray-300">
+                          {total}
+                        </div>
                       </div>
-                      <div className="flex-1 bg-gray-100 dark:bg-gray-800 rounded overflow-hidden h-6 flex">
-                        {segments.map((seg) => {
-                          const pct = total > 0 ? (seg.value / total) * 100 : 0;
-                          return (
-                            <ChadcnTooltip key={seg.key}>
-                              <TooltipTrigger asChild>
-                                <div
-                                  key={seg.key}
-                                  title={`${seg.label}: ${seg.value}`}
-                                  style={{
-                                    width: `${pct}%`,
-                                    backgroundColor: seg.color,
-                                  }}
-                                  className="h-full"
-                                />
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>{`${seg.label}: ${seg.value}`}</p>
-                              </TooltipContent>
-                            </ChadcnTooltip>
-                          );
-                        })}
-                      </div>
-                      <div className="w-12 text-right text-sm text-gray-700 dark:text-gray-300">
-                        {total}
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="p-4 bg-white dark:bg-transparent rounded-md border border-transparent dark:border-gray-800">
-            <h3 className="text-sm font-semibold mb-3 text-gray-900 dark:text-gray-100">
-              Verteilung der politischen Themenbereiche
-            </h3>
-            <ChartContainer config={chartConfig}>
-              <BarChart
-                accessibilityLayer
-                data={chartData}
-                margin={{
-                  top: 20,
-                  bottom: 40,
-                }}
+            <div className="p-4 bg-white dark:bg-transparent rounded-md border border-transparent dark:border-gray-800">
+              <h3 className="text-sm font-semibold mb-3 text-gray-900 dark:text-gray-100">
+                Verteilung der politischen Themenbereiche
+              </h3>
+              <ChartContainer
+                config={chartConfig}
+                className="h-80 xl:h-[400px] w-full"
               >
-                <CartesianGrid vertical={false} />
-                <XAxis
-                  dataKey="thema"
-                  tickLine={false}
-                  tickMargin={10}
-                  axisLine={false}
-                  fontSize={12}
-                  className="text-sm"
-                  interval={0}
-                />
-                <Tooltip
-                  content={<UnifiedTooltip />}
-                  wrapperStyle={{ zIndex: 9999, pointerEvents: "auto" }}
-                />
-                <Bar dataKey="auftritte" radius={8}>
-                  <LabelList
-                    position="top"
-                    offset={8}
-                    className="fill-foreground text-xs"
-                    fontSize={10}
+                <BarChart
+                  accessibilityLayer
+                  data={chartData}
+                  layout="vertical"
+                  margin={{ left: 0, right: 40 }}
+                >
+                  <XAxis type="number" hide />
+                  <YAxis
+                    type="category"
+                    dataKey="thema"
+                    tickLine={false}
+                    axisLine={false}
+                    fontSize={isMobile ? 11 : 12}
+                    width={isMobile ? 130 : 170}
+                    interval={0}
                   />
-                </Bar>
-              </BarChart>
-            </ChartContainer>
+                  <Tooltip
+                    content={<UnifiedTooltip />}
+                    wrapperStyle={{ zIndex: 9999, pointerEvents: "auto" }}
+                  />
+                  <Bar dataKey="auftritte" radius={6}>
+                    <LabelList
+                      position="right"
+                      offset={8}
+                      className="fill-foreground text-xs"
+                      fontSize={10}
+                    />
+                  </Bar>
+                </BarChart>
+              </ChartContainer>
+            </div>
           </div>
 
           {/* Legende */}
           <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-transparent dark:border-gray-800">
             <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
-              Themenbereiche (feste Zuordnung):
+              Themenbereiche:
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
               {/* Zeige alle verfügbaren Themen in fester Reihenfolge */}
               {Object.entries(AREA_ID_TO_T_NUMBER)
                 .sort(([a], [b]) => parseInt(a) - parseInt(b))
-                .map(([areaId, tNumber]) => {
+                .map(([areaId]) => {
                   const chartItem = chartData.find(
                     (item) => item.area_id === parseInt(areaId)
                   );
@@ -482,8 +494,7 @@ export default function PoliticalAreasChart({
                             "#6b7280",
                         }}
                       />
-                      <span className="font-medium text-gray-900 dark:text-gray-100">{tNumber}:</span>
-                      <span className="text-gray-600 dark:text-gray-400">{themeName}</span>
+                      <span className="text-gray-700 dark:text-gray-300">{themeName}</span>
                       {!isPresent && (
                         <span className="text-xs text-gray-400 dark:text-gray-500">
                           (nicht vorhanden)

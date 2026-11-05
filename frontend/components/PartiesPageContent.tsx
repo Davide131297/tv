@@ -76,104 +76,107 @@ export default function PartiesPageContent({
         />
       </div>
 
-      <div className="relative">
-        <PartyChart
-          data={displayedStats}
-          selectedShow={initialShow}
-          selectedYear={initialYear}
-          years={years}
-          handleYearChange={handleYearChange}
-          unionMode={unionMode}
-          onUnionChange={handleUnionModeChange}
-        />
-      </div>
+      {/* Auf großen Bildschirmen: Diagramm und Tabelle nebeneinander */}
+      <div className="grid gap-8 xl:grid-cols-3 xl:items-start">
+        <div className="relative xl:col-span-2">
+          <PartyChart
+            data={displayedStats}
+            selectedShow={initialShow}
+            selectedYear={initialYear}
+            years={years}
+            handleYearChange={handleYearChange}
+            unionMode={unionMode}
+            onUnionChange={handleUnionModeChange}
+          />
+        </div>
 
-      {displayedStats.length > 0 && (
-        <div
-          className="mt-8 bg-white dark:bg-transparent rounded-lg shadow-md overflow-hidden relative border border-transparent dark:border-gray-800"
-          id="aufschluesselung"
-        >
-          <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-800">
-            <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">
-              Detaillierte Aufschlüsselung
-            </h2>
-          </div>
-
-          <div className="block sm:hidden">
-            <div className="divide-y divide-gray-200 dark:divide-gray-800">
-              {displayedStats
-                .sort((a, b) => b.count - a.count)
-                .map((party) => {
-                  const percentage = totalAppearances > 0 ? (
-                    (party.count / totalAppearances) *
-                    100
-                  ).toFixed(1) : "0";
-
-                  return (
-                    <div key={party.party_name} className="p-4 space-y-2">
-                      <div className="flex justify-between items-start">
-                        <span className="text-sm font-medium text-gray-900 dark:text-gray-200">
-                          {party.party_name}
-                        </span>
-                        <span className="text-sm text-gray-900 dark:text-gray-100 font-semibold">
-                          {party.count}
-                        </span>
-                      </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        Anteil: {percentage}%
-                      </div>
-                    </div>
-                  );
-                })}
+        {displayedStats.length > 0 && (
+          <div
+            className="bg-white dark:bg-transparent rounded-lg shadow-md overflow-hidden relative border border-transparent dark:border-gray-800"
+            id="aufschluesselung"
+          >
+            <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-800">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100">
+                Detaillierte Aufschlüsselung
+              </h2>
             </div>
-          </div>
 
-          <div className="hidden sm:block overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
-              <thead className="bg-gray-50 dark:bg-gray-900/50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Partei
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Auftritte
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Anteil
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-transparent divide-y divide-gray-200 dark:divide-gray-800">
+            <div className="block sm:hidden">
+              <div className="divide-y divide-gray-200 dark:divide-gray-800">
                 {displayedStats
                   .sort((a, b) => b.count - a.count)
-                  .map((party, index) => {
+                  .map((party) => {
                     const percentage = totalAppearances > 0 ? (
                       (party.count / totalAppearances) *
                       100
                     ).toFixed(1) : "0";
 
                     return (
-                      <tr
-                        key={party.party_name}
-                        className={index % 2 === 0 ? "bg-white dark:bg-transparent" : "bg-gray-50 dark:bg-gray-900/30"}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-200">
-                          {party.party_name}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                          {party.count}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                          {percentage}%
-                        </td>
-                      </tr>
+                      <div key={party.party_name} className="p-4 space-y-2">
+                        <div className="flex justify-between items-start">
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-200">
+                            {party.party_name}
+                          </span>
+                          <span className="text-sm text-gray-900 dark:text-gray-100 font-semibold">
+                            {party.count}
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          Anteil: {percentage}%
+                        </div>
+                      </div>
                     );
                   })}
-              </tbody>
-            </table>
+              </div>
+            </div>
+
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
+                <thead className="bg-gray-50 dark:bg-gray-900/50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Partei
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Auftritte
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Anteil
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white dark:bg-transparent divide-y divide-gray-200 dark:divide-gray-800">
+                  {displayedStats
+                    .sort((a, b) => b.count - a.count)
+                    .map((party, index) => {
+                      const percentage = totalAppearances > 0 ? (
+                        (party.count / totalAppearances) *
+                        100
+                      ).toFixed(1) : "0";
+
+                      return (
+                        <tr
+                          key={party.party_name}
+                          className={index % 2 === 0 ? "bg-white dark:bg-transparent" : "bg-gray-50 dark:bg-gray-900/30"}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-200">
+                            {party.party_name}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                            {party.count}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                            {percentage}%
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
