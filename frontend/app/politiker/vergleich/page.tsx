@@ -131,8 +131,8 @@ export default function ComparisonPage({
             Direkt-Vergleich
           </h1>
           <p className="mt-3 text-balance text-base leading-7 text-gray-600 dark:text-gray-300 md:text-lg">
-            Zwei Politiker, fuenf Leitformate, ein direkter Blick auf ihre
-            TV-Praesenz. Vergleiche Reichweite, Dominanz und Schwerpunkte je
+            Zwei Politiker, fünf Leitformate, ein direkter Blick auf ihre
+            TV-Präsenz. Vergleiche Reichweite, Dominanz und Schwerpunkte je
             Sendung oder für alle Jahre zusammen.
           </p>
         </div>

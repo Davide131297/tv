@@ -165,8 +165,8 @@ export default function DatabaseEntries({
   return (
     <div className="space-y-6">
       <Card className="p-4">
-        <div className="flex flex-col sm:flex-row gap-4 items-center">
-          <div className="flex-1">
+        <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
+          <div className="w-full sm:flex-1">
             <Input
               placeholder="Suche..."
               value={searchTerm}
@@ -174,7 +174,7 @@ export default function DatabaseEntries({
               className="w-full"
             />
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
             <Dialog
               open={isGeneralFeedbackOpen}
               onOpenChange={setIsGeneralFeedbackOpen}
@@ -253,7 +253,7 @@ export default function DatabaseEntries({
               </DialogContent>
             </Dialog>
             <div className="text-sm text-gray-600 whitespace-nowrap">
-              {totalCount} Einträge gesamt
+              {totalCount.toLocaleString("de-DE")} Einträge gesamt
             </div>
           </div>
         </div>
@@ -496,7 +496,7 @@ export default function DatabaseEntries({
         <Card className="p-4">
           <div className="flex flex-col space-y-3 lg:flex-row lg:space-y-0 lg:items-center lg:justify-between">
             <div className="text-center text-sm text-gray-600 dark:text-gray-400 lg:text-left">
-              Seite {currentPage} von {totalPages} ({totalCount} Einträge gesamt)
+              Seite {currentPage} von {totalPages} ({totalCount.toLocaleString("de-DE")} Einträge gesamt)
             </div>
             <div className="flex justify-center gap-2">
               <Button

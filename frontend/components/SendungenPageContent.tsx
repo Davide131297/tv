@@ -17,7 +17,7 @@ export default function SendungenPageContent({
 }: SendungenPageContentProps) {
   return (
     <div className="relative">
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-6 mb-8">
         <ColorBox
           color="blue"
           number={initialStats.total_episodes}

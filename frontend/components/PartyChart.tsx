@@ -176,7 +176,10 @@ export default function PartyChart({
               axisLine={false}
               angle={-45}
               textAnchor="end"
-              height={140}
+              height={90}
+              tickFormatter={(v: string) =>
+                v === "BÜNDNIS 90/DIE GRÜNEN" ? "Grüne" : v
+              }
               className="text-xs sm:text-sm font-medium fill-slate-600 dark:fill-slate-400"
               interval={0}
             />

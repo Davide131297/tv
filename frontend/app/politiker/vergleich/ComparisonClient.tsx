@@ -314,14 +314,14 @@ export default function ComparisonClient({
             ) : !p1 || !p2 ? (
               <div className="flex min-h-[420px] items-center justify-center rounded-[1.5rem] border border-dashed border-gray-200 bg-gray-50/70 px-6 text-center dark:border-slate-800 dark:bg-slate-900/40 sm:min-h-[460px]">
                 <p className="max-w-md text-sm font-medium leading-6 text-gray-500 dark:text-gray-400">
-                  Waehle zwei unterschiedliche Politiker aus, um den Vergleich
+                  Wähle zwei unterschiedliche Politiker aus, um den Vergleich
                   zu starten.
                 </p>
               </div>
             ) : chartData.every((item) => item.A === 0 && item.B === 0) ? (
               <div className="flex min-h-[420px] flex-col items-center justify-center rounded-[1.5rem] border border-dashed border-gray-200 bg-gray-50/70 px-6 text-center dark:border-slate-800 dark:bg-slate-900/40 sm:min-h-[460px]">
                 <p className="text-lg font-bold text-gray-950 dark:text-white">
-                  Keine Auftritte im gewaehlten Zeitraum
+                  Keine Auftritte im gewählten Zeitraum
                 </p>
                 <p className="mt-2 max-w-md text-sm leading-6 text-gray-600 dark:text-gray-300">
                   Für diese Kombination gibt es in den beruecksichtigten Shows

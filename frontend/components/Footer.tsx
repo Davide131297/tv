@@ -24,7 +24,7 @@ export default function Footer() {
     <footer className="bg-white dark:bg-gray-950 border-t border-gray-200 dark:border-gray-800 mt-auto transition-colors">
       <div className="text-center text-gray-500 dark:text-gray-400 text-sm py-4 px-4">
         <p>
-          Daten basierend auf Markus Lanz, Maybritt Illner, Caren Miosga,
+          Daten basierend auf Markus Lanz, Maybrit Illner, Caren Miosga,
           Maischberger, Hart aber fair (2024
           {currentYear ? ` - ${currentYear}` : ""})
         </p>
@@ -42,7 +42,7 @@ export default function Footer() {
         </p>
         <div className="flex flex-col md:flex-row justify-center items-center gap-2 md:gap-4 mt-2">
           <p>Letztes Update: {lastUpdated ?? "-"}</p>
-          <div className="flex gap-4">
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">
             <Link
               href="/datenschutz"
               className="text-black/70 dark:text-gray-300 hover:text-black/90 dark:hover:text-white hover:underline transition-colors"

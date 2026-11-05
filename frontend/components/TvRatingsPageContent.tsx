@@ -273,10 +273,10 @@ export default function TvRatingsPageContent({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-8">
         <ColorBox
           color="blue"
-          number={summary.total_ratings}
+          number={summary.total_ratings.toLocaleString("de-DE")}
           text="Gespeicherte Quoten"
         />
         <ColorBox
