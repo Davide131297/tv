@@ -72,9 +72,8 @@ frontend/
 │       ├── textarea.tsx         # Textareas
 │       └── tooltip.tsx          # Tooltips
 ├── lib/                         # Utility-Bibliotheken
-│   ├── db.ts                    # Datenbank-Utils
-│   ├── server-utils.ts          # Server-Utilities
-│   ├── supabase-server-utils.ts # Supabase Server-Utils
+│   ├── politics-data.ts         # Server-seitige Datenabfragen
+│   ├── supabase-server.ts       # Supabase Server-Client
 │   ├── supabase.ts              # Supabase Client
 │   └── utils.ts                 # Allgemeine Utils
 ├── public/                      # Statische Assets

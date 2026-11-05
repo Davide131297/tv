@@ -59,8 +59,8 @@ ZDF/ARD/RTL Mediathek websites
 **UI Pages** (`frontend/app/`): German-language routes — `uebersicht/` (overview dashboard), `politiker/` (politicians table), `parteien/` (party stats), `sendungen/` (episodes), `politische-themen/` (topics), `politiker-rankings/` (rankings).
 
 **Key libs**:
-- `lib/supabase.ts` / `lib/supabase-server-utils.ts` — Database client
-- `lib/ai-utils.ts` — Gemini / LM Studio integration for topic classification
+- `lib/supabase.ts` / `lib/supabase-server.ts` — Database clients
+- `lib/politics-data.ts` — Server-side data queries used by pages and API routes
 - `types.ts` — Central TypeScript type definitions
 
 ### Database (Supabase PostgreSQL)
