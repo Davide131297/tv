@@ -21,6 +21,7 @@ import { Page } from "puppeteer";
 import { getPoliticalArea } from "../lib/utils.js";
 import {
   fetchZdfSeasonEpisodes,
+  getZdfEpisodeDate,
   fetchZdfEpisodeHtml,
   parseZdfEpisodeHtml,
   ZdfEpisode,
@@ -545,7 +546,7 @@ async function CrawlLanzAPI(latestEpisodeDate: string | null): Promise<EpisodeRe
     // Check if we need to load more
     if (latestEpisodeDate && pageResult.episodes.length > 0) {
       const oldestEpisode = pageResult.episodes[pageResult.episodes.length - 1];
-      const oldestDate = oldestEpisode.editorialDate ? oldestEpisode.editorialDate.substring(0, 10) : null;
+      const oldestDate = getZdfEpisodeDate(oldestEpisode);
       if (oldestDate && oldestDate <= latestEpisodeDate) {
         console.log(`Oldest episode in current page (${oldestDate}) is older than or equal to latest DB date (${latestEpisodeDate}). Stopping pagination.`);
         break;
@@ -563,7 +564,7 @@ async function CrawlLanzAPI(latestEpisodeDate: string | null): Promise<EpisodeRe
   let filteredEpisodes = allApiEpisodes;
   if (latestEpisodeDate) {
     filteredEpisodes = allApiEpisodes.filter((ep) => {
-      const date = ep.editorialDate ? ep.editorialDate.substring(0, 10) : null;
+      const date = getZdfEpisodeDate(ep);
       return date && date > latestEpisodeDate;
     });
     console.log(
@@ -573,7 +574,7 @@ async function CrawlLanzAPI(latestEpisodeDate: string | null): Promise<EpisodeRe
 
   // Manuell ausgeschlossene Episoden überspringen (vor jeglicher AI-Extraktion)
   filteredEpisodes = filteredEpisodes.filter((ep) => {
-    const date = ep.editorialDate ? ep.editorialDate.substring(0, 10) : null;
+    const date = getZdfEpisodeDate(ep);
     if (isExcludedEpisode("Markus Lanz", date)) {
       console.log(`⏭️  Episode ${date} ist ausgeschlossen - wird übersprungen`);
       return false;
@@ -597,7 +598,7 @@ async function CrawlLanzAPI(latestEpisodeDate: string | null): Promise<EpisodeRe
     const batchResults = await Promise.all(
       batch.map(async (episode) => {
         try {
-          const date = episode.editorialDate ? episode.editorialDate.substring(0, 10) : null;
+          const date = getZdfEpisodeDate(episode);
           console.log(`Processing episode: ${episode.sharingUrl} (${date})`);
 
           // Fetch individual episode HTML
@@ -652,7 +653,7 @@ async function CrawlLanzAPI(latestEpisodeDate: string | null): Promise<EpisodeRe
           console.warn(`Fehler bei Episode ${episode.sharingUrl}:`, e.message);
           return {
             episodeUrl: episode.sharingUrl,
-            date: episode.editorialDate ? episode.editorialDate.substring(0, 10) : null,
+            date: getZdfEpisodeDate(episode),
             guests: [],
             guestsDetailed: [],
           };

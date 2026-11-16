@@ -1,4 +1,4 @@
-import { fetchZdfSeasonEpisodes, fetchZdfEpisodeHtml, parseZdfEpisodeHtml } from "../lib/zdf-api.js";
+import { fetchZdfSeasonEpisodes, getZdfEpisodeDate, fetchZdfEpisodeHtml, parseZdfEpisodeHtml } from "../lib/zdf-api.js";
 
 async function dryRunShow(name: string, canonical: string, showKey: "lanz" | "illner") {
   console.log(`\n========================================`);
@@ -18,7 +18,7 @@ async function dryRunShow(name: string, canonical: string, showKey: "lanz" | "il
     console.log(`\nProcessing top ${episodesToProcess.length} most recent episodes (without database storage):`);
 
     for (const ep of episodesToProcess) {
-      const date = ep.editorialDate ? ep.editorialDate.substring(0, 10) : "unknown date";
+      const date = getZdfEpisodeDate(ep) ?? "unknown date";
       console.log(`\n🎬 Episode: ${ep.title} (${date})`);
       console.log(`🔗 URL: ${ep.sharingUrl}`);
 
