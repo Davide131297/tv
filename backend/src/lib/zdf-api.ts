@@ -1,6 +1,10 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
-import { seemsLikePersonName, isModeratorOrHost } from "./crawler-utils.js";
+import {
+  seemsLikePersonName,
+  isModeratorOrHost,
+  parseISODateFromUrl,
+} from "./crawler-utils.js";
 
 const GRAPHQL_URL = "https://api.zdf.de/graphql";
 const API_AUTH_TOKEN = "Bearer aa3noh4ohz9eeboo8shiesheec9ciequ9Quah7el";
@@ -23,6 +27,29 @@ export interface ZdfSeasonResult {
   episodes: ZdfEpisode[];
   hasNextPage: boolean;
   endCursor: string | null;
+}
+
+/**
+ * Sendedatum (YYYY-MM-DD) einer ZDF-Episode bestimmen.
+ *
+ * `editorialDate` ist NICHT zuverlässig das Sendedatum: Bei Markus Lanz steht dort
+ * 01:00 Uhr deutscher Zeit am Folgetag. Im Sommer (MESZ) ergibt das als UTC noch
+ * den Sendetag (23:00Z), im Winter (MEZ) aber den Folgetag (00:00Z). Deshalb wird
+ * primär das Datum aus Canonical/URL ("...-vom-12-november-2026-100") verwendet und
+ * nur als Fallback `editorialDate` in deutscher Zeit.
+ */
+export function getZdfEpisodeDate(
+  ep: Pick<ZdfEpisode, "canonical" | "sharingUrl" | "editorialDate">,
+): string | null {
+  const fromUrl =
+    (ep.canonical && parseISODateFromUrl(ep.canonical)) ||
+    (ep.sharingUrl && parseISODateFromUrl(ep.sharingUrl));
+  if (fromUrl) return fromUrl;
+  if (!ep.editorialDate) return null;
+  const d = new Date(ep.editorialDate);
+  if (isNaN(d.getTime())) return ep.editorialDate.substring(0, 10);
+  // en-CA liefert YYYY-MM-DD
+  return d.toLocaleDateString("en-CA", { timeZone: "Europe/Berlin" });
 }
 
 /**

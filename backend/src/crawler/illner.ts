@@ -18,6 +18,7 @@ import {
 } from "../lib/crawler-utils.js";
 import {
   fetchZdfSeasonEpisodes,
+  getZdfEpisodeDate,
   fetchZdfEpisodeHtml,
   parseZdfEpisodeHtml,
   ZdfEpisode,
@@ -702,7 +703,7 @@ async function crawlNewMaybritIllnerEpisodesAPI(latestDbDate: string | null): Pr
     // Stop paging if we are beyond latest DB date
     if (latestDbDate && pageResult.episodes.length > 0) {
       const oldestEpisode = pageResult.episodes[pageResult.episodes.length - 1];
-      const oldestDate = oldestEpisode.editorialDate ? oldestEpisode.editorialDate.substring(0, 10) : null;
+      const oldestDate = getZdfEpisodeDate(oldestEpisode);
       if (oldestDate && oldestDate <= latestDbDate) {
         break;
       }
@@ -717,7 +718,7 @@ async function crawlNewMaybritIllnerEpisodesAPI(latestDbDate: string | null): Pr
   const newEpisodes = allApiEpisodes
     .map((ep) => ({
       url: ep.sharingUrl,
-      date: ep.editorialDate ? ep.editorialDate.substring(0, 10) : null,
+      date: getZdfEpisodeDate(ep),
       apiDescription: ep.description
     }))
     .filter((ep) => ep.date !== null && (!latestDbDate || ep.date > latestDbDate)) as Array<{ url: string; date: string; apiDescription?: string }>;
@@ -791,7 +792,7 @@ async function crawlAllMaybritIllnerEpisodesAPI(): Promise<void> {
   const allEpisodes = allApiEpisodes
     .map((ep) => ({
       url: ep.sharingUrl,
-      date: ep.editorialDate ? ep.editorialDate.substring(0, 10) : null,
+      date: getZdfEpisodeDate(ep),
       apiDescription: ep.description
     }))
     .filter((ep) => ep.date !== null)
